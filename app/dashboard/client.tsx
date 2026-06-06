@@ -24,11 +24,20 @@ type NarrativeDto = {
   createdAt: string
 }
 
+type TodaySummary = {
+  activeSeconds: number
+  idleSeconds: number
+  sampleCount: number
+  topApps: Array<{ app: string; seconds: number }>
+}
+
 type Props = {
   initialEvents: EventDto[]
   initialNarrative: NarrativeDto | null
   periodStart: string
   periodEnd: string
+  today: TodaySummary
+  paused: boolean
 }
 
 const SIGNAL_STYLES: Record<NarrativeDto['signal'], string> = {
@@ -45,7 +54,7 @@ const TYPE_LABEL: Record<EventDto['type'], string> = {
   issue_closed: 'issue closed',
 }
 
-export default function DashboardClient({ initialEvents, initialNarrative, periodEnd }: Props) {
+export default function DashboardClient({ initialEvents, initialNarrative, periodEnd, today, paused }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState<'sync' | 'narrative' | null>(null)
@@ -87,9 +96,51 @@ export default function DashboardClient({ initialEvents, initialNarrative, perio
 
   const totals = countByType(initialEvents)
 
+  const onlineSeconds = today.activeSeconds + today.idleSeconds
+  const idleRatio = onlineSeconds > 0 ? today.idleSeconds / onlineSeconds : 0
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 grid gap-6 md:grid-cols-3">
       <div className="md:col-span-2 space-y-6">
+        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Today</h2>
+              <p className="text-xs text-zinc-500">
+                Local activity from the Mac agent
+                {paused && <span className="ml-1 text-amber-700 dark:text-amber-400">· paused</span>}
+              </p>
+            </div>
+          </div>
+          {today.sampleCount === 0 ? (
+            <p className="mt-3 text-sm text-zinc-500">
+              No samples today. Install and pair the Mac agent — see Settings.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <Stat label="Online" value={fmt(onlineSeconds)} />
+              <Stat label="Active" value={fmt(today.activeSeconds)} />
+              <Stat
+                label="Idle"
+                value={`${fmt(today.idleSeconds)} · ${Math.round(idleRatio * 100)}%`}
+              />
+            </div>
+          )}
+          {today.topApps.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Top apps</p>
+              <ul className="mt-2 space-y-1">
+                {today.topApps.map((a) => (
+                  <li key={a.app} className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-800 dark:text-zinc-200 truncate">{a.app}</span>
+                    <span className="text-zinc-500 text-xs">{fmt(a.seconds)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+
         <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -220,4 +271,21 @@ function countByType(events: EventDto[]) {
   const base = { commit: 0, pr_opened: 0, pr_reviewed: 0, issue_closed: 0 }
   for (const e of events) base[e.type]++
   return base
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-900 dark:bg-zinc-900">
+      <p className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</p>
+      <p className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">{value}</p>
+    </div>
+  )
+}
+
+function fmt(seconds: number): string {
+  if (seconds <= 0) return '0m'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
 }

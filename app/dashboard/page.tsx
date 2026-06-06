@@ -1,7 +1,10 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { auth, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
+import { listMembershipsForCurrentUser } from '@/lib/auth/guards'
+import { getDailySummary } from '@/lib/activity/aggregate'
 import DashboardClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +16,9 @@ export default async function DashboardPage() {
   const periodEnd = new Date()
   const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-  const [events, latestNarrative] = await Promise.all([
+  const memberships = await listMembershipsForCurrentUser()
+
+  const [events, latestNarrative, today, userSettings] = await Promise.all([
     db
       .select()
       .from(schema.githubEvents)
@@ -32,6 +37,8 @@ export default async function DashboardPage() {
       .orderBy(desc(schema.narratives.createdAt))
       .limit(1)
       .then((rows) => rows[0]),
+    getDailySummary(session.appUserId),
+    db.query.userSettings.findFirst({ where: eq(schema.userSettings.userId, session.appUserId) }),
   ])
 
   return (
@@ -44,19 +51,35 @@ export default async function DashboardPage() {
               @{session.login}
             </h1>
           </div>
-          <form
-            action={async () => {
-              'use server'
-              await signOut({ redirectTo: '/' })
-            }}
-          >
-            <button
-              type="submit"
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          <div className="flex items-center gap-4 text-sm">
+            {memberships.length > 0 && (
+              <Link
+                href={`/org/${memberships[0].orgId}`}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              >
+                Team
+              </Link>
+            )}
+            <Link
+              href="/settings"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             >
-              Sign out
-            </button>
-          </form>
+              Settings
+            </Link>
+            <form
+              action={async () => {
+                'use server'
+                await signOut({ redirectTo: '/' })
+              }}
+            >
+              <button
+                type="submit"
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
@@ -65,6 +88,8 @@ export default async function DashboardPage() {
         initialNarrative={latestNarrative ? serializeNarrative(latestNarrative) : null}
         periodStart={periodStart.toISOString()}
         periodEnd={periodEnd.toISOString()}
+        today={today}
+        paused={!!userSettings?.trackingPausedAt}
       />
     </main>
   )

@@ -1,17 +1,38 @@
-# Project MARINA — v1 (Day 1 slice)
+# Project MARINA — v1 (through Day 5)
 
 AI Workforce Intelligence — track meaningful work output (commits, PRs, reviews) instead of mouse jiggles, and generate AI-written work narratives.
 
-This is the **Day 1 ship target** from the plan: single-user "Work Narrative" web app. No teams, invites, Mac agent, or screenshots yet — those come in later phases.
+Currently shipped through **Day 5** of the 7-day plan: single-user narrative + multi-tenant orgs + team invites + macOS menubar agent. Screenshots and stagnation engine come in Days 6–7.
+
+> The agent lives in [`../marina-agent`](../marina-agent). This README covers the web app; agent setup lives there.
 
 ## What's in this slice
 
+**Day 1 — personal**
 - GitHub OAuth login (NextAuth v5)
 - Sync last 7 days of your own commits / PRs opened / reviews given / issues closed
 - AI narrative generation with **Groq** (Llama 3.3 70B) and **OpenAI** (gpt-4o-mini)
   - Provider abstraction with automatic fallback when one isn't configured
   - Dashboard toggle to pick either provider per generation
-- Dashboard with activity feed, totals, and a Work Narrative card showing signal (High / Steady / Low / Blocked) and inferred blockers
+- Personal dashboard at `/dashboard` with activity feed, totals, and a Work Narrative card showing signal (High / Steady / Low / Blocked) and inferred blockers
+
+**Day 4–5 — Mac agent + activity surface**
+- `agent_tokens` (sha256-hashed bearer tokens, never stored in plaintext), `pairing_codes` (8-char base32, 10-min TTL, single-use), `user_settings` (pause / window-titles / consent), `local_activity` (per-window-per-app aggregates)
+- Agent endpoints: `POST /api/agent/pair/initiate` (user-auth), `POST /api/agent/pair/complete` (anonymous code exchange), `POST /api/agent/events` (token-auth, server discards if paused), `POST /api/agent/heartbeat` (token-auth, returns config), `POST /api/agent/pause` (token-auth, agent-initiated pause toggle)
+- User endpoints: `GET/PATCH /api/me/settings`, `GET /api/me/devices`, `DELETE /api/me/devices/[id]`
+- **/settings page**: pause / resume tracking, opt in/out of window titles, generate pairing codes with 10-min countdown, list of paired devices with last-seen + revoke
+- **Personal dashboard**: "Today" panel with online / active / idle and top apps, sourced from the agent
+- **Team dashboard**: per-member card now includes today's online time + top app + paused badge
+- All authentication paths use sha256 of high-entropy tokens — no plaintext secrets in DB
+- Pause is honoured by the server: paused users' batches are discarded before insert (defence in depth)
+
+**Day 2–3 — teams**
+- Onboarding: new user creates an org (becomes owner) or accepts a pending invite by email
+- Team dashboard at `/org/[orgId]`: per-member cards with their latest narrative + signal + (manager-only) Sync / Generate buttons
+- Members page at `/org/[orgId]/members` (manager+): invite by email + role, see pending invites, copy invite links, revoke invites; owners can remove members
+- Invite acceptance flow at `/invite/[token]`: signed-out users sign in with GitHub and land back to accept
+- Role hierarchy: `member` < `manager` < `owner`. Every API route checks membership + role.
+- Resend integration for invite emails. If `RESEND_API_KEY` is unset, the UI surfaces the invite link to copy manually — nothing else breaks.
 
 ## Stack
 
@@ -51,13 +72,21 @@ This is the **Day 1 ship target** from the plan: single-user "Work Narrative" we
 
    Open http://localhost:3000.
 
-## Verification (Day 1 ship criteria)
+## Verification (Day 3 ship criteria)
 
-1. Click "Sign in with GitHub" → OAuth flow → land on `/dashboard`
-2. Click "Sync GitHub (7d)" → activity feed populates, totals update
-3. Click "Generate" → narrative paragraph + signal + (any) blockers appear
-4. Toggle provider between Groq and OpenAI in the dropdown → regenerate → both produce sensible output
-5. Sign out → land back on `/`
+After pulling Day 2–3 changes, re-run `pnpm db:push` to add the new `orgs`, `memberships`, `invites` tables.
+
+**Personal flow (unchanged):**
+1. `/dashboard` → Sync GitHub → Generate → narrative + signal appears, both providers work
+
+**Team flow:**
+1. New user signs in → lands on `/onboarding` → creates org "Acme" → redirected to `/org/[orgId]`
+2. Open `/org/[orgId]/members` → invite a second email as `member`
+3. Without Resend: invite link is shown in the form — copy it
+4. Open the link in a private browser → sign in with a second GitHub account → land back on `/invite/[token]` → click Accept → redirected to `/org/[orgId]` as that member
+5. Second user connects their GitHub via signing in (already done in step 4) → owner returns to `/org/[orgId]` → clicks Sync, then Generate on the second member's card → narrative appears
+6. Owner opens `/org/[orgId]/members` → revokes a pending invite, removes a member → both update
+7. Try `DELETE /api/orgs/[orgId]/members/[ownerMembershipId]` as the owner → 409 "can't remove the owner"
 
 ## Notes on the broader plan
 

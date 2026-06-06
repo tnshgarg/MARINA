@@ -1,0 +1,126 @@
+import { NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
+import { db, schema } from '@/lib/db/client'
+import { authenticateAgent } from '@/lib/agent/auth'
+import type { NewLocalActivity } from '@/lib/db/schema'
+
+export const runtime = 'nodejs'
+
+const MAX_BATCH = 200
+const MAX_WINDOW_AGE_MS = 24 * 60 * 60 * 1000
+const MAX_APP_LEN = 128
+const MAX_TITLE_LEN = 512
+
+type IncomingBatch = {
+  windowStart?: string
+  windowEnd?: string
+  activeApp?: string
+  activeSeconds?: number
+  idleSeconds?: number
+  sampleCount?: number
+  windowTitle?: string | null
+}
+
+export async function POST(req: Request) {
+  const agent = await authenticateAgent(req)
+  if (!agent) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  let body: { batches?: IncomingBatch[]; agentVersion?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'invalid json' }, { status: 400 })
+  }
+
+  if (!Array.isArray(body.batches)) {
+    return NextResponse.json({ error: 'batches[] required' }, { status: 400 })
+  }
+  if (body.batches.length > MAX_BATCH) {
+    return NextResponse.json({ error: `batch size > ${MAX_BATCH}` }, { status: 413 })
+  }
+
+  // Update agentVersion if changed.
+  if (body.agentVersion && body.agentVersion !== agent.token.agentVersion) {
+    void db
+      .update(schema.agentTokens)
+      .set({ agentVersion: String(body.agentVersion).slice(0, 32) })
+      .where(eq(schema.agentTokens.id, agent.token.id))
+      .catch((err) => console.error('agentVersion update failed', err))
+  }
+
+  const settings = await db.query.userSettings.findFirst({
+    where: eq(schema.userSettings.userId, agent.user.id),
+  })
+
+  // Respect pause: discard the batch entirely, surface state to the agent.
+  if (settings?.trackingPausedAt) {
+    return NextResponse.json({
+      ok: true,
+      discarded: body.batches.length,
+      pausedAt: settings.trackingPausedAt.toISOString(),
+    })
+  }
+
+  const allowWindowTitles = !!settings?.windowTitlesEnabled
+  const now = Date.now()
+  const rows: NewLocalActivity[] = []
+  const rejected: Array<{ index: number; reason: string }> = []
+
+  body.batches.forEach((b, i) => {
+    const start = b.windowStart ? Date.parse(b.windowStart) : NaN
+    const end = b.windowEnd ? Date.parse(b.windowEnd) : NaN
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      rejected.push({ index: i, reason: 'bad window' })
+      return
+    }
+    if (now - end > MAX_WINDOW_AGE_MS) {
+      rejected.push({ index: i, reason: 'too old' })
+      return
+    }
+    if (end - now > 60_000) {
+      rejected.push({ index: i, reason: 'future window' })
+      return
+    }
+    const activeApp = String(b.activeApp ?? '').trim().slice(0, MAX_APP_LEN)
+    if (!activeApp) {
+      rejected.push({ index: i, reason: 'missing activeApp' })
+      return
+    }
+    const activeSeconds = clampInt(b.activeSeconds, 0, 24 * 60 * 60)
+    const idleSeconds = clampInt(b.idleSeconds, 0, 24 * 60 * 60)
+    const sampleCount = clampInt(b.sampleCount, 1, 10_000)
+    let windowTitle: string | null = null
+    if (allowWindowTitles && typeof b.windowTitle === 'string') {
+      windowTitle = b.windowTitle.trim().slice(0, MAX_TITLE_LEN) || null
+    }
+    rows.push({
+      userId: agent.user.id,
+      agentTokenId: agent.token.id,
+      windowStart: new Date(start),
+      windowEnd: new Date(end),
+      activeApp,
+      activeSeconds,
+      idleSeconds,
+      sampleCount,
+      windowTitle,
+    })
+  })
+
+  if (rows.length > 0) {
+    await db.insert(schema.localActivity).values(rows)
+  }
+
+  return NextResponse.json({
+    ok: true,
+    inserted: rows.length,
+    rejected,
+    pausedAt: null,
+    windowTitlesEnabled: allowWindowTitles,
+  })
+}
+
+function clampInt(v: unknown, min: number, max: number): number {
+  const n = typeof v === 'number' ? Math.floor(v) : 0
+  if (!Number.isFinite(n)) return min
+  return Math.max(min, Math.min(max, n))
+}

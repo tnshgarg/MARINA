@@ -1,9 +1,14 @@
 import { redirect } from 'next/navigation'
 import { auth, signIn } from '@/auth'
+import { listMembershipsForCurrentUser } from '@/lib/auth/guards'
 
 export default async function Home() {
   const session = await auth()
-  if (session?.appUserId) redirect('/dashboard')
+  if (session?.appUserId) {
+    const memberships = await listMembershipsForCurrentUser()
+    if (memberships.length === 0) redirect('/onboarding')
+    redirect(`/org/${memberships[0].orgId}`)
+  }
 
   return (
     <main className="min-h-screen bg-zinc-50 flex items-center justify-center px-6 dark:bg-black">
