@@ -1,8 +1,8 @@
-# Project MARINA — v1 (through Day 5)
+# Project MARINA — v1 complete (Days 1–7)
 
 AI Workforce Intelligence — track meaningful work output (commits, PRs, reviews) instead of mouse jiggles, and generate AI-written work narratives.
 
-Currently shipped through **Day 5** of the 7-day plan: single-user narrative + multi-tenant orgs + team invites + macOS menubar agent. Screenshots and stagnation engine come in Days 6–7.
+All 7 days of the plan are now in: single-user narrative → multi-tenant orgs + invites → macOS menubar agent → disclosed-randomized screenshots + vision labels → combined-signal stagnation engine.
 
 > The agent lives in [`../marina-agent`](../marina-agent). This README covers the web app; agent setup lives there.
 
@@ -15,6 +15,21 @@ Currently shipped through **Day 5** of the 7-day plan: single-user narrative + m
   - Provider abstraction with automatic fallback when one isn't configured
   - Dashboard toggle to pick either provider per generation
 - Personal dashboard at `/dashboard` with activity feed, totals, and a Work Narrative card showing signal (High / Steady / Low / Blocked) and inferred blockers
+
+**Day 6–7 — Vision pipeline + combined-signal engine**
+- Pluggable `BlobStore` (`lib/storage/blob.ts`) — `local` driver writes to `.marina-storage/` for dev, `vercel_blob` via `@vercel/blob` for prod
+- `VisionProvider` (`lib/ai/vision.ts`) — strict-JSON OpenAI gpt-4o-mini vision call returning `appCategory` × `workAppLabel` × `visibleContentHint` × confidence; heuristic `progressScore` compares consecutive shots without a second LLM call
+- `POST /api/agent/screenshots` — token-auth + rate-limit + magic-bytes JPEG sniff; stores blob, runs vision inline, persists `shot_analyses`. Returns labels only; never echoes the image
+- **48-hour retention is enforced** via `/api/cron/sweep` (Vercel Cron, hourly) — deletes blob originals + sets `screenshots.deletedAt`. Labels persist.
+- **`/me/shots`** — employee transparency: reviews their own captures + labels in the last 48 hours. Raw images are never accessible to any other user (no endpoint serves them to managers).
+- `lib/engine/state.ts` `computeDailyState(userId, day)` combines: GitHub output count, agent presence (online + active hours), shot focus % + longest static-idle run → returns `High` / `Steady` / `Blocked` / `Disengaged` / `PossiblyDummying` / `NoData` with a one-sentence reason
+- `/api/cron/states` runs daily, computing states for yesterday + today across all users. The team dashboard also lazy-computes on-demand so a manager opening the page never sees stale signals.
+- Team dashboard surfaces the state badge per member + a top-banner alert summary ("⚠️ 2 may be blocked, 1 may be dummying — worth a check-in")
+
+**Production hardening**
+- All agent endpoints (events, heartbeat, pause, screenshots) are sliding-window rate-limited per token, with standard `X-RateLimit-*` response headers
+- Structured JSON logger (`lib/log/log.ts`) on every ingest path
+- Cron routes gated by `Authorization: Bearer ${CRON_SECRET}` (Vercel format) or `?secret=` query
 
 **Day 4–5 — Mac agent + activity surface**
 - `agent_tokens` (sha256-hashed bearer tokens, never stored in plaintext), `pairing_codes` (8-char base32, 10-min TTL, single-use), `user_settings` (pause / window-titles / consent), `local_activity` (per-window-per-app aggregates)

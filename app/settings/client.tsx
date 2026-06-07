@@ -40,6 +40,7 @@ export default function SettingsClient({
   const [error, setError] = useState<string | null>(null)
   const [pairing, setPairing] = useState<PairingCode | null>(null)
   const [remaining, setRemaining] = useState<number>(0)
+  const [copiedCode, setCopiedCode] = useState(false)
 
   useEffect(() => {
     if (!pairing) return
@@ -94,7 +95,7 @@ export default function SettingsClient({
     }
   }
 
-  // Poll devices while pairing modal is open so a successful pair appears.
+  // Poll devices while pairing modal is open.
   useEffect(() => {
     if (!pairing) return
     const id = setInterval(refreshDevices, 3000)
@@ -121,6 +122,8 @@ export default function SettingsClient({
   async function copyCode(code: string) {
     try {
       await navigator.clipboard.writeText(code)
+      setCopiedCode(true)
+      setTimeout(() => setCopiedCode(false), 1500)
     } catch {
       // ignore
     }
@@ -130,42 +133,37 @@ export default function SettingsClient({
   const activeDevices = devices.filter((d) => !d.revokedAt)
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-start justify-between gap-4">
+    <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+      <section className="app-card app-card-lg">
+        <div className="section-title-row flex-wrap gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tracking</h2>
-            <p className="mt-1 text-xs text-zinc-500">
+            <h2 className="app-h2">Tracking</h2>
+            <p className="app-sub mt-1">
               When paused, the agent stops sampling and the server discards any in-flight uploads.
             </p>
           </div>
           <button
             onClick={() => patchSettings({ paused: !paused })}
             disabled={busy === 'settings'}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-              paused
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900'
-            } disabled:opacity-50`}
+            className={paused ? 'btn-good' : 'btn-primary'}
           >
             {paused ? 'Resume tracking' : 'Pause tracking'}
           </button>
         </div>
         {paused && settings.trackingPausedAt && (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+          <p className="mt-2 text-[12px] text-amber-700">
             Paused since {new Date(settings.trackingPausedAt).toLocaleString()}
           </p>
         )}
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-start justify-between gap-4">
+      <section className="app-card app-card-lg">
+        <div className="section-title-row flex-wrap gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Window titles</h2>
-            <p className="mt-1 text-xs text-zinc-500">
+            <h2 className="app-h2">Window titles</h2>
+            <p className="app-sub mt-1 max-w-md">
               Off by default. When on, the agent includes the foreground window title with each
-              sample so managers can see e.g. which file is being edited. Sensitive — keep it off
-              unless your team explicitly opts in.
+              sample so managers can see e.g. which file is being edited.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -174,76 +172,71 @@ export default function SettingsClient({
               checked={settings.windowTitlesEnabled}
               disabled={busy === 'settings'}
               onChange={(e) => patchSettings({ windowTitlesEnabled: e.target.checked })}
-              className="size-4"
+              className="w-4 h-4 accent-indigo-600"
             />
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">
+            <span className="text-[12px] text-slate-600">
               {settings.windowTitlesEnabled ? 'On' : 'Off'}
             </span>
           </label>
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-start justify-between gap-4">
+      <section className="app-card app-card-lg">
+        <div className="section-title-row flex-wrap gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pair a Mac</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Install the Project MARINA Mac agent, then click below to generate a one-time code.
-              Paste it into the agent&apos;s pairing window within 10 minutes.
+            <h2 className="app-h2">Pair a Mac</h2>
+            <p className="app-sub mt-1 max-w-md">
+              Install the MARINA Mac agent, generate a one-time code, and paste it into the agent
+              within 10 minutes.
             </p>
           </div>
-          <button
-            onClick={generateCode}
-            disabled={busy === 'pair'}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-          >
+          <button onClick={generateCode} disabled={busy === 'pair'} className="btn-primary">
             {busy === 'pair' ? 'Generating…' : 'Generate pairing code'}
           </button>
         </div>
         {pairing && (
-          <div className="mt-4 rounded border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Pairing code (valid for {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')})</p>
-            <div className="mt-2 flex items-center gap-3">
-              <code className="text-2xl font-mono tracking-[0.3em] text-zinc-900 dark:text-zinc-100">
+          <div className="mt-4 rounded-2xl bg-indigo-50 border border-indigo-100 p-4">
+            <p className="text-[12px] text-indigo-700 font-medium">
+              Pairing code · valid for {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
+            </p>
+            <div className="mt-2 flex items-center gap-3 flex-wrap">
+              <code className="text-[22px] font-semibold tracking-[0.3em] text-indigo-900 font-mono">
                 {pairing.code}
               </code>
-              <button
-                onClick={() => copyCode(pairing.code)}
-                className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700"
-              >
-                Copy
+              <button onClick={() => copyCode(pairing.code)} className="btn-secondary">
+                {copiedCode ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-zinc-500">
-              This code grants pairing — anyone with it can pair a device to your account. It vanishes
-              the moment a device pairs. Once a device shows up below, you can close this.
+            <p className="mt-3 text-[12px] text-slate-500">
+              Anyone with this code can pair a device to your account. It vanishes the moment a
+              device pairs.
             </p>
           </div>
         )}
-        {error && <p className="mt-3 text-xs text-rose-600">{error}</p>}
+        {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Paired devices ({activeDevices.length})
-        </h2>
+      <section className="app-card">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="app-h2">Paired devices · {activeDevices.length}</h2>
+        </div>
         {devices.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">No devices paired yet.</p>
+          <p className="px-5 py-6 app-sub">No devices paired yet.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-900">
+          <ul className="divide-y divide-slate-100">
             {devices.map((d) => (
-              <li key={d.id} className="py-3 flex items-start justify-between gap-3">
+              <li key={d.id} className="px-5 py-3 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="text-[14px] font-medium text-slate-900">
                     {d.label}{' '}
-                    <span className="text-xs text-zinc-500">
-                      ({d.platform}{d.agentVersion ? ` · ${d.agentVersion}` : ''})
+                    <span className="text-[11px] text-slate-500 font-normal">
+                      {d.platform}{d.agentVersion ? ` · ${d.agentVersion}` : ''}
                     </span>
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-[12px] text-slate-500">
                     {d.tokenPrefix}… · paired {new Date(d.pairedAt).toLocaleString()}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-[12px] text-slate-500">
                     {d.revokedAt
                       ? `Revoked ${new Date(d.revokedAt).toLocaleString()}`
                       : d.lastSeenAt
@@ -255,7 +248,7 @@ export default function SettingsClient({
                   <button
                     onClick={() => revoke(d.id)}
                     disabled={busy === `revoke-${d.id}`}
-                    className="text-xs rounded border border-rose-300 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:text-rose-300"
+                    className="btn-bad"
                   >
                     {busy === `revoke-${d.id}` ? 'Revoking…' : 'Revoke'}
                   </button>
@@ -267,10 +260,64 @@ export default function SettingsClient({
       </section>
 
       {settings.consentAt && (
-        <p className="text-xs text-zinc-500">
+        <p className="text-[12px] text-slate-500">
           Consent on file from {new Date(settings.consentAt).toLocaleString()}.
         </p>
       )}
+
+      <section className="app-card app-card-lg" style={{ borderColor: '#fecaca' }}>
+        <h2 className="app-h2" style={{ color: '#b91c1c' }}>Danger zone</h2>
+        <p className="app-sub mt-1 mb-4">
+          Your data is yours. Download or permanently delete it under your DPDP Act 2023 rights.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-slate-200 p-4">
+            <h3 className="app-h3">Export my data</h3>
+            <p className="app-sub mt-1 text-[12px]">
+              Download a JSON dump of every row tied to your account — profile, GitHub events,
+              activity, shifts, breaks, leaves, narratives.
+            </p>
+            <a
+              href="/api/me/export"
+              download
+              className="btn-secondary mt-3 inline-flex"
+            >
+              ↓ Download JSON
+            </a>
+          </div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+            <h3 className="app-h3" style={{ color: '#b91c1c' }}>Delete my account</h3>
+            <p className="text-[12px] mt-1 text-rose-800/80">
+              Permanently erase your account and all associated data. This cannot be undone. If you
+              own an org with other members, you must transfer ownership first.
+            </p>
+            <button
+              onClick={async () => {
+                if (!confirm('Permanently delete your account and all data? This cannot be undone.')) return
+                if (!confirm('Final confirmation. Click OK to delete.')) return
+                try {
+                  const res = await fetch('/api/me/account', { method: 'DELETE' })
+                  const data = await res.json()
+                  if (!res.ok) {
+                    alert(data?.error || 'Failed to delete account')
+                    return
+                  }
+                  window.location.href = '/'
+                } catch (e) {
+                  alert('Delete failed: ' + String(e))
+                }
+              }}
+              className="btn-bad mt-3"
+            >
+              Delete my account
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <p className="text-[11px] text-slate-400 text-center mt-2">
+        Want a Data Processing Agreement? See <a href="/dpa" className="underline">/dpa</a>.
+      </p>
     </div>
   )
 }

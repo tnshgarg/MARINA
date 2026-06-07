@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authenticateAgent } from '@/lib/agent/auth'
+import { checkLimit, rateLimitHeaders } from '@/lib/agent/rate-limit'
+import { log } from '@/lib/log/log'
 import type { NewLocalActivity } from '@/lib/db/schema'
 
 export const runtime = 'nodejs'
@@ -24,6 +26,14 @@ type IncomingBatch = {
 export async function POST(req: Request) {
   const agent = await authenticateAgent(req)
   if (!agent) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const limit = checkLimit('events', agent.token.id)
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: 'rate limited', resetSeconds: Math.ceil(limit.resetMs / 1000) },
+      { status: 429, headers: rateLimitHeaders(limit) }
+    )
+  }
 
   let body: { batches?: IncomingBatch[]; agentVersion?: string }
   try {
@@ -54,11 +64,19 @@ export async function POST(req: Request) {
 
   // Respect pause: discard the batch entirely, surface state to the agent.
   if (settings?.trackingPausedAt) {
-    return NextResponse.json({
-      ok: true,
+    log.info('agent.events.paused_discard', {
+      userId: agent.user.id,
+      tokenId: agent.token.id,
       discarded: body.batches.length,
-      pausedAt: settings.trackingPausedAt.toISOString(),
     })
+    return NextResponse.json(
+      {
+        ok: true,
+        discarded: body.batches.length,
+        pausedAt: settings.trackingPausedAt.toISOString(),
+      },
+      { headers: rateLimitHeaders(limit) }
+    )
   }
 
   const allowWindowTitles = !!settings?.windowTitlesEnabled
@@ -110,13 +128,23 @@ export async function POST(req: Request) {
     await db.insert(schema.localActivity).values(rows)
   }
 
-  return NextResponse.json({
-    ok: true,
+  log.info('agent.events', {
+    userId: agent.user.id,
+    tokenId: agent.token.id,
     inserted: rows.length,
-    rejected,
-    pausedAt: null,
-    windowTitlesEnabled: allowWindowTitles,
+    rejected: rejected.length,
   })
+
+  return NextResponse.json(
+    {
+      ok: true,
+      inserted: rows.length,
+      rejected,
+      pausedAt: null,
+      windowTitlesEnabled: allowWindowTitles,
+    },
+    { headers: rateLimitHeaders(limit) }
+  )
 }
 
 function clampInt(v: unknown, min: number, max: number): number {

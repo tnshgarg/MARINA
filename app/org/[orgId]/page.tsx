@@ -1,10 +1,11 @@
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { desc, eq, inArray } from 'drizzle-orm'
-import { auth, signOut } from '@/auth'
+import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
+// Shifts: ongoing (no punch-out) per user.
+import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { requireMembership, HttpError, roleAtLeast } from '@/lib/auth/guards'
 import { getCompactSummaries } from '@/lib/activity/aggregate'
+import { dayBoundsUtc, upsertDailyState } from '@/lib/engine/state'
 import TeamDashboardClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -23,53 +24,169 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     throw err
   }
 
+  // Plain members never see the team HQ — that's a manager view. Send them to
+  // their personal console which shows their own activity, leaves, and breaks.
+  if (!roleAtLeast(viewer.membership.role, 'manager')) {
+    redirect('/dashboard')
+  }
+
   const session = await auth()
+  if (!session?.appUserId || !session.login) redirect('/')
+
+  const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
+  if (!me?.characterKey) redirect('/pick')
+
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
   if (!org) notFound()
 
   const rawMembers = await db
-    .select({
-      m: schema.memberships,
-      u: schema.users,
-    })
+    .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(eq(schema.memberships.orgId, orgId))
 
   const userIds = rawMembers.map((r) => r.u.id)
-  const narratives = userIds.length
-    ? await db
-        .select()
-        .from(schema.narratives)
-        .where(inArray(schema.narratives.userId, userIds))
-        .orderBy(desc(schema.narratives.createdAt))
-    : []
-  const compact = await getCompactSummaries(userIds)
-  const settingsRows = userIds.length
-    ? await db
-        .select()
-        .from(schema.userSettings)
-        .where(inArray(schema.userSettings.userId, userIds))
-    : []
+  const isManager = roleAtLeast(viewer.membership.role, 'manager')
+
+  const [narratives, compact, settingsRows, pendingLeaves, recentBreaks, openShifts] = await Promise.all([
+    userIds.length
+      ? db
+          .select()
+          .from(schema.narratives)
+          .where(inArray(schema.narratives.userId, userIds))
+          .orderBy(desc(schema.narratives.createdAt))
+      : Promise.resolve([] as (typeof schema.narratives.$inferSelect)[]),
+    getCompactSummaries(userIds),
+    userIds.length
+      ? db
+          .select()
+          .from(schema.userSettings)
+          .where(inArray(schema.userSettings.userId, userIds))
+      : Promise.resolve([] as (typeof schema.userSettings.$inferSelect)[]),
+    // Pending leaves for the org, joined with the requester
+    db
+      .select({ l: schema.leaveRequests, u: schema.users })
+      .from(schema.leaveRequests)
+      .innerJoin(schema.users, eq(schema.leaveRequests.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.leaveRequests.orgId, orgId),
+          eq(schema.leaveRequests.status, 'pending')
+        )
+      )
+      .orderBy(desc(schema.leaveRequests.createdAt))
+      .limit(10),
+    // Ongoing breaks + breaks in the last 6 hours
+    userIds.length
+      ? db
+          .select({ b: schema.breaks, u: schema.users })
+          .from(schema.breaks)
+          .innerJoin(schema.users, eq(schema.breaks.userId, schema.users.id))
+          .where(
+            and(
+              inArray(schema.breaks.userId, userIds),
+              or(
+                isNull(schema.breaks.endedAt),
+                gte(schema.breaks.startedAt, new Date(Date.now() - 6 * 60 * 60 * 1000))
+              )!
+            )
+          )
+          .orderBy(desc(schema.breaks.startedAt))
+          .limit(10)
+      : Promise.resolve([] as Array<{ b: typeof schema.breaks.$inferSelect; u: typeof schema.users.$inferSelect }>),
+    // Ongoing shifts (= punched in, not out)
+    userIds.length
+      ? db
+          .select()
+          .from(schema.shifts)
+          .where(and(inArray(schema.shifts.userId, userIds), isNull(schema.shifts.punchedOutAt)))
+      : Promise.resolve([] as (typeof schema.shifts.$inferSelect)[]),
+  ])
+  const shiftByUser = new Map(openShifts.map((s) => [s.userId, s]))
+
   const settingsByUser = new Map(settingsRows.map((s) => [s.userId, s]))
+
+  // Resolve today's daily state for every member; lazy-compute if absent.
+  const { iso: todayIso } = dayBoundsUtc(new Date())
+  const existingStates = userIds.length
+    ? await db
+        .select()
+        .from(schema.dailyStates)
+        .where(
+          and(
+            inArray(schema.dailyStates.userId, userIds),
+            eq(schema.dailyStates.day, todayIso)
+          )
+        )
+    : []
+  const stateByUser = new Map(existingStates.map((s) => [s.userId, s]))
+  const missing = userIds.filter((id) => !stateByUser.has(id))
+  for (const uid of missing) {
+    try {
+      const computed = await upsertDailyState(uid, new Date())
+      stateByUser.set(uid, {
+        id: 0,
+        userId: uid,
+        day: computed.dayIso,
+        state: computed.state,
+        outputCount: computed.outputCount,
+        onlineSeconds: computed.onlineSeconds,
+        focusWorkRatio: computed.focusWorkRatio,
+        staticIdleRuns: computed.staticIdleRuns,
+        reason: computed.reason,
+        computedAt: new Date(),
+      })
+    } catch (err) {
+      console.error('lazy state compute failed', uid, err)
+    }
+  }
 
   const latestByUser = new Map<number, (typeof narratives)[number]>()
   for (const n of narratives) {
     if (!latestByUser.has(n.userId)) latestByUser.set(n.userId, n)
   }
 
-  const isManager = roleAtLeast(viewer.membership.role, 'manager')
+  const userIdsOnLeaveToday = new Set<number>()
+  // Build approved-leave-today set
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const onLeaveRows = userIds.length
+    ? await db
+        .select()
+        .from(schema.leaveRequests)
+        .where(
+          and(
+            eq(schema.leaveRequests.orgId, orgId),
+            eq(schema.leaveRequests.status, 'approved'),
+          )
+        )
+    : []
+  for (const lr of onLeaveRows) {
+    if (lr.startDate <= todayStr && lr.endDate >= todayStr) {
+      userIdsOnLeaveToday.add(lr.userId)
+    }
+  }
+
+  const ongoingBreaksByUser = new Map<number, typeof schema.breaks.$inferSelect>()
+  for (const { b } of recentBreaks) {
+    if (!b.endedAt && !ongoingBreaksByUser.has(b.userId)) {
+      ongoingBreaksByUser.set(b.userId, b)
+    }
+  }
 
   const members = rawMembers.map((r) => {
     const n = latestByUser.get(r.u.id)
     const c = compact.get(r.u.id)
     const s = settingsByUser.get(r.u.id)
+    const st = stateByUser.get(r.u.id)
+    const ongoingBreak = ongoingBreaksByUser.get(r.u.id) ?? null
     return {
       membershipId: r.m.id,
       userId: r.u.id,
       login: r.u.login,
       name: r.u.name,
       avatarUrl: r.u.avatarUrl,
+      characterKey: r.u.characterKey,
       role: r.m.role,
       hasGithub: !!r.u.accessToken,
       activity: {
@@ -78,64 +195,92 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
         topApp: c?.topApp ?? null,
         paused: !!s?.trackingPausedAt,
       },
+      onLeaveToday: userIdsOnLeaveToday.has(r.u.id),
+      ongoingBreak: ongoingBreak
+        ? { id: ongoingBreak.id, reason: ongoingBreak.reason, startedAt: ongoingBreak.startedAt.toISOString() }
+        : null,
+      activeShift: shiftByUser.get(r.u.id)
+        ? { id: shiftByUser.get(r.u.id)!.id, punchedInAt: shiftByUser.get(r.u.id)!.punchedInAt.toISOString() }
+        : null,
+      dailyState: st
+        ? {
+            state: st.state,
+            reason: st.reason,
+            outputCount: st.outputCount,
+            focusWorkRatio: st.focusWorkRatio,
+            staticIdleRuns: st.staticIdleRuns,
+          }
+        : null,
       narrative: n
         ? {
-            id: n.id,
             body: n.body,
             signal: n.signal,
-            blockers: n.blockers,
-            provider: n.provider,
-            model: n.model,
             createdAt: n.createdAt.toISOString(),
           }
         : null,
     }
   })
 
-  return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-zinc-500">{org.name}</p>
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Team dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/dashboard" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-              My view
-            </Link>
-            {isManager && (
-              <Link
-                href={`/org/${orgId}/members`}
-                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
-                Members
-              </Link>
-            )}
-            <Link
-              href="/settings"
-              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
-              Settings
-            </Link>
-            <span className="text-xs text-zinc-500">
-              @{session?.login} · {viewer.membership.role}
-            </span>
-            <form
-              action={async () => {
-                'use server'
-                await signOut({ redirectTo: '/' })
-              }}
-            >
-              <button type="submit" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+  // Snapshot counters
+  const onLeaveCount = members.filter((m) => m.onLeaveToday).length
+  const followupCount = members.filter(
+    (m) => m.dailyState && (m.dailyState.state === 'Blocked' || m.dailyState.state === 'Disengaged' || m.dailyState.state === 'PossiblyDummying')
+  ).length
+  const activeCount = members.filter(
+    (m) => m.dailyState && (m.dailyState.state === 'High' || m.dailyState.state === 'Steady')
+  ).length
+  const waitingOnReview = members.filter((m) =>
+    m.narrative && (m.narrative.signal === 'Blocked' || (m.narrative.body ?? '').toLowerCase().includes('review'))
+  ).length
 
-      <TeamDashboardClient orgId={orgId} isManager={isManager} members={members} />
-    </main>
+  const greeting = greetingFor(new Date(), me.name?.split(' ')[0] ?? session.login)
+
+  return (
+    <TeamDashboardClient
+      orgId={orgId}
+      isManager={isManager}
+      greeting={greeting}
+      snapshot={{
+        followupCount,
+        onLeaveCount,
+        activeCount,
+        waitingOnReview,
+        totalMembers: members.length,
+      }}
+      members={members}
+      pendingLeaves={pendingLeaves.map((r) => ({
+        id: r.l.id,
+        startDate: r.l.startDate,
+        endDate: r.l.endDate,
+        reason: r.l.reason,
+        createdAt: r.l.createdAt.toISOString(),
+        user: {
+          id: r.u.id,
+          login: r.u.login,
+          name: r.u.name,
+          characterKey: r.u.characterKey,
+        },
+      }))}
+      recentBreaks={recentBreaks.map((r) => ({
+        id: r.b.id,
+        startedAt: r.b.startedAt.toISOString(),
+        endedAt: r.b.endedAt?.toISOString() ?? null,
+        reason: r.b.reason,
+        user: {
+          id: r.u.id,
+          login: r.u.login,
+          name: r.u.name,
+          characterKey: r.u.characterKey,
+        },
+      }))}
+    />
   )
+}
+
+function greetingFor(now: Date, firstName: string): string {
+  const h = now.getHours()
+  if (h < 5) return `Working late, ${firstName} 🌙`
+  if (h < 12) return `Good morning, ${firstName} 👋`
+  if (h < 17) return `Good afternoon, ${firstName} ✨`
+  return `Good evening, ${firstName} 🌆`
 }

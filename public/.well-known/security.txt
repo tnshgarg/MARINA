@@ -1,0 +1,6 @@
+Contact: mailto:security@marina.in
+Expires: 2027-01-01T00:00:00.000Z
+Acknowledgments: https://marina.in/security
+Preferred-Languages: en
+Canonical: https://marina.in/.well-known/security.txt
+Policy: https://marina.in/security

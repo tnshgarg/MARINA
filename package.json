@@ -9,11 +9,14 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.2",
     "@neondatabase/serverless": "^1.1.0",
     "@octokit/rest": "^22.0.1",
+    "@vercel/blob": "^2.4.0",
     "drizzle-orm": "^0.45.2",
     "groq-sdk": "^1.2.1",
     "next": "16.2.7",

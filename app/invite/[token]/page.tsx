@@ -30,12 +30,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const signedIn = !!session?.appUserId
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black flex items-start justify-center pt-20 px-6">
+    <main className="min-h-screen bg-[var(--m-bg)] flex items-start justify-center pt-20 px-6">
       <div className="w-full max-w-md">
-        <p className="text-xs uppercase tracking-widest text-zinc-500">Project MARINA</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Team invite
-        </h1>
+        <p className="app-eyebrow">You&apos;re invited</p>
+        <h1 className="app-h1 mt-2 text-[28px]">Join your squad</h1>
 
         {state === 'invalid' && (
           <Message tone="error" title="Invite not found">
@@ -44,7 +42,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         )}
         {state === 'expired' && (
           <Message tone="error" title="Invite expired">
-            This invite to <strong>{org?.name}</strong> has expired. Ask the inviter to send a fresh one.
+            This invite to <strong>{org?.name}</strong> has expired. Ask for a fresh link.
           </Message>
         )}
         {state === 'used' && (
@@ -54,14 +52,14 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         )}
 
         {state === 'ready' && invite && org && (
-          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              You&apos;ve been invited to join <strong>{org.name}</strong> as <strong>{invite.role}</strong>.
+          <div className="app-card app-card-lg mt-6">
+            <p className="text-[14px] text-slate-700">
+              You&apos;ve been invited to join <strong className="text-slate-900">{org.name}</strong>{' '}
+              as <strong>{invite.role}</strong>.
             </p>
-
             {signedIn ? (
               <div className="mt-4">
-                <p className="text-xs text-zinc-500 mb-2">Signed in as @{session?.login}</p>
+                <p className="text-[12px] text-slate-500 mb-3">Signed in as @{session?.login}</p>
                 <AcceptInviteClient token={token} orgId={org.id} />
               </div>
             ) : (
@@ -72,12 +70,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                 }}
                 className="mt-4"
               >
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
-                >
-                  Sign in with GitHub to accept
-                </button>
+                <button type="submit" className="btn-primary">Sign in with GitHub →</button>
               </form>
             )}
           </div>
@@ -96,14 +89,11 @@ function Message({
   title: string
   children: React.ReactNode
 }) {
-  const colour =
-    tone === 'error'
-      ? 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200'
-      : 'border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100'
+  const bg = tone === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-white border-slate-200 text-slate-900'
   return (
-    <div className={`mt-6 rounded-lg border p-4 ${colour}`}>
+    <div className={`mt-6 rounded-2xl border p-4 ${bg}`}>
       <p className="font-medium">{title}</p>
-      <p className="mt-1 text-sm">{children}</p>
+      <p className="mt-1 text-[13px] opacity-80">{children}</p>
     </div>
   )
 }

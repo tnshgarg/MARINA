@@ -1,0 +1,206 @@
+import { and, asc, eq, gte, lt, sql, sum } from 'drizzle-orm'
+import { db, schema } from '@/lib/db/client'
+import type { DailyState } from '@/lib/db/schema'
+
+export type ComputedState = {
+  state: DailyState
+  outputCount: number
+  onlineSeconds: number
+  activeSeconds: number
+  focusWorkRatio: number
+  staticIdleRuns: number
+  shotCount: number
+  reason: string
+}
+
+export function dayBoundsUtc(day: Date | string): { start: Date; end: Date; iso: string } {
+  const d = typeof day === 'string' ? new Date(`${day}T00:00:00Z`) : new Date(day)
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const iso = start.toISOString().slice(0, 10)
+  return { start, end, iso }
+}
+
+export async function computeDailyState(userId: number, day: Date | string = new Date()): Promise<ComputedState> {
+  const { start, end } = dayBoundsUtc(day)
+
+  // 1. Output signal — count distinct events.
+  const outputRows = await db
+    .select({ c: sql<number>`count(*)` })
+    .from(schema.githubEvents)
+    .where(
+      and(
+        eq(schema.githubEvents.userId, userId),
+        gte(schema.githubEvents.occurredAt, start),
+        lt(schema.githubEvents.occurredAt, end)
+      )
+    )
+  const outputCount = Number(outputRows[0]?.c ?? 0)
+
+  // 2. Presence — online seconds + active vs idle.
+  const presenceRows = await db
+    .select({
+      active: sum(schema.localActivity.activeSeconds).mapWith(Number),
+      idle: sum(schema.localActivity.idleSeconds).mapWith(Number),
+    })
+    .from(schema.localActivity)
+    .where(
+      and(
+        eq(schema.localActivity.userId, userId),
+        gte(schema.localActivity.windowStart, start),
+        lt(schema.localActivity.windowStart, end)
+      )
+    )
+  const activeSeconds = Number(presenceRows[0]?.active ?? 0)
+  const idleSeconds = Number(presenceRows[0]?.idle ?? 0)
+  const onlineSeconds = activeSeconds + idleSeconds
+
+  // 3. Focus — fetch ordered shot analyses for the day.
+  const shots = await db
+    .select({
+      hint: schema.shotAnalyses.visibleContentHint,
+      label: schema.shotAnalyses.workAppLabel,
+      analyzedAt: schema.shotAnalyses.analyzedAt,
+    })
+    .from(schema.shotAnalyses)
+    .innerJoin(schema.screenshots, eq(schema.shotAnalyses.screenshotId, schema.screenshots.id))
+    .where(
+      and(
+        eq(schema.shotAnalyses.userId, userId),
+        gte(schema.screenshots.capturedAt, start),
+        lt(schema.screenshots.capturedAt, end)
+      )
+    )
+    .orderBy(asc(schema.screenshots.capturedAt))
+
+  const shotCount = shots.length
+  const workCount = shots.filter((s) => s.label === 'work').length
+  const focusWorkRatio = shotCount === 0 ? 0 : Math.round((workCount / shotCount) * 100)
+
+  // Longest run of static_idle hits.
+  let bestRun = 0
+  let currentRun = 0
+  for (const s of shots) {
+    if (s.hint === 'static_idle') {
+      currentRun++
+      if (currentRun > bestRun) bestRun = currentRun
+    } else {
+      currentRun = 0
+    }
+  }
+
+  const noSignals = outputCount === 0 && onlineSeconds === 0 && shotCount === 0
+  if (noSignals) {
+    return {
+      state: 'NoData',
+      outputCount,
+      onlineSeconds,
+      activeSeconds,
+      focusWorkRatio,
+      staticIdleRuns: bestRun,
+      shotCount,
+      reason: 'No signals for this day.',
+    }
+  }
+
+  const onlineHours = onlineSeconds / 3600
+  const activeHours = activeSeconds / 3600
+
+  // Possibly dummying: agent reports a substantial active foreground window,
+  // but vision repeatedly shows the screen is actually idle / playing media.
+  if (activeHours >= 2 && bestRun >= 3) {
+    return {
+      state: 'PossiblyDummying',
+      outputCount,
+      onlineSeconds,
+      activeSeconds,
+      focusWorkRatio,
+      staticIdleRuns: bestRun,
+      shotCount,
+      reason: `Agent reports ${activeHours.toFixed(1)}h active, but ${bestRun} consecutive screenshots showed a static / idle screen.`,
+    }
+  }
+
+  // Blocked: online a lot, trying (focus is work) but no output.
+  if (onlineHours > 3 && outputCount === 0 && focusWorkRatio >= 50) {
+    return {
+      state: 'Blocked',
+      outputCount,
+      onlineSeconds,
+      activeSeconds,
+      focusWorkRatio,
+      staticIdleRuns: bestRun,
+      shotCount,
+      reason: `Online ${onlineHours.toFixed(1)}h, focused on work (${focusWorkRatio}%) but no GitHub output — possible blocker.`,
+    }
+  }
+
+  // Disengaged: online but distracted with no output.
+  if (onlineHours > 3 && outputCount === 0 && (focusWorkRatio < 30 || bestRun >= 3)) {
+    return {
+      state: 'Disengaged',
+      outputCount,
+      onlineSeconds,
+      activeSeconds,
+      focusWorkRatio,
+      staticIdleRuns: bestRun,
+      shotCount,
+      reason: `Online ${onlineHours.toFixed(1)}h, only ${focusWorkRatio}% focus on work, no output.`,
+    }
+  }
+
+  // High vs Steady — calibrate on output and focus.
+  if (outputCount > 0 && (focusWorkRatio === 0 || focusWorkRatio >= 60)) {
+    return {
+      state: 'High',
+      outputCount,
+      onlineSeconds,
+      activeSeconds,
+      focusWorkRatio,
+      staticIdleRuns: bestRun,
+      shotCount,
+      reason: `${outputCount} GitHub event(s)${shotCount ? `, ${focusWorkRatio}% focus on work` : ''}.`,
+    }
+  }
+
+  return {
+    state: 'Steady',
+    outputCount,
+    onlineSeconds,
+    activeSeconds,
+    focusWorkRatio,
+    staticIdleRuns: bestRun,
+    shotCount,
+    reason: 'Mixed signals, nothing alarming.',
+  }
+}
+
+export async function upsertDailyState(userId: number, day: Date | string = new Date()): Promise<ComputedState & { dayIso: string }> {
+  const { iso } = dayBoundsUtc(day)
+  const result = await computeDailyState(userId, day)
+  await db
+    .insert(schema.dailyStates)
+    .values({
+      userId,
+      day: iso,
+      state: result.state,
+      outputCount: result.outputCount,
+      onlineSeconds: result.onlineSeconds,
+      focusWorkRatio: result.focusWorkRatio,
+      staticIdleRuns: result.staticIdleRuns,
+      reason: result.reason,
+    })
+    .onConflictDoUpdate({
+      target: [schema.dailyStates.userId, schema.dailyStates.day],
+      set: {
+        state: result.state,
+        outputCount: result.outputCount,
+        onlineSeconds: result.onlineSeconds,
+        focusWorkRatio: result.focusWorkRatio,
+        staticIdleRuns: result.staticIdleRuns,
+        reason: result.reason,
+        computedAt: new Date(),
+      },
+    })
+  return { ...result, dayIso: iso }
+}

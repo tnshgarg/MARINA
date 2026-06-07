@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authenticateAgent } from '@/lib/agent/auth'
+import { checkLimit, rateLimitHeaders } from '@/lib/agent/rate-limit'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   const agent = await authenticateAgent(req)
   if (!agent) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const limit = checkLimit('pause', agent.token.id)
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: 'rate limited' },
+      { status: 429, headers: rateLimitHeaders(limit) }
+    )
+  }
 
   let body: { paused?: boolean } = {}
   try {
@@ -35,8 +43,11 @@ export async function POST(req: Request) {
       },
     })
 
-  return NextResponse.json({
-    ok: true,
-    pausedAt: body.paused ? new Date().toISOString() : null,
-  })
+  return NextResponse.json(
+    {
+      ok: true,
+      pausedAt: body.paused ? new Date().toISOString() : null,
+    },
+    { headers: rateLimitHeaders(limit) }
+  )
 }

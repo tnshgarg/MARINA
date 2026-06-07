@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { auth, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
-import { listMembershipsForCurrentUser } from '@/lib/auth/guards'
+import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { getDailySummary } from '@/lib/activity/aggregate'
+import { CharacterAvatar } from '@/components/character-avatar'
+import { getCharacter } from '@/lib/characters/data'
 import DashboardClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -17,53 +19,78 @@ export default async function DashboardPage() {
   const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000)
 
   const memberships = await listMembershipsForCurrentUser()
+  const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
+  if (!me?.characterKey) redirect('/pick')
+  const character = getCharacter(me.characterKey)
 
-  const [events, latestNarrative, today, userSettings] = await Promise.all([
-    db
-      .select()
-      .from(schema.githubEvents)
-      .where(
-        and(
-          eq(schema.githubEvents.userId, session.appUserId),
-          gte(schema.githubEvents.occurredAt, periodStart)
+  const [events, latestNarrative, today, userSettings, activeBreak, recentBreaks, myLeaves] =
+    await Promise.all([
+      db
+        .select()
+        .from(schema.githubEvents)
+        .where(
+          and(
+            eq(schema.githubEvents.userId, session.appUserId),
+            gte(schema.githubEvents.occurredAt, periodStart)
+          )
         )
-      )
-      .orderBy(desc(schema.githubEvents.occurredAt))
-      .limit(200),
-    db
-      .select()
-      .from(schema.narratives)
-      .where(eq(schema.narratives.userId, session.appUserId))
-      .orderBy(desc(schema.narratives.createdAt))
-      .limit(1)
-      .then((rows) => rows[0]),
-    getDailySummary(session.appUserId),
-    db.query.userSettings.findFirst({ where: eq(schema.userSettings.userId, session.appUserId) }),
-  ])
+        .orderBy(desc(schema.githubEvents.occurredAt))
+        .limit(80),
+      db
+        .select()
+        .from(schema.narratives)
+        .where(eq(schema.narratives.userId, session.appUserId))
+        .orderBy(desc(schema.narratives.createdAt))
+        .limit(1)
+        .then((rows) => rows[0]),
+      getDailySummary(session.appUserId),
+      db.query.userSettings.findFirst({
+        where: eq(schema.userSettings.userId, session.appUserId),
+      }),
+      db.query.breaks.findFirst({
+        where: and(eq(schema.breaks.userId, session.appUserId), isNull(schema.breaks.endedAt)),
+      }),
+      db
+        .select()
+        .from(schema.breaks)
+        .where(eq(schema.breaks.userId, session.appUserId))
+        .orderBy(desc(schema.breaks.startedAt))
+        .limit(5),
+      db
+        .select()
+        .from(schema.leaveRequests)
+        .where(eq(schema.leaveRequests.userId, session.appUserId))
+        .orderBy(desc(schema.leaveRequests.createdAt))
+        .limit(10),
+    ])
+
+  const primaryOrg = memberships[0] ?? null
+  const primaryOrgId = primaryOrg?.orgId ?? null
+  const canSeeTeam = primaryOrg ? roleAtLeast(primaryOrg.role, 'manager') : false
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black">
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Project MARINA</p>
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-              @{session.login}
-            </h1>
+    <main className="min-h-screen bg-[var(--m-bg)]">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <CharacterAvatar characterKey={me.characterKey} size={42} />
+            <div>
+              <p className="app-eyebrow">My console</p>
+              <h1 className="app-h2 truncate">
+                {character?.name ?? me.name ?? `@${session.login}`}
+                <span className="ml-2 text-[12px] font-normal text-slate-500">
+                  @{session.login}
+                </span>
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            {memberships.length > 0 && (
-              <Link
-                href={`/org/${memberships[0].orgId}`}
-                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
+          <nav className="flex items-center gap-3 text-[13px]">
+            {canSeeTeam && primaryOrgId && (
+              <Link href={`/org/${primaryOrgId}`} className="text-slate-600 hover:text-indigo-600 transition-colors">
                 Team
               </Link>
             )}
-            <Link
-              href="/settings"
-              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
+            <Link href="/settings" className="text-slate-600 hover:text-indigo-600 transition-colors">
               Settings
             </Link>
             <form
@@ -72,24 +99,47 @@ export default async function DashboardPage() {
                 await signOut({ redirectTo: '/' })
               }}
             >
-              <button
-                type="submit"
-                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
+              <button type="submit" className="text-slate-600 hover:text-rose-600">
                 Sign out
               </button>
             </form>
-          </div>
+          </nav>
         </div>
       </header>
 
       <DashboardClient
+        orgId={primaryOrgId}
         initialEvents={events.map(serializeEvent)}
         initialNarrative={latestNarrative ? serializeNarrative(latestNarrative) : null}
         periodStart={periodStart.toISOString()}
         periodEnd={periodEnd.toISOString()}
         today={today}
         paused={!!userSettings?.trackingPausedAt}
+        activeBreak={
+          activeBreak
+            ? {
+                id: activeBreak.id,
+                startedAt: activeBreak.startedAt.toISOString(),
+                reason: activeBreak.reason,
+              }
+            : null
+        }
+        recentBreaks={recentBreaks.map((b) => ({
+          id: b.id,
+          startedAt: b.startedAt.toISOString(),
+          endedAt: b.endedAt?.toISOString() ?? null,
+          reason: b.reason,
+        }))}
+        myLeaves={myLeaves.map((l) => ({
+          id: l.id,
+          startDate: l.startDate,
+          endDate: l.endDate,
+          reason: l.reason,
+          status: l.status,
+          decidedAt: l.decidedAt?.toISOString() ?? null,
+          decidedNote: l.decidedNote,
+          createdAt: l.createdAt.toISOString(),
+        }))}
       />
     </main>
   )

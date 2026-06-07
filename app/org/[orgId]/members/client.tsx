@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CharacterAvatar } from '@/components/character-avatar'
+import { getCharacter } from '@/lib/characters/data'
 
 type Member = {
   membershipId: number
@@ -9,6 +11,7 @@ type Member = {
   name: string | null
   email: string | null
   avatarUrl: string | null
+  characterKey: string | null
   role: string
 }
 
@@ -111,87 +114,85 @@ export default function MembersClient({
   const inviteUrl = (token: string) =>
     `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${token}`
 
+  const [query, setQuery] = useState('')
+  const filteredMembers = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return members
+    return members.filter(
+      (m) =>
+        (m.name ?? '').toLowerCase().includes(q) ||
+        m.login.toLowerCase().includes(q) ||
+        (m.email ?? '').toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q)
+    )
+  }, [members, query])
+
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Invite a member</h2>
-        <form onSubmit={invite} className="mt-3 flex gap-2">
+    <div className="space-y-6">
+      <section className="app-card app-card-lg">
+        <h2 className="app-h2">Invite a teammate</h2>
+        <p className="app-sub mt-1">They&apos;ll get an email with a one-time link.</p>
+        <form onSubmit={invite} className="mt-4 flex gap-2 flex-wrap">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@example.com"
-            className="flex-1 rounded border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="input flex-1 min-w-[200px]"
             disabled={busy}
           />
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
-            className="rounded border border-zinc-300 bg-white px-2 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="select max-w-[160px]"
             disabled={busy}
           >
             <option value="member">Member</option>
             <option value="manager">Manager</option>
           </select>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-          >
+          <button type="submit" disabled={busy} className="btn-primary">
             {busy ? 'Sending…' : 'Send invite'}
           </button>
         </form>
         {lastInviteLink && (
-          <div className="mt-3 rounded bg-zinc-100 px-3 py-2 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+          <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700">
             {linkSent === false && (
-              <p className="mb-1">No email provider configured — copy this link to send manually:</p>
+              <p className="mb-1 text-amber-700 font-medium">No email provider configured — copy this link to send manually:</p>
             )}
-            {linkSent && <p className="mb-1">Invite emailed. Backup link:</p>}
+            {linkSent && <p className="mb-1 text-emerald-700 font-medium">Invite emailed · backup link:</p>}
             <div className="flex items-center gap-2">
               <code className="break-all">{lastInviteLink}</code>
-              <button
-                onClick={() => copyLink(lastInviteLink)}
-                className="shrink-0 rounded border border-zinc-300 px-2 py-0.5 text-[10px] dark:border-zinc-700"
-              >
+              <button onClick={() => copyLink(lastInviteLink)} className="btn-secondary text-[11px]">
                 {copied === lastInviteLink ? 'Copied' : 'Copy'}
               </button>
             </div>
           </div>
         )}
-        {error && <p className="mt-3 text-xs text-rose-600">{error}</p>}
+        {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Pending invites ({pendingInvites.length})
-        </h2>
+      <section className="app-card app-card-lg">
+        <h2 className="app-h2">Pending invites · {pendingInvites.length}</h2>
         {pendingInvites.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">None.</p>
+          <p className="app-sub mt-3">No outstanding invites.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-900">
+          <ul className="mt-3 divide-y divide-slate-100">
             {pendingInvites.map((i) => {
               const url = inviteUrl(i.token)
               return (
-                <li key={i.id} className="py-2 flex items-center justify-between gap-3">
+                <li key={i.id} className="py-3 flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{i.email}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-[14px] font-medium text-slate-900 truncate">{i.email}</p>
+                    <p className="text-[11px] text-slate-500">
                       {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => copyLink(url)}
-                      className="text-xs rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700"
-                    >
+                    <button onClick={() => copyLink(url)} className="btn-secondary">
                       {copied === url ? 'Copied' : 'Copy link'}
                     </button>
-                    <button
-                      onClick={() => revoke(i.id)}
-                      disabled={busy}
-                      className="text-xs rounded border border-rose-300 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:text-rose-300"
-                    >
+                    <button onClick={() => revoke(i.id)} disabled={busy} className="btn-bad">
                       Revoke
                     </button>
                   </div>
@@ -202,40 +203,67 @@ export default function MembersClient({
         )}
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Members ({members.length})
-        </h2>
-        <ul className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-900">
-          {members.map((m) => (
-            <li key={m.membershipId} className="py-2 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {m.avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.avatarUrl} alt="" className="size-8 rounded-full" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate">
-                    {m.name || `@${m.login}`}{' '}
-                    <span className="text-xs text-zinc-500">@{m.login}</span>
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {m.role}{m.email ? ` · ${m.email}` : ''}
-                  </p>
-                </div>
-              </div>
-              {isOwner && m.role !== 'owner' && m.membershipId !== viewerMembershipId && (
-                <button
-                  onClick={() => removeMember(m.membershipId)}
-                  disabled={busy}
-                  className="text-xs rounded border border-rose-300 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:text-rose-300"
-                >
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+      <section className="app-card">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="app-h2">All members · {members.length}</h2>
+          <input
+            type="search"
+            placeholder="Search name, login, email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="input max-w-xs"
+          />
+        </div>
+        <table className="app-table">
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Role</th>
+              <th>Email</th>
+              <th className="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMembers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-slate-500">No matching members.</td>
+              </tr>
+            )}
+            {filteredMembers.map((m) => {
+              const hero = getCharacter(m.characterKey)
+              return (
+                <tr key={m.membershipId}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <CharacterAvatar characterKey={m.characterKey} size={36} />
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-slate-900 truncate">
+                          {m.name ?? `@${m.login}`}
+                        </p>
+                        <p className="text-[12px] text-slate-500 truncate">
+                          {hero ? hero.name : `@${m.login}`}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`pill ${m.role === 'owner' ? 'pill-violet' : m.role === 'manager' ? 'pill-info' : 'pill-slate'}`}>
+                      {m.role}
+                    </span>
+                  </td>
+                  <td className="text-[13px] text-slate-600">{m.email ?? '—'}</td>
+                  <td>
+                    {isOwner && m.role !== 'owner' && m.membershipId !== viewerMembershipId && (
+                      <button onClick={() => removeMember(m.membershipId)} disabled={busy} className="btn-bad">
+                        Remove
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </section>
     </div>
   )

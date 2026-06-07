@@ -6,6 +6,8 @@ import {
   listMembershipsForCurrentUser,
   requireSessionOrRedirect,
 } from '@/lib/auth/guards'
+import { CharacterAvatar } from '@/components/character-avatar'
+import { getCharacter } from '@/lib/characters/data'
 import OnboardingClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +21,9 @@ export default async function OnboardingPage() {
   }
 
   const user = await getCurrentUser()
+  if (!user?.characterKey) redirect('/pick')
+  const character = getCharacter(user.characterKey)
+
   const pendingInvites = user?.email
     ? await db
         .select({ invite: schema.invites, org: schema.orgs })
@@ -34,15 +39,17 @@ export default async function OnboardingPage() {
     : []
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black flex items-start justify-center pt-20 px-6">
+    <main className="min-h-screen bg-[var(--m-bg)] flex items-start justify-center pt-16 px-6">
       <div className="w-full max-w-xl">
-        <p className="text-xs uppercase tracking-widest text-zinc-500">Project MARINA</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Welcome, @{user?.login}
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          You&apos;re not in any organization yet. Create one, or accept an invite.
-        </p>
+        <p className="app-eyebrow">Step 03 · Form a squad</p>
+        <h1 className="app-h1 mt-2 text-[32px]">Welcome, @{user?.login}</h1>
+        <div className="mt-4 flex items-center gap-4">
+          <CharacterAvatar characterKey={user?.characterKey} size={56} />
+          <p className="app-sub max-w-md">
+            You&apos;re {character?.name ?? 'suited up'}. Now form a squad — spin up a new
+            organization (you&apos;ll be the founder) or accept one of the pending invites below.
+          </p>
+        </div>
 
         <OnboardingClient
           email={user?.email ?? null}

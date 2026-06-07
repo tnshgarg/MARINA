@@ -1,28 +1,30 @@
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, isNull } from 'drizzle-orm'
+import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import MembersClient from './client'
 
 export const dynamic = 'force-dynamic'
 
+// Manager+ guard from parent layout. We still check role here to compute
+// isOwner — owners can remove members, managers cannot.
 export default async function MembersPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId: raw } = await params
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
-  let viewer: Awaited<ReturnType<typeof requireMembership>>
+  let viewer
   try {
     viewer = await requireMembership(orgId, 'manager')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
-    if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)
+    if (err instanceof HttpError && err.status === 403) redirect(`/dashboard`)
     throw err
   }
 
-  const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
-  if (!org) notFound()
+  const session = await auth()
+  if (!session?.appUserId) redirect('/')
 
   const isOwner = roleAtLeast(viewer.membership.role, 'owner')
 
@@ -39,21 +41,11 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
     .orderBy(desc(schema.invites.createdAt))
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-zinc-500">{org.name}</p>
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Members & invites</h1>
-          </div>
-          <Link
-            href={`/org/${orgId}`}
-            className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
-            ← Team dashboard
-          </Link>
-        </div>
-      </header>
+    <>
+      <div className="mb-6">
+        <h1 className="app-h1">Team Members</h1>
+        <p className="mt-1 app-sub">Recruit, manage, and remove members.</p>
+      </div>
 
       <MembersClient
         orgId={orgId}
@@ -65,6 +57,7 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
           name: r.u.name,
           email: r.u.email,
           avatarUrl: r.u.avatarUrl,
+          characterKey: r.u.characterKey,
           role: r.m.role,
         }))}
         pendingInvites={pendingInvites.map((i) => ({
@@ -75,6 +68,6 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
           expiresAt: i.expiresAt.toISOString(),
         }))}
       />
-    </main>
+    </>
   )
 }

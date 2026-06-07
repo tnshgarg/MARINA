@@ -62,28 +62,24 @@ export default function OnboardingClient({
   }
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-8 space-y-5">
       {pendingInvites.length > 0 && (
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Pending invites for {email}
-          </h2>
+        <section className="app-card app-card-lg">
+          <h2 className="app-h2">Pending invites · {email}</h2>
           <ul className="mt-3 space-y-2">
             {pendingInvites.map((i) => (
               <li
                 key={i.id}
-                className="flex items-center justify-between rounded border border-zinc-100 px-3 py-2 dark:border-zinc-900"
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2"
               >
                 <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{i.orgName}</p>
-                  <p className="text-xs text-zinc-500">as {i.role}</p>
+                  <p className="text-[14px] font-medium text-slate-900">{i.orgName}</p>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-widest">
+                    Role · {i.role}
+                  </p>
                 </div>
-                <button
-                  disabled={busy !== null}
-                  onClick={() => acceptInvite(i)}
-                  className="text-xs rounded bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                >
-                  {busy === i.id ? 'Joining…' : 'Accept'}
+                <button disabled={busy !== null} onClick={() => acceptInvite(i)} className="btn-primary">
+                  {busy === i.id ? 'Joining…' : 'Accept →'}
                 </button>
               </li>
             ))}
@@ -91,29 +87,29 @@ export default function OnboardingClient({
         </section>
       )}
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create an organization</h2>
-        <p className="mt-1 text-xs text-zinc-500">You&apos;ll be the owner.</p>
-        <form onSubmit={createOrg} className="mt-3 flex gap-2">
+      <section className="app-card app-card-lg">
+        <h2 className="app-h2">Spin up an HQ</h2>
+        <p className="app-sub mt-1">You&apos;ll be the founding member. Invite your team next.</p>
+        <form onSubmit={createOrg} className="mt-4 flex gap-2 flex-wrap">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Acme Engineering"
-            className="flex-1 rounded border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="input flex-1 min-w-[200px]"
             disabled={busy !== null}
             maxLength={200}
           />
           <button
             type="submit"
             disabled={busy !== null || name.trim().length === 0}
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="btn-primary"
           >
-            {busy === 'create' ? 'Creating…' : 'Create'}
+            {busy === 'create' ? 'Creating…' : 'Create →'}
           </button>
         </form>
       </section>
 
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p className="text-[12px] text-rose-600">{error}</p>}
     </div>
   )
 }

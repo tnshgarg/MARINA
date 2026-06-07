@@ -28,14 +28,10 @@ export default function AcceptInviteClient({ token, orgId }: { token: string; or
 
   return (
     <div>
-      <button
-        onClick={accept}
-        disabled={busy}
-        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-      >
-        {busy ? 'Joining…' : 'Accept and join'}
+      <button onClick={accept} disabled={busy} className="btn-primary">
+        {busy ? 'Joining…' : 'Accept and join →'}
       </button>
-      {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
+      {error && <p className="mt-2 text-[12px] text-rose-600">{error}</p>}
     </div>
   )
 }
