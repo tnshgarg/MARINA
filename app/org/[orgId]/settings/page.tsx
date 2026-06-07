@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import { INDIA_REGIONS } from '@/lib/holidays/india'
+import { SettingsTabs } from '@/components/org-tabs'
 import OrgSettingsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,14 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="app-h1">Org Settings</h1>
-        <p className="mt-1 app-sub">Manage workspace-wide configuration. Owner only.</p>
+      <div className="mb-4">
+        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Settings</h1>
+        <p className="mt-1.5 text-[13px] text-slate-600">
+          Workspace-wide configuration on the left, your personal preferences in Profile.
+        </p>
       </div>
+      <SettingsTabs orgId={orgId} />
+
       <OrgSettingsClient
         orgId={orgId}
         initial={{

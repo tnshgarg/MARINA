@@ -7,135 +7,171 @@ export type SyncResult = {
   fetched: number
   inserted: number
   byType: Record<string, number>
+  errors: string[]
+  windowDays: number
 }
 
+/**
+ * Sync a user's GitHub activity into our `github_events` table.
+ *
+ * Strategy:
+ * - PRs opened / reviewed / issues closed: Search API. More reliable than the
+ *   Events stream and reaches further back in history.
+ * - Commits: Events API (PushEvent). Search Commits API requires a preview
+ *   header and has strict rate limits — Events is fine for the last 90 days.
+ *
+ * Idempotent: dedupes against existing rows by (userId, type, externalId).
+ */
 export async function syncUserActivity(
   userId: number,
   login: string,
   accessToken: string,
-  daysBack = 7
+  daysBack = 30
 ): Promise<SyncResult> {
   const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000)
+  const sinceIso = since.toISOString().slice(0, 10)
   const octokit = octokitFor(accessToken)
 
-  // Public events for the user. Includes own private events when authenticated as that user.
-  const events: Array<NewGithubEvent> = []
+  const events: NewGithubEvent[] = []
   const byType: Record<string, number> = {}
+  const errors: string[] = []
 
-  // listEventsForAuthenticatedUser returns the broader stream (public + private).
-  const iterator = octokit.paginate.iterator(
-    octokit.activity.listEventsForAuthenticatedUser,
-    { username: login, per_page: 100 }
-  )
+  // PRs opened by the user
+  try {
+    const prs = await octokit.paginate(octokit.search.issuesAndPullRequests, {
+      q: `is:pr author:${login} created:>=${sinceIso}`,
+      per_page: 100,
+    })
+    for (const pr of prs) {
+      events.push({
+        userId,
+        type: 'pr_opened',
+        repo: pr.repository_url.replace('https://api.github.com/repos/', ''),
+        title: pr.title,
+        url: pr.html_url,
+        externalId: String(pr.id),
+        occurredAt: new Date(pr.created_at),
+        raw: { number: pr.number, state: pr.state },
+      })
+    }
+    byType.pr_opened = prs.length
+  } catch (err) {
+    errors.push(`PRs opened: ${(err as Error).message}`)
+  }
 
-  outer: for await (const { data } of iterator) {
-    for (const e of data) {
-      const createdAt = e.created_at ? new Date(e.created_at) : null
-      if (!createdAt || createdAt < since) break outer
-      const mapped = mapEvent(e, userId)
-      for (const m of mapped) {
-        events.push(m)
-        byType[m.type] = (byType[m.type] ?? 0) + 1
+  // PRs the user reviewed
+  try {
+    const reviewed = await octokit.paginate(octokit.search.issuesAndPullRequests, {
+      q: `is:pr reviewed-by:${login} -author:${login} updated:>=${sinceIso}`,
+      per_page: 100,
+    })
+    for (const pr of reviewed) {
+      events.push({
+        userId,
+        type: 'pr_reviewed',
+        repo: pr.repository_url.replace('https://api.github.com/repos/', ''),
+        title: `Reviewed: ${pr.title}`,
+        url: pr.html_url,
+        externalId: `review-${pr.id}`,
+        occurredAt: new Date(pr.updated_at),
+        raw: { number: pr.number, prAuthor: pr.user?.login },
+      })
+    }
+    byType.pr_reviewed = reviewed.length
+  } catch (err) {
+    errors.push(`PRs reviewed: ${(err as Error).message}`)
+  }
+
+  // Issues the user closed
+  try {
+    const issues = await octokit.paginate(octokit.search.issuesAndPullRequests, {
+      q: `is:issue is:closed assignee:${login} closed:>=${sinceIso}`,
+      per_page: 100,
+    })
+    for (const issue of issues) {
+      events.push({
+        userId,
+        type: 'issue_closed',
+        repo: issue.repository_url.replace('https://api.github.com/repos/', ''),
+        title: issue.title,
+        url: issue.html_url,
+        externalId: String(issue.id),
+        occurredAt: new Date(issue.closed_at ?? issue.updated_at),
+        raw: { number: issue.number },
+      })
+    }
+    byType.issue_closed = issues.length
+  } catch (err) {
+    errors.push(`Issues closed: ${(err as Error).message}`)
+  }
+
+  // Commits via PushEvent in the events stream
+  try {
+    const iterator = octokit.paginate.iterator(
+      octokit.activity.listEventsForAuthenticatedUser,
+      { username: login, per_page: 100 }
+    )
+    let commitCount = 0
+    outer: for await (const { data } of iterator) {
+      for (const e of data) {
+        const createdAt = e.created_at ? new Date(e.created_at) : null
+        if (!createdAt) continue
+        if (createdAt < since) break outer
+        if (e.type !== 'PushEvent') continue
+        const repo: string = e.repo?.name ?? 'unknown'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const commits = ((e.payload as any)?.commits ?? []) as Array<{ sha: string; message?: string }>
+        for (const c of commits) {
+          events.push({
+            userId,
+            type: 'commit',
+            repo,
+            title: (c.message ?? '').split('\n')[0].slice(0, 280) || '(no message)',
+            url: `https://github.com/${repo}/commit/${c.sha}`,
+            externalId: c.sha,
+            occurredAt: createdAt,
+            raw: { message: c.message, sha: c.sha },
+          })
+          commitCount++
+        }
       }
+    }
+    byType.commit = commitCount
+  } catch (err) {
+    errors.push(`Commits: ${(err as Error).message}`)
+  }
+
+  // Dedupe against existing rows
+  let inserted = 0
+  if (events.length > 0) {
+    const existing = await db
+      .select({ type: schema.githubEvents.type, externalId: schema.githubEvents.externalId })
+      .from(schema.githubEvents)
+      .where(and(eq(schema.githubEvents.userId, userId), gte(schema.githubEvents.occurredAt, since)))
+    const existingKeys = new Set(existing.map((r) => `${r.type}::${r.externalId}`))
+    const fresh = events.filter((e) => !existingKeys.has(`${e.type}::${e.externalId}`))
+    if (fresh.length > 0) {
+      for (let i = 0; i < fresh.length; i += 50) {
+        await db.insert(schema.githubEvents).values(fresh.slice(i, i + 50))
+      }
+      inserted = fresh.length
     }
   }
 
-  if (events.length === 0) {
-    return { fetched: 0, inserted: 0, byType }
+  // Stamp last sync state on the user
+  await db
+    .update(schema.users)
+    .set({
+      lastSyncedAt: new Date(),
+      lastSyncError: errors.length > 0 ? errors.slice(0, 3).join(' | ').slice(0, 500) : null,
+    })
+    .where(eq(schema.users.id, userId))
+
+  return {
+    fetched: events.length,
+    inserted,
+    byType,
+    errors,
+    windowDays: daysBack,
   }
-
-  // Dedup against existing rows for this user since `since`.
-  const existing = await db
-    .select({ type: schema.githubEvents.type, externalId: schema.githubEvents.externalId })
-    .from(schema.githubEvents)
-    .where(and(eq(schema.githubEvents.userId, userId), gte(schema.githubEvents.occurredAt, since)))
-  const existingKeys = new Set(existing.map((r) => `${r.type}::${r.externalId}`))
-
-  const fresh = events.filter((e) => !existingKeys.has(`${e.type}::${e.externalId}`))
-  if (fresh.length === 0) {
-    return { fetched: events.length, inserted: 0, byType }
-  }
-
-  await db.insert(schema.githubEvents).values(fresh)
-  return { fetched: events.length, inserted: fresh.length, byType }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapEvent(e: any, userId: number): NewGithubEvent[] {
-  const repo: string = e.repo?.name ?? 'unknown'
-  const occurredAt = new Date(e.created_at)
-  const out: NewGithubEvent[] = []
-
-  switch (e.type) {
-    case 'PushEvent': {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const commits = (e.payload?.commits ?? []) as Array<any>
-      for (const c of commits) {
-        const sha: string = c.sha
-        out.push({
-          userId,
-          type: 'commit',
-          repo,
-          title: (c.message ?? '').split('\n')[0].slice(0, 280),
-          url: `https://github.com/${repo}/commit/${sha}`,
-          externalId: sha,
-          occurredAt,
-          raw: { message: c.message, sha },
-        })
-      }
-      break
-    }
-    case 'PullRequestEvent': {
-      const action: string = e.payload?.action
-      const pr = e.payload?.pull_request
-      if (action === 'opened' && pr) {
-        out.push({
-          userId,
-          type: 'pr_opened',
-          repo,
-          title: pr.title ?? '(no title)',
-          url: pr.html_url ?? `https://github.com/${repo}`,
-          externalId: String(pr.id ?? pr.number),
-          occurredAt,
-          raw: { number: pr.number, title: pr.title },
-        })
-      }
-      break
-    }
-    case 'PullRequestReviewEvent': {
-      const pr = e.payload?.pull_request
-      const review = e.payload?.review
-      if (pr && review) {
-        out.push({
-          userId,
-          type: 'pr_reviewed',
-          repo,
-          title: `Review on: ${pr.title ?? '(no title)'}`,
-          url: review.html_url ?? pr.html_url,
-          externalId: String(review.id),
-          occurredAt,
-          raw: { state: review.state, prNumber: pr.number },
-        })
-      }
-      break
-    }
-    case 'IssuesEvent': {
-      const action: string = e.payload?.action
-      const issue = e.payload?.issue
-      if (action === 'closed' && issue) {
-        out.push({
-          userId,
-          type: 'issue_closed',
-          repo,
-          title: issue.title ?? '(no title)',
-          url: issue.html_url ?? `https://github.com/${repo}`,
-          externalId: String(issue.id),
-          occurredAt,
-          raw: { number: issue.number },
-        })
-      }
-      break
-    }
-  }
-  return out
 }

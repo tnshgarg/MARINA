@@ -1,13 +1,31 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { getCharacter } from '@/lib/characters/data'
+import { useToast } from '@/components/toast'
+import { MemberDetailModal } from './member-detail-modal'
+import { MeetingsPanel } from '@/components/meetings-panel'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
 type DailyState = 'High' | 'Steady' | 'Blocked' | 'Disengaged' | 'PossiblyDummying' | 'NoData'
+
+type BreakCategory = 'focus' | 'meeting' | 'blocked' | 'lunch' | 'errand' | 'personal' | 'other'
+
+type WaitingOn = { login: string; name: string | null; characterKey: string | null }
+
+type OngoingBreak = {
+  id: number
+  reason: string
+  startedAt: string
+  category?: BreakCategory
+  waitingOnUserId?: number | null
+  waitingOnExternal?: string | null
+  waitingOn?: WaitingOn | null
+  expectedEndAt?: string | null
+}
 
 type MemberCard = {
   membershipId: number
@@ -25,7 +43,7 @@ type MemberCard = {
     paused: boolean
   }
   onLeaveToday: boolean
-  ongoingBreak: { id: number; reason: string; startedAt: string } | null
+  ongoingBreak: OngoingBreak | null
   activeShift: { id: number; punchedInAt: string } | null
   dailyState: {
     state: DailyState
@@ -39,6 +57,30 @@ type MemberCard = {
     signal: Signal
     createdAt: string
   } | null
+}
+
+type Blocker = {
+  breakId: number
+  startedAt: string
+  expectedEndAt: string | null
+  reason: string
+  blockedUser: { membershipId: number; login: string; name: string | null; characterKey: string | null }
+  waitingOnUser?: WaitingOn | null
+  waitingOnExternal?: string | null
+  waitingOnYou: boolean
+}
+
+type SlackAlert = {
+  membershipId: number
+  userId: number
+  login: string
+  name: string | null
+  characterKey: string | null
+  minutes: number
+  unproductiveCount: number
+  totalCount: number
+  topHint: string
+  topCategory: string
 }
 
 type PendingLeave = {
@@ -55,6 +97,7 @@ type RecentBreak = {
   startedAt: string
   endedAt: string | null
   reason: string
+  category?: BreakCategory
   user: { id: number; login: string; name: string | null; characterKey: string | null }
 }
 
@@ -64,41 +107,81 @@ type Snapshot = {
   activeCount: number
   waitingOnReview: number
   totalMembers: number
+  blockerCount: number
+  blockedOnYouCount: number
 }
 
-const STATUS: Record<
-  DailyState,
-  { label: string; pill: string; current: string }
-> = {
-  High: { label: 'Productive', pill: 'pill-good', current: 'On track' },
-  Steady: { label: 'Productive', pill: 'pill-good', current: 'On track' },
-  Blocked: { label: 'Needs help', pill: 'pill-warn', current: 'Blocked' },
-  Disengaged: { label: 'Inactive', pill: 'pill-bad', current: 'Inactive' },
-  PossiblyDummying: { label: 'Decoy detected', pill: 'pill-pink', current: 'Decoy' },
-  NoData: { label: 'No data', pill: 'pill-slate', current: 'Unknown' },
+/**
+ * Four-status taxonomy — every internal signal collapses to one of these.
+ * Intuitive for a first-time HR or manager: is this person Working, Paused,
+ * Blocked, or Off?
+ *
+ * Status colors are the single source of truth — pill, ribbon, badge, dot
+ * all read from STATUS[s].color.
+ */
+type SimpleStatus = 'working' | 'paused' | 'blocked' | 'off'
+
+const STATUS: Record<SimpleStatus, {
+  label: string
+  pill: string         // pill-* class
+  fg: string           // tailwind text-* token for inline text
+  ring: string         // tailwind bg-* for the ribbon active segment
+  dot: string          // hex for the small status dot
+}> = {
+  working: { label: 'Working', pill: 'pill-good',   fg: 'text-emerald-700', ring: 'bg-emerald-500', dot: '#10b981' },
+  paused:  { label: 'Paused',  pill: 'pill-slate',  fg: 'text-slate-600',   ring: 'bg-slate-400',   dot: '#94a3b8' },
+  blocked: { label: 'Blocked', pill: 'pill-bad',    fg: 'text-rose-700',    ring: 'bg-rose-500',    dot: '#f43f5e' },
+  off:     { label: 'Off',     pill: 'pill-slate',  fg: 'text-slate-500',   ring: 'bg-slate-300',   dot: '#cbd5e1' },
+}
+
+/** Derive a single status from all the signals on a member. Order matters. */
+function deriveStatus(m: MemberCard): SimpleStatus {
+  if (m.onLeaveToday) return 'off'
+  if (m.ongoingBreak?.category === 'blocked') return 'blocked'
+  if (m.ongoingBreak) return 'paused'
+  if (!m.activeShift) return 'off'
+  // On shift, no break, not blocked — let dailyState decide if they're actually working
+  const s = m.dailyState?.state
+  if (s === 'High' || s === 'Steady') return 'working'
+  if (s === 'Blocked') return 'blocked'
+  if (s === 'Disengaged' || s === 'PossiblyDummying') return 'paused'
+  // Default for active shift without dailyState evidence yet
+  return 'working'
 }
 
 export default function TeamDashboardClient({
   orgId,
+  viewerUserId,
   isManager,
   greeting,
   snapshot,
   members,
+  blockers,
+  slackAlerts,
   pendingLeaves,
   recentBreaks,
 }: {
   orgId: number
+  viewerUserId: number
   isManager: boolean
   greeting: string
   snapshot: Snapshot
   members: MemberCard[]
+  blockers: Blocker[]
+  slackAlerts: SlackAlert[]
   pendingLeaves: PendingLeave[]
   recentBreaks: RecentBreak[]
 }) {
+  void viewerUserId
   const router = useRouter()
+  const toast = useToast()
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [detailMember, setDetailMember] = useState<{ membershipId: number; name: string } | null>(null)
+
+  function openDetail(m: { membershipId: number; name: string | null; login: string }) {
+    setDetailMember({ membershipId: m.membershipId, name: m.name ?? `@${m.login}` })
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -112,18 +195,99 @@ export default function TeamDashboardClient({
 
   async function decideLeave(leaveId: number, decision: 'approve' | 'deny') {
     setBusy(`leave-${leaveId}-${decision}`)
-    setError(null)
     try {
       const res = await fetch(`/api/orgs/${orgId}/leaves/${leaveId}/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'failed')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
+      }
+      toast.push({
+        kind: 'success',
+        title: decision === 'approve' ? 'Leave approved' : 'Leave denied',
+        body: 'The team member has been notified.',
+      })
       router.refresh()
     } catch (e) {
-      setError(String(e))
+      console.error('[decideLeave] failed', e)
+      toast.push({
+        kind: 'error',
+        title: 'Could not decide the leave',
+        body: e instanceof Error ? e.message : String(e),
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function syncMember(membershipId: number, label: string) {
+    setBusy(`sync-${membershipId}`)
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/members/${membershipId}/sync`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
+      toast.push({
+        kind: 'success',
+        title: `Synced ${label}`,
+        body: `${(data as { inserted?: number }).inserted ?? 0} new GitHub events.`,
+      })
+      router.refresh()
+    } catch (e) {
+      toast.push({
+        kind: 'error',
+        title: `Sync failed for ${label}`,
+        body: e instanceof Error ? e.message : String(e),
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function pingBlocker(b: Blocker) {
+    const target = b.waitingOnUser ? `@${b.waitingOnUser.login}` : b.waitingOnExternal ?? 'them'
+    setBusy(`ping-${b.breakId}`)
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/blockers/${b.breakId}/ping`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
+      toast.push({
+        kind: 'success',
+        title: `Nudged ${target}`,
+        body: `They’ll see a notification about ${b.blockedUser.name ?? `@${b.blockedUser.login}`}.`,
+      })
+    } catch (e) {
+      toast.push({
+        kind: 'error',
+        title: 'Could not send ping',
+        body: e instanceof Error ? e.message : String(e),
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function briefMember(membershipId: number, label: string) {
+    setBusy(`brief-${membershipId}`)
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/members/${membershipId}/narrative?provider=groq`, {
+        method: 'POST',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
+      toast.push({
+        kind: 'success',
+        title: `Brief generated for ${label}`,
+      })
+      router.refresh()
+    } catch (e) {
+      toast.push({
+        kind: 'error',
+        title: `Brief failed for ${label}`,
+        body: e instanceof Error ? e.message : String(e),
+      })
     } finally {
       setBusy(null)
     }
@@ -180,218 +344,363 @@ export default function TeamDashboardClient({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+      <LivePoll router={router} />
+
+      {/* Page header */}
+      <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h1 className="app-h1">{greeting}</h1>
-          <p className="mt-1 app-sub">Here&apos;s what&apos;s happening with your team today.</p>
+          <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">{greeting}</h1>
+          <p className="mt-1.5 text-[13px] text-slate-600">
+            {snapshot.blockedOnYouCount > 0
+              ? `${snapshot.blockedOnYouCount} teammate${snapshot.blockedOnYouCount === 1 ? '' : 's'} waiting on you · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
+              : snapshot.blockerCount > 0
+                ? `${snapshot.blockerCount} blocker${snapshot.blockerCount === 1 ? '' : 's'} across the team · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
+                : `${snapshot.activeCount} of ${snapshot.totalMembers} shipping today · ${snapshot.onLeaveCount} on leave`}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="btn-secondary text-slate-600">
-            <CalIcon /> Today, {new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-          </span>
-          <button onClick={() => router.refresh()} className="btn-secondary">
-            <RefreshIcon /> Refresh
-          </button>
-        </div>
+      </div>
+
+      {/* Inline stats — typography-led, no boxes */}
+      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-slate-200">
+        <InlineStat
+          n={snapshot.blockerCount}
+          label={snapshot.blockedOnYouCount > 0 ? `blocked (${snapshot.blockedOnYouCount} on you)` : 'blocked'}
+          tone={snapshot.blockerCount > 0 ? 'rose' : 'muted'}
+        />
+        <InlineStat n={snapshot.activeCount} label="shipping" tone="emerald" />
+        <InlineStat n={snapshot.onLeaveCount} label="on leave" tone="amber" />
+        <InlineStat n={pendingLeaves.length} label="pending leaves" tone="muted" />
+        <InlineStat n={snapshot.waitingOnReview} label="awaiting review" tone="muted" />
       </div>
 
       <div className="grid grid-cols-12 gap-6">
         {/* Main column */}
-        <div className="col-span-12 xl:col-span-9 space-y-6">
-          {/* Snapshot */}
-          <section className="app-card app-card-lg hover-lift rise-in">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="app-h2">Today&apos;s Team Snapshot</h2>
-                <p className="app-sub mt-1">A quick overview of your team&apos;s day.</p>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rise-in stagger-1">
-                <StatTile
-                  count={snapshot.followupCount}
-                  label="Need follow-up"
-                  sub="See details →"
-                  bg="#ede9fe"
-                  color="#7c3aed"
-                  icon={<FollowUpIcon />}
-                />
-              </div>
-              <div className="rise-in stagger-2">
-                <StatTile
-                  count={snapshot.onLeaveCount}
-                  label="Leave requests"
-                  sub={`${pendingLeaves.length} pending`}
-                  bg="#fef3c7"
-                  color="#b45309"
-                  icon={<LeaveIcon />}
-                />
-              </div>
-              <div className="rise-in stagger-3">
-                <StatTile
-                  count={snapshot.activeCount}
-                  label="Actively working"
-                  sub="On track"
-                  bg="#dcfce7"
-                  color="#15803d"
-                  icon={<SmileIcon />}
-                />
-              </div>
-              <div className="rise-in stagger-4">
-                <StatTile
-                  count={snapshot.waitingOnReview}
-                  label="Waiting on review"
-                  sub="From others"
-                  bg="#dbeafe"
-                  color="#1d4ed8"
-                  icon={<ClockIcon />}
-                />
-              </div>
-            </div>
-          </section>
+        <div className="col-span-12 xl:col-span-9 space-y-5">
+          {slackAlerts.length > 0 && (
+            <SlackingPanel
+              alerts={slackAlerts}
+              onOpenMember={(a) =>
+                openDetail({ membershipId: a.membershipId, name: a.name, login: a.login })
+              }
+            />
+          )}
 
-          {/* Things worth reviewing */}
-          <section className="app-card app-card-lg hover-lift rise-in stagger-2">
-            <div className="section-title-row">
-              <div>
-                <h2 className="app-h2">Things worth reviewing today</h2>
-                <p className="app-sub mt-1">A little attention can make a big difference.</p>
-              </div>
-              <Link href={`/org/${orgId}/leaves`} className="text-[13px] text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
-                View all ({pendingLeaves.length})
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-              {reviewing.length === 0 && (
-                <p className="app-sub col-span-3 py-8 text-center">
-                  Nothing urgent. Your team&apos;s in good shape today.
-                </p>
-              )}
-              {reviewing.map((r, idx) => (
-                <ReviewCard
-                  key={idx}
-                  pick={r}
-                  isManager={isManager}
-                  busy={busy}
-                  onDecide={decideLeave}
-                />
-              ))}
-            </div>
-            {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
-          </section>
+          {blockers.length > 0 && (
+            <BlockersPanel
+              orgId={orgId}
+              blockers={blockers}
+              busy={busy}
+              onPing={(b) => pingBlocker(b)}
+              onOpenBlocked={(b) =>
+                openDetail({
+                  membershipId: b.blockedUser.membershipId,
+                  name: b.blockedUser.name,
+                  login: b.blockedUser.login,
+                })
+              }
+            />
+          )}
 
-          {/* Team Members table */}
-          <section className="app-card app-card-lg hover-lift rise-in stagger-3">
-            <div className="section-title-row flex-wrap gap-3">
-              <div className="flex items-baseline gap-3">
-                <h2 className="app-h2">Team Members</h2>
-                <span className="text-[12px] text-slate-500 tabular">{members.length} members</span>
+          {reviewing.length > 0 && (
+            <section className="rounded-xl border border-slate-200 bg-white">
+              <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3">
+                <h2 className="text-[14px] font-semibold text-slate-900">Worth a look</h2>
+                <Link
+                  href={`/org/${orgId}/leaves`}
+                  className="text-[12px] text-slate-500 hover:text-slate-900"
+                >
+                  View leaves →
+                </Link>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="search"
-                    placeholder="Search members..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="input pl-8 w-[220px]"
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                {reviewing.map((r, idx) => (
+                  <ReviewCard
+                    key={idx}
+                    pick={r}
+                    isManager={isManager}
+                    busy={busy}
+                    onDecide={decideLeave}
+                    onOpen={openDetail}
                   />
-                </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Team Members */}
+          <section>
+            <div className="flex items-baseline gap-3 mb-3 flex-wrap">
+              <h2 className="text-[15px] font-semibold text-slate-900">Team Members</h2>
+              <span className="text-[12px] text-slate-500">{members.length}</span>
+              <div className="ml-auto relative">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  placeholder="Search…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-slate-200 bg-white text-[12.5px] outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                />
               </div>
             </div>
-            <div className="mt-3 overflow-x-auto -mx-5">
-              <table className="app-table">
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Current Focus</th>
-                    <th>Status</th>
-                    <th>Last Update</th>
-                    <th>Today&apos;s Summary</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-10 text-center text-slate-500">
-                        No matching members.
-                      </td>
-                    </tr>
-                  )}
-                  {filtered.map((m) => (
-                    <MemberRow key={m.membershipId} member={m} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="text-center mt-3">
+
+            {filtered.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-[13px] text-slate-500">
+                {query ? 'No matching members.' : 'No members yet — invite teammates from the Members page.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filtered.map((m) => (
+                  <MemberCardView
+                    key={m.membershipId}
+                    member={m}
+                    isManager={isManager}
+                    busy={busy}
+                    onSync={() => syncMember(m.membershipId, m.name ?? `@${m.login}`)}
+                    onBrief={() => briefMember(m.membershipId, m.name ?? `@${m.login}`)}
+                    onOpen={() => openDetail(m)}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3">
               <Link
                 href={`/org/${orgId}/members`}
-                className="text-[13px] text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-[12.5px] text-slate-500 hover:text-slate-900"
               >
-                View all members →
+                Manage members →
               </Link>
             </div>
           </section>
         </div>
 
-        {/* Right rail */}
-        <aside className="col-span-12 xl:col-span-3 space-y-6">
-          <div className="rise-in stagger-2 hover-lift">
-            <LeavePanel
-              orgId={orgId}
-              isManager={isManager}
-              leaves={pendingLeaves}
-              busy={busy}
-              onDecide={decideLeave}
-            />
-          </div>
-          <div className="rise-in stagger-3 hover-lift">
-            <BreakPanel breaks={recentBreaks} orgId={orgId} />
-          </div>
-          <div className="rise-in stagger-4 hover-lift">
-            <InsightsPanel
-              followup={snapshot.followupCount}
-              onLeave={snapshot.onLeaveCount}
-              active={snapshot.activeCount}
-              total={snapshot.totalMembers}
-            />
-          </div>
+        {/* Right rail — consolidated, minimal */}
+        <aside className="col-span-12 xl:col-span-3 space-y-5">
+          <MeetingsPanel />
+          <LeavePanel
+            orgId={orgId}
+            isManager={isManager}
+            leaves={pendingLeaves}
+            busy={busy}
+            onDecide={decideLeave}
+          />
+          <BreakPanel breaks={recentBreaks} orgId={orgId} />
         </aside>
       </div>
+
+      <MemberDetailModal
+        orgId={orgId}
+        membershipId={detailMember?.membershipId ?? null}
+        initialName={detailMember?.name ?? ''}
+        open={detailMember !== null}
+        onClose={() => setDetailMember(null)}
+        isManager={isManager}
+      />
     </>
   )
 }
 
 /* ---------- Sub-components ---------- */
 
-function StatTile({
-  count,
-  label,
-  sub,
-  bg,
-  color,
-  icon,
+function SlackingPanel({
+  alerts,
+  onOpenMember,
 }: {
-  count: number
-  label: string
-  sub: string
-  bg: string
-  color: string
-  icon: React.ReactNode
+  alerts: SlackAlert[]
+  onOpenMember: (a: SlackAlert) => void
 }) {
   return (
-    <div className="stat-tile">
-      <span className="stat-icon" style={{ background: bg, color }}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <div className="stat-num">{count}</div>
-        <div className="stat-label">{label}</div>
-        <div className="stat-sub">{sub}</div>
+    <section className="rounded-xl border border-amber-200 bg-amber-50/60 overflow-hidden">
+      <div className="px-5 py-3 border-b border-amber-100 flex items-baseline justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-[14px] font-semibold text-amber-900">
+            Slacking detected
+          </h2>
+          <span className="text-[12px] text-amber-700 font-medium tabular-nums">
+            {alerts.length}
+          </span>
+        </div>
+        <span className="text-[11px] text-amber-700/80">
+          Sustained non-work content in the last 30 min · on-shift only
+        </span>
       </div>
+      <ul className="divide-y divide-amber-100">
+        {alerts.map((a) => (
+          <li
+            key={a.userId}
+            onClick={() => onOpenMember(a)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onOpenMember(a)
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            className="px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-amber-100/40 focus:outline-none focus-visible:bg-amber-100/40 transition"
+          >
+            <CharacterAvatar characterKey={a.characterKey} size={28} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] text-slate-900">
+                <span className="font-medium">{a.name ?? `@${a.login}`}</span>
+                <span className="text-amber-700"> · {slackTopicLabel(a)}</span>
+              </p>
+              <p className="text-[11.5px] text-amber-700/80">
+                {a.unproductiveCount} of last {a.totalCount} screenshots flagged in {a.minutes} min
+              </p>
+            </div>
+            <span className="text-[11px] text-amber-700 font-medium">
+              Investigate →
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function slackTopicLabel(a: SlackAlert): string {
+  if (a.topHint === 'social_media') return 'social media'
+  if (a.topHint === 'video_streaming') return 'video / streaming'
+  if (a.topCategory === 'media') return 'media'
+  if (a.topCategory === 'browser_personal') return 'personal browsing'
+  return 'non-work content'
+}
+
+function BlockersPanel({
+  orgId,
+  blockers,
+  busy,
+  onPing,
+  onOpenBlocked,
+}: {
+  orgId: number
+  blockers: Blocker[]
+  busy: string | null
+  onPing: (b: Blocker) => void
+  onOpenBlocked: (b: Blocker) => void
+}) {
+  const blockedOnYou = blockers.filter((b) => b.waitingOnYou)
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-[14px] font-semibold text-slate-900">
+            Active blockers
+          </h2>
+          <span className="text-[12px] text-rose-600 font-medium tabular-nums">
+            {blockers.length}
+          </span>
+          {blockedOnYou.length > 0 && (
+            <span className="text-[11.5px] text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full font-medium">
+              {blockedOnYou.length} on you
+            </span>
+          )}
+        </div>
+        <Link
+          href={`/org/${orgId}/breaks`}
+          className="text-[12px] text-slate-500 hover:text-slate-900"
+        >
+          All paused →
+        </Link>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {blockers.map((b) => {
+          const duration = humanDuration(Date.now() - new Date(b.startedAt).getTime())
+          const aged = Date.now() - new Date(b.startedAt).getTime() > 4 * 3600 * 1000
+          const target = b.waitingOnUser
+            ? {
+                kind: 'user' as const,
+                label: b.waitingOnUser.name ?? `@${b.waitingOnUser.login}`,
+                characterKey: b.waitingOnUser.characterKey,
+              }
+            : b.waitingOnExternal
+              ? { kind: 'external' as const, label: b.waitingOnExternal, characterKey: null }
+              : { kind: 'unknown' as const, label: 'Someone (unspecified)', characterKey: null }
+          return (
+            <li
+              key={b.breakId}
+              onClick={() => onOpenBlocked(b)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onOpenBlocked(b)
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className={`px-5 py-3 flex items-center gap-3 flex-wrap cursor-pointer hover:bg-slate-50/70 focus:outline-none focus-visible:bg-slate-50/70 transition ${b.waitingOnYou ? 'bg-rose-50/50' : ''}`}
+            >
+              <CharacterAvatar characterKey={b.blockedUser.characterKey} size={28} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] text-slate-900 truncate">
+                  <span className="font-medium">{b.blockedUser.name ?? `@${b.blockedUser.login}`}</span>
+                  <span className="text-slate-400"> waiting on </span>
+                  {target.kind === 'user' && (
+                    <span className="inline-flex items-center gap-1 align-middle">
+                      <CharacterAvatar characterKey={target.characterKey} size={14} />
+                      <span className="font-medium">{target.label}</span>
+                    </span>
+                  )}
+                  {target.kind !== 'user' && <span className="font-medium">{target.label}</span>}
+                </p>
+                {b.reason && (
+                  <p className="text-[11.5px] text-slate-500 truncate mt-0.5">
+                    {truncate(b.reason, 110)}
+                  </p>
+                )}
+              </div>
+              <span
+                className={`text-[11px] font-medium tabular-nums ${aged ? 'text-rose-600' : 'text-amber-600'}`}
+                title={`Blocked since ${new Date(b.startedAt).toLocaleString()}`}
+              >
+                {duration}
+              </span>
+              {target.kind === 'user' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onPing(b)
+                  }}
+                  disabled={busy === `ping-${b.breakId}`}
+                  className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[11.5px] font-medium disabled:opacity-50 transition"
+                >
+                  {busy === `ping-${b.breakId}` ? 'Pinging…' : b.waitingOnYou ? 'Acknowledge' : 'Nudge'}
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+function InlineStat({
+  n,
+  label,
+  tone,
+}: {
+  n: number
+  label: string
+  tone: 'rose' | 'emerald' | 'amber' | 'muted'
+}) {
+  const dim = n === 0
+  const colorClass = dim
+    ? 'text-slate-400'
+    : tone === 'rose'
+      ? 'text-rose-700'
+      : tone === 'emerald'
+        ? 'text-emerald-700'
+        : tone === 'amber'
+          ? 'text-amber-700'
+          : 'text-slate-900'
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className={`text-[22px] font-semibold tabular-nums tracking-tight ${colorClass}`}>{n}</span>
+      <span className="text-[12px] text-slate-500">{label}</span>
     </div>
   )
 }
@@ -401,6 +710,7 @@ function ReviewCard({
   isManager,
   busy,
   onDecide,
+  onOpen,
 }: {
   pick: {
     kind: 'leave' | 'block' | 'inactive'
@@ -412,6 +722,7 @@ function ReviewCard({
   isManager: boolean
   busy: string | null
   onDecide: (id: number, decision: 'approve' | 'deny') => void
+  onOpen?: (m: MemberCard) => void
 }) {
   const m = pick.member
   const lv = pick.leave
@@ -424,15 +735,35 @@ function ReviewCard({
         ? 'pill-sky'
         : 'pill-bad'
 
+  const clickable = !!(m && onOpen)
+  const handleOpen = () => {
+    if (clickable && m && onOpen) onOpen(m)
+  }
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-3">
+    <div
+      className={`p-4 flex flex-col gap-2.5 min-w-0 ${clickable ? 'cursor-pointer hover:bg-slate-50/60 transition' : ''}`}
+      onClick={clickable ? handleOpen : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleOpen()
+              }
+            }
+          : undefined
+      }
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+    >
+      <div className="flex items-center gap-2.5">
         <CharacterAvatar
           characterKey={m?.characterKey ?? lv?.user.characterKey ?? null}
-          size={40}
+          size={32}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium text-slate-900 truncate">
+          <p className="text-[13px] font-medium text-slate-900 truncate">
             {m?.name ?? lv?.user.name ?? `@${m?.login ?? lv?.user.login}`}
           </p>
           <p className="text-[11px] text-slate-500 truncate">
@@ -441,32 +772,28 @@ function ReviewCard({
         </div>
         <span className={`pill ${tone}`}>{pick.label}</span>
       </div>
-      <p className="mt-2 text-[13px] text-slate-700 leading-snug">
-        {pick.detail}
-      </p>
+      <p className="text-[12.5px] text-slate-600 leading-snug">{pick.detail}</p>
 
       {lv && (
-        <div className="mt-3 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-[12px] text-amber-900">
-          <CalSmallIcon />{' '}
-          <span className="font-medium">
-            {fmtDateRange(lv.startDate, lv.endDate)}
-          </span>{' '}
-          <span className="text-amber-700">· Submitted {timeAgo(lv.createdAt)}</span>
+        <div className="text-[11.5px] text-slate-500 flex items-center gap-1">
+          <CalSmallIcon />
+          <span>{fmtDateRange(lv.startDate, lv.endDate)}</span>
+          <span className="text-slate-400">· {timeAgo(lv.createdAt)}</span>
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
         {lv && isManager ? (
           <>
             <button
-              className="btn-good flex-1 justify-center"
+              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition flex-1"
               disabled={busy === `leave-${lv.id}-approve`}
               onClick={() => onDecide(lv.id, 'approve')}
             >
               {busy === `leave-${lv.id}-approve` ? '…' : 'Approve'}
             </button>
             <button
-              className="btn-bad flex-1 justify-center"
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium disabled:opacity-50 transition flex-1"
               disabled={busy === `leave-${lv.id}-deny`}
               onClick={() => onDecide(lv.id, 'deny')}
             >
@@ -474,86 +801,238 @@ function ReviewCard({
             </button>
           </>
         ) : pick.kind === 'block' ? (
-          <span className="text-[12px] text-rose-600 inline-flex items-center gap-1">
+          <span className="text-[11.5px] text-rose-600 inline-flex items-center gap-1">
             <DotRed /> Blocked {timeSinceLabel(m?.activity)}
           </span>
         ) : pick.kind === 'inactive' ? (
-          <span className="text-[12px] text-slate-500">
+          <span className="text-[11.5px] text-slate-500">
             Last active {timeSinceLabel(m?.activity)}
           </span>
         ) : null}
-
-        {pick.kind !== 'leave' && (
-          <button className="btn-secondary text-[12px]" disabled>
-            {pick.kind === 'block' ? 'View details' : 'Check in'}
-          </button>
-        )}
       </div>
     </div>
   )
 }
 
-function MemberRow({ member: m }: { member: MemberCard }) {
+function MemberCardView({
+  member: m,
+  isManager,
+  busy,
+  onSync,
+  onBrief,
+  onOpen,
+}: {
+  member: MemberCard
+  isManager: boolean
+  busy: string | null
+  onSync: () => void
+  onBrief: () => void
+  onOpen: () => void
+}) {
   const character = getCharacter(m.characterKey)
-  const status = m.dailyState ? STATUS[m.dailyState.state] : STATUS.NoData
+  const statusKey = deriveStatus(m)
+  const status = STATUS[statusKey]
+  // Refined label: distinguish "On leave" vs "Off-clock" within the "off" bucket
+  const displayLabel = statusKey === 'off'
+    ? (m.onLeaveToday ? 'On leave' : 'Off-clock')
+    : status.label
 
-  const displayStatus = m.onLeaveToday
-    ? { label: 'On leave', pill: 'pill-warn' as const, current: 'On leave' }
-    : m.ongoingBreak
-      ? { label: 'On break', pill: 'pill-slate' as const, current: 'On break' }
-      : !m.activeShift
-        ? { label: 'Off-clock', pill: 'pill-slate' as const, current: 'Off-clock' }
-        : status
+  const bullets = m.narrative ? narrativeBullets(m.narrative.body) : []
+  const totalShiftSec = m.activity.activeSeconds + m.activity.idleSeconds
 
   return (
-    <tr>
-      <td style={{ minWidth: 200 }}>
-        <div className="flex items-center gap-3">
-          <CharacterAvatar characterKey={m.characterKey} size={36} />
-          <div className="min-w-0">
-            <p className="text-[14px] font-medium text-slate-900 leading-tight truncate">
+    <article
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open details for ${m.name ?? `@${m.login}`}`}
+      className="cursor-pointer text-left w-full rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 transition-all overflow-hidden"
+    >
+      {/* Header */}
+      <div className="px-5 pt-4 pb-3 flex items-start gap-3">
+        <CharacterAvatar characterKey={m.characterKey} size={48} ring />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-[15px] font-semibold text-slate-900 truncate">
               {m.name ?? `@${m.login}`}
-            </p>
-            <p className="text-[11px] text-slate-500 leading-tight truncate mt-0.5">
-              {character ? `${character.name} · ${m.role}` : m.role}
-            </p>
+            </h3>
+            <span className={`pill ${status.pill}`}>
+              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: status.dot }} />
+              {displayLabel}
+            </span>
+          </div>
+          <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+            {character ? `${character.name} · ${m.role}` : m.role}
+          </p>
+        </div>
+        {m.narrative && (
+          <span
+            className="text-[10.5px] text-slate-400 shrink-0"
+            title={new Date(m.narrative.createdAt).toLocaleString()}
+          >
+            {timeAgo(m.narrative.createdAt)}
+          </span>
+        )}
+      </div>
+
+      {/* Blocker badge — highest priority signal */}
+      {m.ongoingBreak?.category === 'blocked' && (
+        <div className="px-5 pb-3">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-900">
+            <span className="font-semibold">Waiting on </span>
+            {m.ongoingBreak.waitingOn ? (
+              <>@{m.ongoingBreak.waitingOn.login}</>
+            ) : m.ongoingBreak.waitingOnExternal ? (
+              <>{m.ongoingBreak.waitingOnExternal}</>
+            ) : (
+              <>someone (unspecified)</>
+            )}
+            <span className="text-rose-600"> · {humanDuration(Date.now() - new Date(m.ongoingBreak.startedAt).getTime())}</span>
+            {m.ongoingBreak.reason && (
+              <p className="text-rose-700 mt-0.5 text-[11.5px] leading-snug">{truncate(m.ongoingBreak.reason, 120)}</p>
+            )}
           </div>
         </div>
-      </td>
-      <td style={{ minWidth: 200 }}>
-        <div className="flex items-center gap-2">
-          <AppDot color={appColor(m.activity.topApp)} />
-          <div className="min-w-0">
-            <p className="text-[13px] text-slate-900 truncate">
-              {m.activity.topApp ?? '—'}
-            </p>
-            <p className="text-[11px] text-slate-500 truncate">
-              {m.ongoingBreak
-                ? `Break: ${m.ongoingBreak.reason}`
-                : m.dailyState?.reason
-                  ? truncate(m.dailyState.reason, 36)
-                  : 'No focus tracked'}
-            </p>
+      )}
+
+      {/* Today timeline ribbon */}
+      <div className="px-5 pb-3">
+        <TodayRibbon member={m} statusKey={statusKey} />
+        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-500">
+          <span><span className="text-slate-700 font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
+          <span><span className="text-slate-700 font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
+          {m.activity.topApp && (
+            <span className="truncate">
+              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: appColor(m.activity.topApp) }} />
+              {m.activity.topApp}
+            </span>
+          )}
+          {totalShiftSec > 9 * 3600 && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] text-amber-700 font-medium" title="Working over 9h — suggest a break">
+              long day
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Bullet summary */}
+      {bullets.length > 0 ? (
+        <div className="px-5 pb-3">
+          <ul className="space-y-1">
+            {bullets.map((b, i) => (
+              <li key={i} className="text-[12.5px] text-slate-700 leading-snug flex gap-2">
+                <span className="text-indigo-500 mt-0.5">•</span>
+                <span className="break-words">{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : m.dailyState?.reason ? (
+        <div className="px-5 pb-3">
+          <p className="text-[12.5px] text-slate-600 leading-snug">{m.dailyState.reason}</p>
+        </div>
+      ) : null}
+
+      {/* Action footer */}
+      {isManager && (
+        <div
+          className="border-t border-slate-100 bg-slate-50/40 px-5 py-2.5 flex items-center justify-between gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-1.5">
+            {!m.hasGithub && (
+              <span className="text-[10.5px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                no GitHub
+              </span>
+            )}
+            {m.activity.paused && (
+              <span className="text-[10.5px] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
+                paused
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={busy !== null || !m.hasGithub}
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {busy === `sync-${m.membershipId}` ? 'Syncing…' : 'Sync'}
+            </button>
+            <button
+              type="button"
+              onClick={onBrief}
+              disabled={busy !== null}
+              className="px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {busy === `brief-${m.membershipId}` ? 'Briefing…' : 'Brief'}
+            </button>
           </div>
         </div>
-      </td>
-      <td>
-        <span className={`pill ${displayStatus.pill}`}>{displayStatus.label}</span>
-      </td>
-      <td className="text-[12px] text-slate-500 whitespace-nowrap">
-        {m.narrative ? timeAgo(m.narrative.createdAt) : '—'}
-      </td>
-      <td>
-        <p className="text-[13px] text-slate-700 leading-snug max-w-[280px]">
-          {m.narrative?.body ? truncate(m.narrative.body, 90) : 'No summary yet.'}
-        </p>
-      </td>
-      <td>
-        <button className="btn-ghost" aria-label="more">
-          <MoreIcon />
-        </button>
-      </td>
-    </tr>
+      )}
+    </article>
+  )
+}
+
+/**
+ * Status-driven progress bar: shows focus / idle proportion for today, tinted
+ * by the member's current status. Colors agree with the pill on the same card.
+ *
+ * - working: emerald active, slate idle
+ * - paused:  same proportions, but the right edge becomes a muted slate stripe
+ * - blocked: same proportions, right edge becomes a rose stripe
+ * - off:     flat muted bar (no segments) — they're not working today
+ */
+function TodayRibbon({
+  member: m,
+  statusKey,
+}: {
+  member: MemberCard
+  statusKey: SimpleStatus
+}) {
+  if (statusKey === 'off') {
+    const offReason = m.onLeaveToday ? 'On leave today' : 'Off-clock'
+    return <div className="h-1.5 rounded-full bg-slate-100" title={offReason} />
+  }
+
+  const totalSec = m.activity.activeSeconds + m.activity.idleSeconds
+  if (totalSec === 0) {
+    // On-shift but no data yet — empty track tinted by status
+    return <div className={`h-1.5 rounded-full bg-slate-100`} title="Awaiting first activity sample" />
+  }
+
+  const total = Math.max(1, totalSec)
+  const activePct = (m.activity.activeSeconds / total) * 100
+  const idlePct = (m.activity.idleSeconds / total) * 100
+  const breakCls = statusKey === 'blocked' ? 'bg-rose-400' : 'bg-slate-400'
+  return (
+    <div
+      className="h-1.5 rounded-full overflow-hidden flex bg-slate-100"
+      title={`${formatHm(m.activity.activeSeconds)} focused · ${formatHm(m.activity.idleSeconds)} idle`}
+    >
+      <div className="h-full bg-emerald-500" style={{ width: `${activePct}%` }} />
+      <div className="h-full bg-slate-300" style={{ width: `${idlePct}%` }} />
+      {m.ongoingBreak && (
+        <div className={`h-full flex-1 min-w-[6%] ${breakCls}`} />
+      )}
+    </div>
+  )
+}
+
+function Spinner({ light = false }: { light?: boolean }) {
+  return (
+    <span
+      className={`inline-block w-3 h-3 rounded-full border-2 ${
+        light ? 'border-white/40 border-t-white' : 'border-slate-300 border-t-slate-600'
+      } animate-spin`}
+    />
   )
 }
 
@@ -571,23 +1050,26 @@ function LeavePanel({
   onDecide: (id: number, decision: 'approve' | 'deny') => void
 }) {
   return (
-    <div className="app-card app-card-lg">
-      <div className="section-title-row">
-        <h3 className="app-h2">Leave Requests</h3>
-        <Link href={`/org/${orgId}/leaves`} className="text-[13px] text-indigo-600 font-medium">
-          View all
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-slate-900">Leave Requests</h3>
+        <Link
+          href={`/org/${orgId}/leaves`}
+          className="text-[11.5px] text-slate-500 hover:text-slate-900"
+        >
+          All
         </Link>
       </div>
       {leaves.length === 0 ? (
-        <p className="app-sub mt-3">No pending requests.</p>
+        <p className="px-4 py-5 text-[12px] text-slate-500">No pending requests.</p>
       ) : (
-        <ul className="mt-3 space-y-4">
+        <ul className="divide-y divide-slate-100">
           {leaves.slice(0, 3).map((lv) => (
-            <li key={lv.id} className="space-y-2">
-              <div className="flex items-center gap-3">
-                <CharacterAvatar characterKey={lv.user.characterKey} size={36} />
+            <li key={lv.id} className="px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2.5">
+                <CharacterAvatar characterKey={lv.user.characterKey} size={28} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-slate-900 truncate">
+                  <p className="text-[12.5px] font-medium text-slate-900 truncate">
                     {lv.user.name ?? `@${lv.user.login}`}
                   </p>
                   <p className="text-[11px] text-slate-500 truncate">
@@ -595,18 +1077,18 @@ function LeavePanel({
                   </p>
                 </div>
               </div>
-              <p className="text-[12px] text-slate-600 leading-snug">Reason: {truncate(lv.reason, 80)}</p>
+              <p className="text-[11.5px] text-slate-600 leading-snug line-clamp-2">{truncate(lv.reason, 110)}</p>
               {isManager && (
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
-                    className="btn-good flex-1 justify-center"
+                    className="flex-1 px-2 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[11.5px] font-medium disabled:opacity-50 transition"
                     disabled={busy === `leave-${lv.id}-approve`}
                     onClick={() => onDecide(lv.id, 'approve')}
                   >
                     Approve
                   </button>
                   <button
-                    className="btn-bad flex-1 justify-center"
+                    className="flex-1 px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11.5px] font-medium disabled:opacity-50 transition"
                     disabled={busy === `leave-${lv.id}-deny`}
                     onClick={() => onDecide(lv.id, 'deny')}
                   >
@@ -622,83 +1104,93 @@ function LeavePanel({
   )
 }
 
+const CATEGORY_PILL: Record<BreakCategory, { label: string; cls: string }> = {
+  focus: { label: 'Focus', cls: 'bg-indigo-50 text-indigo-700' },
+  meeting: { label: 'Meeting', cls: 'bg-sky-50 text-sky-700' },
+  blocked: { label: 'Blocked', cls: 'bg-rose-50 text-rose-700' },
+  lunch: { label: 'Lunch', cls: 'bg-amber-50 text-amber-700' },
+  errand: { label: 'Errand', cls: 'bg-orange-50 text-orange-700' },
+  personal: { label: 'Personal', cls: 'bg-slate-100 text-slate-700' },
+  other: { label: 'Paused', cls: 'bg-slate-100 text-slate-700' },
+}
+
 function BreakPanel({ breaks, orgId }: { breaks: RecentBreak[]; orgId: number }) {
+  const ongoing = breaks.filter((b) => !b.endedAt)
+  const recent = breaks.filter((b) => b.endedAt)
+  const visible = ongoing.length > 0 ? ongoing.slice(0, 4) : recent.slice(0, 4)
   return (
-    <div className="app-card app-card-lg">
-      <div className="section-title-row">
-        <h3 className="app-h2">Recent Breaks & Updates</h3>
-        <Link href={`/org/${orgId}/breaks`} className="text-[13px] text-indigo-600 font-medium">
-          View all
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-slate-900">
+          {ongoing.length > 0 ? 'Currently paused' : 'Recently paused'}
+        </h3>
+        <Link
+          href={`/org/${orgId}/breaks`}
+          className="text-[11.5px] text-slate-500 hover:text-slate-900"
+        >
+          All
         </Link>
       </div>
-      {breaks.length === 0 ? (
-        <p className="app-sub mt-3">No recent breaks.</p>
+      {visible.length === 0 ? (
+        <p className="px-4 py-5 text-[12px] text-slate-500">Nobody&apos;s paused right now.</p>
       ) : (
-        <ul className="mt-3 space-y-3">
-          {breaks.slice(0, 4).map((b) => (
-            <li key={b.id} className="flex items-start gap-3">
-              <CharacterAvatar characterKey={b.user.characterKey} size={32} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-slate-900 truncate">
-                  {b.user.name ?? `@${b.user.login}`}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  {b.endedAt ? 'Break' : 'On break'} · {new Date(b.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                </p>
-                <div className="mt-1 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-[12px] text-slate-700">
-                  {truncate(b.reason, 80)}
+        <ul className="divide-y divide-slate-100">
+          {visible.map((b) => {
+            const cat = CATEGORY_PILL[b.category ?? 'other']
+            return (
+              <li key={b.id} className="px-4 py-2.5 flex items-start gap-2.5">
+                <CharacterAvatar characterKey={b.user.characterKey} size={26} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-medium text-slate-900 truncate flex items-center gap-1.5">
+                    <span className="truncate">{b.user.name ?? `@${b.user.login}`}</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${cat.cls}`}>
+                      {cat.label}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-snug truncate" title={b.reason}>
+                    {truncate(b.reason, 60)}
+                  </p>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
   )
 }
 
-function InsightsPanel({
-  followup,
-  onLeave,
-  active,
-  total,
-}: {
-  followup: number
-  onLeave: number
-  active: number
-  total: number
-}) {
-  const lines: string[] = []
-  if (followup > 0) {
-    lines.push(`${followup} ${followup === 1 ? 'teammate is' : 'teammates are'} blocked or inactive — worth a quick check-in.`)
-  }
-  if (onLeave > 0) {
-    lines.push(`${onLeave} on leave today.`)
-  }
-  if (active > 0 && total > 0) {
-    lines.push(`${Math.round((active / total) * 100)}% of the team is making measurable progress.`)
-  }
-  if (lines.length === 0) {
-    lines.push('Quiet day. Use it to plan, mentor, or write that doc.')
-  }
-  return (
-    <div className="app-card app-card-lg">
-      <div className="section-title-row">
-        <h3 className="app-h2">MARINA Insights ✨</h3>
-      </div>
-      <ul className="mt-3 space-y-2">
-        {lines.map((l, i) => (
-          <li key={i} className="flex gap-2 text-[13px] text-slate-700 leading-snug">
-            <span className="text-indigo-500 mt-0.5">•</span>
-            <span>{l}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+/* ---------- helpers ---------- */
+
+function pct(num: number, denom: number): number {
+  if (!denom) return 0
+  return Math.round((num / denom) * 100)
 }
 
-/* ---------- helpers ---------- */
+function humanDuration(ms: number): string {
+  const mins = Math.max(0, Math.floor(ms / 60000))
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/** Format seconds as Xh Ym (or just minutes when <60m). */
+function formatHm(seconds: number): string {
+  return humanDuration(seconds * 1000)
+}
+
+/** Split a free-text narrative into 1–3 short bullet points. */
+function narrativeBullets(body: string): string[] {
+  if (!body) return []
+  const cleaned = body.replace(/\s+/g, ' ').trim()
+  // Prefer explicit splits on " · " or "; " — that's how MARINA's prompts emit segments
+  const segments = cleaned
+    .split(/(?:\s+·\s+|;\s+|\.\s+(?=[A-Z]))/)
+    .map((s) => s.trim().replace(/^[-–•]\s*/, '').replace(/\.$/, ''))
+    .filter((s) => s.length > 0)
+  return segments.slice(0, 3)
+}
 
 function truncate(s: string, n: number): string {
   if (!s) return ''
@@ -747,70 +1239,49 @@ function appColor(app: string | null): string {
 
 /* ---------- inline icons ---------- */
 
-function CalIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <rect x={3} y={4} width={18} height={17} rx={2} />
-      <path d="M3 9h18M8 2v4M16 2v4" />
-    </svg>
-  )
+/**
+ * Silent live updater: refreshes the page's RSC tree every 45 seconds while
+ * the tab is in the foreground. No spinner, no visible button — just fresh
+ * data the next time the user looks.
+ */
+function LivePoll({ router }: { router: ReturnType<typeof useRouter> }) {
+  useEffect(() => {
+    const INTERVAL_MS = 45_000
+    let timer: ReturnType<typeof setInterval> | null = null
+
+    const start = () => {
+      if (timer) return
+      timer = setInterval(() => {
+        if (document.visibilityState === 'visible') router.refresh()
+      }, INTERVAL_MS)
+    }
+    const stop = () => {
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Catch up immediately when the user returns to the tab
+        router.refresh()
+        start()
+      } else {
+        stop()
+      }
+    }
+
+    if (document.visibilityState === 'visible') start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [router])
+
+  return null
 }
-function RefreshIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 7" strokeLinecap="round" />
-      <path d="M21 3v4h-4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 17" strokeLinecap="round" />
-      <path d="M3 21v-4h4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function FollowUpIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx={9} cy={9} r={3} />
-      <path d="M3 21c0-3 3-5 6-5s6 2 6 5" />
-      <circle cx={17} cy={11} r={2} />
-      <path d="M14 21c.4-2 2-3 3-3 1.5 0 2.6 1 3 3" />
-    </svg>
-  )
-}
-function LeaveIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M4 21c5-3 9-7 12-13" />
-      <path d="M16 8c2.5-1.5 5-1 5-1s-.5 2.5-2 5" />
-      <path d="M14 11l-3-3M11 14l-2-2" />
-    </svg>
-  )
-}
-function SmileIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx={12} cy={12} r={9} />
-      <path d="M8 14a5 5 0 0 0 8 0" strokeLinecap="round" />
-      <circle cx={9} cy={10} r={0.6} fill="currentColor" />
-      <circle cx={15} cy={10} r={0.6} fill="currentColor" />
-    </svg>
-  )
-}
-function ClockIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx={12} cy={12} r={9} />
-      <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function MoreIcon() {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor">
-      <circle cx={5} cy={12} r={1.6} />
-      <circle cx={12} cy={12} r={1.6} />
-      <circle cx={19} cy={12} r={1.6} />
-    </svg>
-  )
-}
+
 function CalSmallIcon() {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3} className="inline-block align-[-2px] mr-1">
@@ -829,14 +1300,4 @@ function SearchIcon({ className }: { className?: string }) {
 }
 function DotRed() {
   return <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 mr-1" />
-}
-function AppDot({ color }: { color: string }) {
-  return (
-    <span
-      className="inline-block w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center"
-      style={{ background: `${color}22` }}
-    >
-      <span className="block w-2 h-2 rounded-full" style={{ background: color }} />
-    </span>
-  )
 }

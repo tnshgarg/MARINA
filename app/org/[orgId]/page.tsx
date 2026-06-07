@@ -6,6 +6,7 @@ import { db, schema } from '@/lib/db/client'
 import { requireMembership, HttpError, roleAtLeast } from '@/lib/auth/guards'
 import { getCompactSummaries } from '@/lib/activity/aggregate'
 import { dayBoundsUtc, upsertDailyState } from '@/lib/engine/state'
+import { detectSlackers } from '@/lib/engine/slacking'
 import TeamDashboardClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -103,6 +104,11 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       : Promise.resolve([] as (typeof schema.shifts.$inferSelect)[]),
   ])
   const shiftByUser = new Map(openShifts.map((s) => [s.userId, s]))
+  const onShiftIds = new Set(openShifts.map((s) => s.userId))
+
+  // Detect employees showing sustained non-work content during their shift.
+  // 30-min window with at least 3 analysed screenshots, ≥60% unproductive.
+  const slackAlerts = await detectSlackers(userIds, onShiftIds, 30)
 
   const settingsByUser = new Map(settingsRows.map((s) => [s.userId, s]))
 
@@ -174,6 +180,22 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     }
   }
 
+  // Resolve names for "waiting on" user IDs so the client doesn't need a second query.
+  const waitingOnUserIds = Array.from(
+    new Set(
+      Array.from(ongoingBreaksByUser.values())
+        .map((b) => b.waitingOnUserId)
+        .filter((x): x is number => typeof x === 'number'),
+    ),
+  )
+  const waitingOnUsers = waitingOnUserIds.length
+    ? await db
+        .select({ id: schema.users.id, login: schema.users.login, name: schema.users.name, characterKey: schema.users.characterKey })
+        .from(schema.users)
+        .where(inArray(schema.users.id, waitingOnUserIds))
+    : []
+  const waitingOnById = new Map(waitingOnUsers.map((u) => [u.id, u]))
+
   const members = rawMembers.map((r) => {
     const n = latestByUser.get(r.u.id)
     const c = compact.get(r.u.id)
@@ -197,7 +219,22 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       },
       onLeaveToday: userIdsOnLeaveToday.has(r.u.id),
       ongoingBreak: ongoingBreak
-        ? { id: ongoingBreak.id, reason: ongoingBreak.reason, startedAt: ongoingBreak.startedAt.toISOString() }
+        ? {
+            id: ongoingBreak.id,
+            reason: ongoingBreak.reason,
+            startedAt: ongoingBreak.startedAt.toISOString(),
+            category: ongoingBreak.category,
+            waitingOnUserId: ongoingBreak.waitingOnUserId,
+            waitingOnExternal: ongoingBreak.waitingOnExternal,
+            waitingOn:
+              ongoingBreak.waitingOnUserId && waitingOnById.has(ongoingBreak.waitingOnUserId)
+                ? (() => {
+                    const u = waitingOnById.get(ongoingBreak.waitingOnUserId!)!
+                    return { login: u.login, name: u.name, characterKey: u.characterKey }
+                  })()
+                : null,
+            expectedEndAt: ongoingBreak.expectedEndAt?.toISOString() ?? null,
+          }
         : null,
       activeShift: shiftByUser.get(r.u.id)
         ? { id: shiftByUser.get(r.u.id)!.id, punchedInAt: shiftByUser.get(r.u.id)!.punchedInAt.toISOString() }
@@ -235,9 +272,33 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
 
   const greeting = greetingFor(new Date(), me.name?.split(' ')[0] ?? session.login)
 
+  // Active blockers — every member who's flagged "blocked" right now.
+  const blockers = members
+    .filter((m) => m.ongoingBreak?.category === 'blocked')
+    .map((m) => {
+      const b = m.ongoingBreak!
+      return {
+        breakId: b.id,
+        startedAt: b.startedAt,
+        expectedEndAt: b.expectedEndAt,
+        reason: b.reason,
+        blockedUser: {
+          membershipId: m.membershipId,
+          login: m.login,
+          name: m.name,
+          characterKey: m.characterKey,
+        },
+        waitingOnUser: b.waitingOn,
+        waitingOnExternal: b.waitingOnExternal,
+        waitingOnYou: b.waitingOnUserId === session.appUserId,
+      }
+    })
+    .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
+
   return (
     <TeamDashboardClient
       orgId={orgId}
+      viewerUserId={session.appUserId}
       isManager={isManager}
       greeting={greeting}
       snapshot={{
@@ -246,7 +307,25 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
         activeCount,
         waitingOnReview,
         totalMembers: members.length,
+        blockerCount: blockers.length,
+        blockedOnYouCount: blockers.filter((b) => b.waitingOnYou).length,
       }}
+      blockers={blockers}
+      slackAlerts={slackAlerts.map((a) => {
+        const m = members.find((mm) => mm.userId === a.userId)
+        return {
+          membershipId: m?.membershipId ?? 0,
+          userId: a.userId,
+          login: m?.login ?? '',
+          name: m?.name ?? null,
+          characterKey: m?.characterKey ?? null,
+          minutes: a.minutes,
+          unproductiveCount: a.unproductiveCount,
+          totalCount: a.totalCount,
+          topHint: a.topHint,
+          topCategory: a.topCategory,
+        }
+      }).filter((a) => a.membershipId !== 0)}
       members={members}
       pendingLeaves={pendingLeaves.map((r) => ({
         id: r.l.id,
@@ -266,6 +345,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
         startedAt: r.b.startedAt.toISOString(),
         endedAt: r.b.endedAt?.toISOString() ?? null,
         reason: r.b.reason,
+        category: r.b.category,
         user: {
           id: r.u.id,
           login: r.u.login,
@@ -279,8 +359,8 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
 
 function greetingFor(now: Date, firstName: string): string {
   const h = now.getHours()
-  if (h < 5) return `Working late, ${firstName} 🌙`
-  if (h < 12) return `Good morning, ${firstName} 👋`
-  if (h < 17) return `Good afternoon, ${firstName} ✨`
-  return `Good evening, ${firstName} 🌆`
+  if (h < 5) return `Working late, ${firstName}`
+  if (h < 12) return `Good morning, ${firstName}`
+  if (h < 17) return `Good afternoon, ${firstName}`
+  return `Good evening, ${firstName}`
 }

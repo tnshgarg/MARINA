@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { auth, signIn } from '@/auth'
 import { db, schema } from '@/lib/db/client'
@@ -17,6 +18,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
       where: eq(schema.users.id, session.appUserId),
     })
     if (!me?.characterKey) redirect('/pick')
+
+    // If a pending invite was started before sign-in, route there to accept.
+    const jar = await cookies()
+    const pendingInvite = jar.get('marina_pending_invite')?.value
+    if (pendingInvite) {
+      redirect(`/invite/${pendingInvite}`)
+    }
+
     const memberships = await listMembershipsForCurrentUser()
     if (memberships.length === 0) redirect('/onboarding')
     const first = memberships[0]

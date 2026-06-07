@@ -12,6 +12,9 @@ export const users = pgTable('users', {
   image: text('image'), // NextAuth standard field name (mirror of avatarUrl when present)
   accessToken: text('access_token'),
   characterKey: text('character_key'),
+  // GitHub sync state — null = never synced
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  lastSyncError: text('last_sync_error'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -327,10 +330,32 @@ export const dailyStates = pgTable(
   })
 )
 
+export type BreakCategory =
+  | 'focus'      // heads-down focus, do not disturb
+  | 'meeting'    // in a meeting
+  | 'blocked'    // waiting on someone / something
+  | 'lunch'      // lunch / meal
+  | 'errand'     // short personal errand, walking out
+  | 'personal'   // generic personal time
+  | 'other'
+
+export const BREAK_CATEGORY_LABELS: Record<BreakCategory, string> = {
+  focus: 'Focus time',
+  meeting: 'In a meeting',
+  blocked: 'Blocked / Waiting',
+  lunch: 'Lunch / Meal',
+  errand: 'Quick errand',
+  personal: 'Personal',
+  other: 'Other',
+}
+
 /**
- * Active "I'm taking a break" entries. End time is null while the break is
- * ongoing — at most one ongoing break per user (enforced at the application
+ * "I'm pausing tracking" entries. End time is null while the pause is
+ * ongoing — at most one ongoing pause per user (enforced at the application
  * layer; we treat that as a single source of truth).
+ *
+ * Categories let us surface *why* — and `waitingOnUserId` / `waitingOnExternal`
+ * power the manager's "who's blocked, on whom?" view.
  */
 export const breaks = pgTable(
   'breaks',
@@ -341,10 +366,17 @@ export const breaks = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp('ended_at', { withTimezone: true }),
     reason: text('reason').notNull(),
+    category: text('category').$type<BreakCategory>().notNull().default('other'),
+    // When category = 'blocked', who are they waiting on?
+    waitingOnUserId: integer('waiting_on_user_id').references(() => users.id, { onDelete: 'set null' }),
+    waitingOnExternal: text('waiting_on_external'), // free-text: "Acme client", "Stripe support"
+    // Optional: when the user thinks they'll be back ("Back in 30m")
+    expectedEndAt: timestamp('expected_end_at', { withTimezone: true }),
   },
   (t) => ({
     userActiveIdx: index('breaks_user_active_idx').on(t.userId, t.endedAt),
     orgRecentIdx: index('breaks_org_recent_idx').on(t.orgId, t.startedAt),
+    waitingOnIdx: index('breaks_waiting_on_idx').on(t.waitingOnUserId, t.endedAt),
   })
 )
 
@@ -513,6 +545,66 @@ export const leaveRequests = pgTable(
     userIdx: index('leave_requests_user_idx').on(t.userId),
   })
 )
+
+/**
+ * Calendar events synced from a user's Google Calendar. We pull the next 7
+ * days of events on connect and refresh periodically. Attendance is derived
+ * by overlapping the event window with `localActivity` rows where the active
+ * app is a known video-call app, or fall back to "self-reported present" via
+ * a manual mark.
+ */
+export const meetings = pgTable(
+  'meetings',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull().default('google'),
+    externalId: text('external_id').notNull(), // Google event id
+    calendarId: text('calendar_id').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    location: text('location'),
+    conferenceUrl: text('conference_url'), // hangoutLink / Zoom link if surfaced
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    organizerEmail: text('organizer_email'),
+    attendees: jsonb('attendees').$type<string[]>().notNull().default([]),
+    rsvpStatus: text('rsvp_status'), // accepted | tentative | declined | needsAction
+    attendedAt: timestamp('attended_at', { withTimezone: true }), // when MARINA confirmed presence
+    syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userStartIdx: index('meetings_user_start_idx').on(t.userId, t.startAt),
+    externalIdx: uniqueIndex('meetings_external_idx').on(t.userId, t.provider, t.externalId),
+  }),
+)
+
+export type Meeting = typeof meetings.$inferSelect
+export type NewMeeting = typeof meetings.$inferInsert
+
+/**
+ * Per-day record of which teammates the scrum master has marked "covered"
+ * during a live standup. Scoped to (org, day) so each morning's session
+ * starts fresh. Coverage doesn't auto-expire — managers can revisit the
+ * Scrum page later in the day and pick up where they left off.
+ */
+export const scrumCoverage = pgTable(
+  'scrum_coverage',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    coveredUserId: integer('covered_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    day: date('day').notNull(),
+    coveredByUserId: integer('covered_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    coveredAt: timestamp('covered_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgDayUserIdx: uniqueIndex('scrum_coverage_org_day_user_idx').on(t.orgId, t.day, t.coveredUserId),
+  }),
+)
+
+export type ScrumCoverage = typeof scrumCoverage.$inferSelect
+export type NewScrumCoverage = typeof scrumCoverage.$inferInsert
 
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert

@@ -56,16 +56,16 @@ export default function OrgSettingsClient({
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5 max-w-3xl">
       {/* Org name */}
-      <section className="app-card app-card-lg hover-lift">
-        <div className="section-title-row">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="app-h2">Workspace name</h2>
-            <p className="app-sub mt-1">Shown in the sidebar and on email invites.</p>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Workspace name</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">Shown in the sidebar and on email invites.</p>
           </div>
           <button
-            className="btn-primary"
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || name.trim() === initial.name}
             onClick={() => save({ name }, 'name')}
           >
@@ -81,11 +81,11 @@ export default function OrgSettingsClient({
       </section>
 
       {/* Slack notifications */}
-      <section className="app-card app-card-lg hover-lift">
-        <div className="section-title-row">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="app-h2">Slack notifications</h2>
-            <p className="app-sub mt-1">
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Slack notifications</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">
               Get pinged when employees take a break, request leave, or punch out with a suspicious summary.
               {hasSlack && <span className="ml-1 text-emerald-600 font-medium">· Configured</span>}
             </p>
@@ -99,12 +99,12 @@ export default function OrgSettingsClient({
           placeholder="https://hooks.slack.com/services/T00.../B00.../..."
           className="input"
         />
-        <p className="app-sub mt-2 text-[12px]">
+        <p className="mt-2 text-[12px] text-slate-500">
           Create one at <code>api.slack.com/apps</code> → your app → Incoming Webhooks → Add. Paste the URL above.
         </p>
         <div className="flex gap-2 mt-3">
           <button
-            className="btn-primary"
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || slackWebhook.trim().length === 0}
             onClick={async () => {
               const ok = await save({ slackWebhookUrl: slackWebhook }, 'slack')
@@ -133,14 +133,14 @@ export default function OrgSettingsClient({
       </section>
 
       {/* Holiday region */}
-      <section className="app-card app-card-lg hover-lift">
-        <div className="section-title-row">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="app-h2">Public holiday calendar</h2>
-            <p className="app-sub mt-1">Seeds the leave + insights views with India national + state holidays.</p>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Public holiday calendar</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">Seeds the leave + insights views with India national + state holidays.</p>
           </div>
           <button
-            className="btn-primary"
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || region === initial.holidayRegion}
             onClick={() => save({ holidayRegion: region }, 'region')}
           >
@@ -155,14 +155,14 @@ export default function OrgSettingsClient({
       </section>
 
       {/* Avatar mode */}
-      <section className="app-card app-card-lg hover-lift">
-        <div className="section-title-row">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="app-h2">Avatar style</h2>
-            <p className="app-sub mt-1">Choose how teammates appear across dashboards.</p>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Avatar style</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">Choose how teammates appear across dashboards.</p>
           </div>
           <button
-            className="btn-primary"
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || avatarMode === initial.avatarMode}
             onClick={() => save({ avatarMode }, 'avatar')}
           >
@@ -198,14 +198,14 @@ export default function OrgSettingsClient({
       </section>
 
       {/* Workday */}
-      <section className="app-card app-card-lg hover-lift">
-        <div className="section-title-row">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="app-h2">Workday hours</h2>
-            <p className="app-sub mt-1">Used to flag punch-ins / punch-outs outside the expected window.</p>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Workday hours</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">Used to flag punch-ins / punch-outs outside the expected window.</p>
           </div>
           <button
-            className="btn-primary"
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || (workStart === initial.workdayStartHour && workEnd === initial.workdayEndHour)}
             onClick={() => save({ workdayStartHour: workStart, workdayEndHour: workEnd }, 'workday')}
           >

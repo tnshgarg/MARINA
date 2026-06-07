@@ -8,6 +8,8 @@ export type NotifyEvent =
   | { kind: 'shift.punched_out'; orgId: number; userName: string; userLogin: string; durationMins: number; verificationStatus: string; verificationScore: number | null; summary: string; notes?: string | null }
   | { kind: 'shift.suspicious'; orgId: number; userName: string; userLogin: string; reason: string }
   | { kind: 'state.blocked'; orgId: number; userName: string; userLogin: string; reason: string }
+  | { kind: 'blocker.pinged'; orgId: number; blockedName: string; blockedLogin: string; waitingOnName: string | null; waitingOnLogin: string | null; waitingOnExternal: string | null; reason: string }
+  | { kind: 'break.checkin'; orgId: number; userName: string; userLogin: string; managerName: string; reason: string }
 
 /**
  * Best-effort fan-out. Reads the org's slack webhook + falls back to emailing
@@ -130,6 +132,20 @@ function renderEvent(e: NotifyEvent): { title: string; text: string; color: stri
         title: `Blocked · ${e.userName}`,
         text: e.reason,
         color: '#f59e0b',
+      }
+    case 'blocker.pinged': {
+      const who = e.waitingOnLogin ? `@${e.waitingOnLogin}` : e.waitingOnExternal ?? 'someone'
+      return {
+        title: `🔔 ${who}, ${e.blockedName} is waiting on you`,
+        text: e.reason || 'A teammate is blocked on your input.',
+        color: '#6366f1',
+      }
+    }
+    case 'break.checkin':
+      return {
+        title: `Check-in · @${e.userLogin}`,
+        text: e.reason,
+        color: '#6366f1',
       }
   }
 }

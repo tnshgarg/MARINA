@@ -29,9 +29,11 @@ type PairingCode = {
 export default function SettingsClient({
   initialSettings,
   initialDevices,
+  googleConnected,
 }: {
   initialSettings: Settings
   initialDevices: Device[]
+  googleConnected: boolean
 }) {
   const router = useRouter()
   const [settings, setSettings] = useState(initialSettings)
@@ -41,6 +43,8 @@ export default function SettingsClient({
   const [pairing, setPairing] = useState<PairingCode | null>(null)
   const [remaining, setRemaining] = useState<number>(0)
   const [copiedCode, setCopiedCode] = useState(false)
+  const [calendar, setCalendar] = useState({ connected: googleConnected })
+  const [calendarStatus, setCalendarStatus] = useState<string | null>(null)
 
   useEffect(() => {
     if (!pairing) return
@@ -52,6 +56,56 @@ export default function SettingsClient({
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [pairing])
+
+  // Pick up calendar=connected / calendar_error from the OAuth callback redirect.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const p = new URLSearchParams(window.location.search)
+    const ok = p.get('calendar')
+    const err = p.get('calendar_error')
+    if (ok === 'connected') {
+      setCalendarStatus('Google Calendar connected. Initial sync running…')
+    } else if (err) {
+      setCalendarStatus(`Calendar connect failed: ${err}`)
+    }
+    // Clean up the URL so reloads don't keep showing the toast.
+    if (ok || err) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  async function syncCalendar() {
+    setBusy('cal-sync')
+    setCalendarStatus(null)
+    try {
+      const res = await fetch('/api/me/calendar/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
+      setCalendarStatus(
+        `Synced · ${data.inserted ?? 0} new, ${data.updated ?? 0} updated. ${data.attendanceMarked ?? 0} marked attended.`,
+      )
+    } catch (e) {
+      setCalendarStatus(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function disconnectCalendar() {
+    if (!confirm('Disconnect Google Calendar? Synced meetings will be purged.')) return
+    setBusy('cal-disconnect')
+    try {
+      const res = await fetch('/api/me/calendar/disconnect', { method: 'POST' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setCalendar({ connected: false })
+      setCalendarStatus('Disconnected.')
+      router.refresh()
+    } catch (e) {
+      setCalendarStatus(`Disconnect failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function patchSettings(patch: Partial<{ paused: boolean; windowTitlesEnabled: boolean }>) {
     setBusy('settings')
@@ -133,39 +187,34 @@ export default function SettingsClient({
   const activeDevices = devices.filter((d) => !d.revokedAt)
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-      <section className="app-card app-card-lg">
-        <div className="section-title-row flex-wrap gap-3">
-          <div>
-            <h2 className="app-h2">Tracking</h2>
-            <p className="app-sub mt-1">
-              When paused, the agent stops sampling and the server discards any in-flight uploads.
-            </p>
-          </div>
+    <div className="max-w-3xl space-y-5">
+      <SettingsRow
+        title="Tracking"
+        body="When paused, the agent stops sampling and the server discards any in-flight uploads."
+        action={
           <button
             onClick={() => patchSettings({ paused: !paused })}
             disabled={busy === 'settings'}
-            className={paused ? 'btn-good' : 'btn-primary'}
+            className={
+              paused
+                ? 'px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition'
+                : 'px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition'
+            }
           >
-            {paused ? 'Resume tracking' : 'Pause tracking'}
+            {paused ? 'Resume' : 'Pause'}
           </button>
-        </div>
-        {paused && settings.trackingPausedAt && (
-          <p className="mt-2 text-[12px] text-amber-700">
-            Paused since {new Date(settings.trackingPausedAt).toLocaleString()}
-          </p>
-        )}
-      </section>
+        }
+        footer={
+          paused && settings.trackingPausedAt
+            ? `Paused since ${new Date(settings.trackingPausedAt).toLocaleString()}`
+            : null
+        }
+      />
 
-      <section className="app-card app-card-lg">
-        <div className="section-title-row flex-wrap gap-3">
-          <div>
-            <h2 className="app-h2">Window titles</h2>
-            <p className="app-sub mt-1 max-w-md">
-              Off by default. When on, the agent includes the foreground window title with each
-              sample so managers can see e.g. which file is being edited.
-            </p>
-          </div>
+      <SettingsRow
+        title="Window titles"
+        body="Off by default. When on, the agent includes the foreground window title with each sample so managers can see e.g. which file is being edited."
+        action={
           <label className="inline-flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -178,65 +227,112 @@ export default function SettingsClient({
               {settings.windowTitlesEnabled ? 'On' : 'Off'}
             </span>
           </label>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="app-card app-card-lg">
-        <div className="section-title-row flex-wrap gap-3">
-          <div>
-            <h2 className="app-h2">Pair a Mac</h2>
-            <p className="app-sub mt-1 max-w-md">
-              Install the MARINA Mac agent, generate a one-time code, and paste it into the agent
-              within 10 minutes.
-            </p>
-          </div>
-          <button onClick={generateCode} disabled={busy === 'pair'} className="btn-primary">
-            {busy === 'pair' ? 'Generating…' : 'Generate pairing code'}
+      <SettingsRow
+        title="Pair a Mac"
+        body="Install the MARINA Mac agent, generate a one-time code, and paste it into the agent within 10 minutes."
+        action={
+          <button
+            onClick={generateCode}
+            disabled={busy === 'pair'}
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+          >
+            {busy === 'pair' ? 'Generating…' : 'Generate code'}
           </button>
-        </div>
+        }
+      >
         {pairing && (
-          <div className="mt-4 rounded-2xl bg-indigo-50 border border-indigo-100 p-4">
-            <p className="text-[12px] text-indigo-700 font-medium">
+          <div className="mt-4 rounded-lg bg-indigo-50/70 border border-indigo-100 p-3">
+            <p className="text-[11.5px] text-indigo-700 font-medium">
               Pairing code · valid for {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
             </p>
-            <div className="mt-2 flex items-center gap-3 flex-wrap">
-              <code className="text-[22px] font-semibold tracking-[0.3em] text-indigo-900 font-mono">
+            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+              <code className="text-[20px] font-semibold tracking-[0.3em] text-indigo-900 font-mono">
                 {pairing.code}
               </code>
-              <button onClick={() => copyCode(pairing.code)} className="btn-secondary">
+              <button
+                onClick={() => copyCode(pairing.code)}
+                className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+              >
                 {copiedCode ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="mt-3 text-[12px] text-slate-500">
-              Anyone with this code can pair a device to your account. It vanishes the moment a
-              device pairs.
+            <p className="mt-2 text-[11.5px] text-slate-500">
+              Anyone with this code can pair a device to your account. It vanishes the moment a device pairs.
             </p>
           </div>
         )}
-        {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
-      </section>
+        {error && <p className="mt-2 text-[12px] text-rose-600">{error}</p>}
+      </SettingsRow>
 
-      <section className="app-card">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="app-h2">Paired devices · {activeDevices.length}</h2>
+      <SettingsRow
+        title="Google Calendar"
+        body="Connect your Google Calendar so MARINA can show today's meetings, give you a heads-up before they start, and reconcile attendance from your activity."
+        action={
+          calendar.connected ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={syncCalendar}
+                disabled={busy === 'cal-sync'}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+              >
+                {busy === 'cal-sync' ? 'Syncing…' : 'Sync now'}
+              </button>
+              <button
+                onClick={disconnectCalendar}
+                disabled={busy === 'cal-disconnect'}
+                className="px-3 py-1.5 rounded-md bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <a
+              href="/api/connect/google/start?return_to=/settings"
+              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition inline-block"
+            >
+              Connect
+            </a>
+          )
+        }
+      >
+        {calendarStatus && (
+          <p
+            className={`mt-3 text-[12px] ${
+              calendarStatus.includes('failed') ? 'text-rose-600' : 'text-emerald-700'
+            }`}
+          >
+            {calendarStatus}
+          </p>
+        )}
+      </SettingsRow>
+
+      <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold text-slate-900">
+            Paired devices
+            <span className="ml-1.5 text-slate-400 tabular-nums">{activeDevices.length}</span>
+          </h2>
         </div>
         {devices.length === 0 ? (
-          <p className="px-5 py-6 app-sub">No devices paired yet.</p>
+          <p className="px-4 py-5 text-[12.5px] text-slate-500">No devices paired yet.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {devices.map((d) => (
-              <li key={d.id} className="px-5 py-3 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[14px] font-medium text-slate-900">
+              <li key={d.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-slate-900">
                     {d.label}{' '}
                     <span className="text-[11px] text-slate-500 font-normal">
                       {d.platform}{d.agentVersion ? ` · ${d.agentVersion}` : ''}
                     </span>
                   </p>
-                  <p className="text-[12px] text-slate-500">
+                  <p className="text-[11.5px] text-slate-500">
                     {d.tokenPrefix}… · paired {new Date(d.pairedAt).toLocaleString()}
                   </p>
-                  <p className="text-[12px] text-slate-500">
+                  <p className="text-[11.5px] text-slate-500">
                     {d.revokedAt
                       ? `Revoked ${new Date(d.revokedAt).toLocaleString()}`
                       : d.lastSeenAt
@@ -248,7 +344,7 @@ export default function SettingsClient({
                   <button
                     onClick={() => revoke(d.id)}
                     disabled={busy === `revoke-${d.id}`}
-                    className="btn-bad"
+                    className="px-2.5 py-1 rounded-md bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-[11.5px] font-medium disabled:opacity-50 transition"
                   >
                     {busy === `revoke-${d.id}` ? 'Revoking…' : 'Revoke'}
                   </button>
@@ -260,34 +356,34 @@ export default function SettingsClient({
       </section>
 
       {settings.consentAt && (
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[11.5px] text-slate-500">
           Consent on file from {new Date(settings.consentAt).toLocaleString()}.
         </p>
       )}
 
-      <section className="app-card app-card-lg" style={{ borderColor: '#fecaca' }}>
-        <h2 className="app-h2" style={{ color: '#b91c1c' }}>Danger zone</h2>
-        <p className="app-sub mt-1 mb-4">
+      <section className="rounded-xl border border-rose-200 bg-white p-5">
+        <h2 className="text-[14px] font-semibold text-rose-700">Danger zone</h2>
+        <p className="text-[12.5px] text-slate-500 mt-1">
           Your data is yours. Download or permanently delete it under your DPDP Act 2023 rights.
         </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div className="rounded-xl border border-slate-200 p-4">
-            <h3 className="app-h3">Export my data</h3>
-            <p className="app-sub mt-1 text-[12px]">
+        <div className="mt-4 grid sm:grid-cols-2 gap-3">
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-[13px] font-semibold text-slate-900">Export my data</h3>
+            <p className="text-[12px] text-slate-500 mt-1 leading-snug">
               Download a JSON dump of every row tied to your account — profile, GitHub events,
               activity, shifts, breaks, leaves, narratives.
             </p>
             <a
               href="/api/me/export"
               download
-              className="btn-secondary mt-3 inline-flex"
+              className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
             >
-              ↓ Download JSON
+              Download JSON
             </a>
           </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <h3 className="app-h3" style={{ color: '#b91c1c' }}>Delete my account</h3>
-            <p className="text-[12px] mt-1 text-rose-800/80">
+          <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-4">
+            <h3 className="text-[13px] font-semibold text-rose-700">Delete my account</h3>
+            <p className="text-[12px] mt-1 text-rose-800/80 leading-snug">
               Permanently erase your account and all associated data. This cannot be undone. If you
               own an org with other members, you must transfer ownership first.
             </p>
@@ -307,7 +403,7 @@ export default function SettingsClient({
                   alert('Delete failed: ' + String(e))
                 }
               }}
-              className="btn-bad mt-3"
+              className="mt-3 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[12px] font-medium transition"
             >
               Delete my account
             </button>
@@ -315,9 +411,41 @@ export default function SettingsClient({
         </div>
       </section>
 
-      <p className="text-[11px] text-slate-400 text-center mt-2">
+      <p className="text-[11px] text-slate-400 mt-2">
         Want a Data Processing Agreement? See <a href="/dpa" className="underline">/dpa</a>.
       </p>
     </div>
+  )
+}
+
+/**
+ * Standard settings row: title + description left, action control right, optional
+ * children below for inline expansions (e.g. the pairing-code reveal).
+ */
+function SettingsRow({
+  title,
+  body,
+  action,
+  footer,
+  children,
+}: {
+  title: string
+  body: string
+  action: React.ReactNode
+  footer?: string | null
+  children?: React.ReactNode
+}) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0 flex-1 max-w-[440px]">
+          <h2 className="text-[13.5px] font-semibold text-slate-900">{title}</h2>
+          <p className="mt-1 text-[12.5px] text-slate-500 leading-relaxed">{body}</p>
+        </div>
+        <div className="shrink-0">{action}</div>
+      </div>
+      {footer && <p className="mt-2 text-[12px] text-amber-700">{footer}</p>}
+      {children}
+    </section>
   )
 }

@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authenticateAgent } from '@/lib/agent/auth'
 import { verifyShiftSummary } from '@/lib/engine/verify-shift'
+import { buildStory } from '@/lib/engine/story'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
 
@@ -76,6 +77,12 @@ export async function POST(req: Request) {
     targetId: verified.id,
     payload: { score: verdict.score, status: verdict.status },
     ...requestMeta(req),
+  })
+
+  // Fire-and-forget daily story generation so the manager sees a fresh story
+  // by the time they next open the dashboard. Failures don't block punch-out.
+  void buildStory(agent.user.id, new Date()).catch((err) => {
+    console.error('[shifts/out] background story generation failed', err)
   })
 
   if (verified.orgId) {

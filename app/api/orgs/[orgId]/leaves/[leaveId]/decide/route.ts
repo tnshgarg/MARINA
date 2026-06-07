@@ -23,33 +23,65 @@ export async function POST(
   try {
     const { session } = await requireMembership(orgId, 'manager')
     const body = (await req.json().catch(() => ({}))) as {
-      decision?: 'approve' | 'deny'
+      decision?: 'approve' | 'deny' | 'reopen'
       note?: string
     }
-    if (body.decision !== 'approve' && body.decision !== 'deny') {
-      return NextResponse.json({ error: 'decision must be approve|deny' }, { status: 400 })
+    if (body.decision !== 'approve' && body.decision !== 'deny' && body.decision !== 'reopen') {
+      return NextResponse.json({ error: 'decision must be approve|deny|reopen' }, { status: 400 })
     }
     const note = (body.note ?? '').toString().trim().slice(0, NOTE_MAX)
+
+    // Look up the current row so we can detect changes (and write a precise audit log).
+    const existing = await db.query.leaveRequests.findFirst({
+      where: and(
+        eq(schema.leaveRequests.id, leaveId),
+        eq(schema.leaveRequests.orgId, orgId),
+      ),
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'leave not found' }, { status: 404 })
+    }
+    if (existing.status === 'cancelled') {
+      return NextResponse.json(
+        { error: 'cannot decide a cancelled request — ask the employee to resubmit' },
+        { status: 400 },
+      )
+    }
+
+    const newStatus =
+      body.decision === 'reopen'
+        ? 'pending'
+        : body.decision === 'approve'
+          ? 'approved'
+          : 'denied'
+
+    // No-op short circuit
+    if (existing.status === newStatus && (existing.decidedNote ?? null) === (note || null)) {
+      return NextResponse.json({
+        ok: true,
+        leave: serialise(existing),
+        changed: false,
+      })
+    }
 
     const [row] = await db
       .update(schema.leaveRequests)
       .set({
-        status: body.decision === 'approve' ? 'approved' : 'denied',
-        decidedAt: new Date(),
-        decidedBy: session.appUserId,
-        decidedNote: note || null,
+        status: newStatus,
+        decidedAt: newStatus === 'pending' ? null : new Date(),
+        decidedBy: newStatus === 'pending' ? null : session.appUserId,
+        decidedNote: newStatus === 'pending' ? null : (note || null),
       })
       .where(
         and(
           eq(schema.leaveRequests.id, leaveId),
           eq(schema.leaveRequests.orgId, orgId),
-          eq(schema.leaveRequests.status, 'pending')
-        )
+        ),
       )
       .returning()
 
     if (!row) {
-      return NextResponse.json({ error: 'leave not found or already decided' }, { status: 404 })
+      return NextResponse.json({ error: 'leave not found' }, { status: 404 })
     }
 
     void audit({
@@ -58,31 +90,33 @@ export async function POST(
       actorUserId: session.appUserId,
       targetType: 'leave',
       targetId: row.id,
-      payload: { decision: body.decision, note: note || null },
+      payload: {
+        from: existing.status,
+        to: newStatus,
+        decision: body.decision,
+        note: note || null,
+      },
       ...requestMeta(req),
     })
 
-    const requester = await db.query.users.findFirst({ where: eq(schema.users.id, row.userId) })
-    void notify({
-      kind: 'leave.decided',
-      orgId,
-      userName: requester?.name ?? `@${requester?.login ?? 'unknown'}`,
-      userLogin: requester?.login ?? 'unknown',
-      decision: body.decision === 'approve' ? 'approved' : 'denied',
-      startDate: row.startDate,
-      endDate: row.endDate,
-      note: note || null,
-    })
+    if (newStatus !== 'pending') {
+      const requester = await db.query.users.findFirst({ where: eq(schema.users.id, row.userId) })
+      void notify({
+        kind: 'leave.decided',
+        orgId,
+        userName: requester?.name ?? `@${requester?.login ?? 'unknown'}`,
+        userLogin: requester?.login ?? 'unknown',
+        decision: newStatus === 'approved' ? 'approved' : 'denied',
+        startDate: row.startDate,
+        endDate: row.endDate,
+        note: note || null,
+      })
+    }
 
     return NextResponse.json({
       ok: true,
-      leave: {
-        id: row.id,
-        status: row.status,
-        decidedAt: row.decidedAt?.toISOString() ?? null,
-        decidedBy: row.decidedBy,
-        decidedNote: row.decidedNote,
-      },
+      leave: serialise(row),
+      changed: true,
     })
   } catch (err) {
     if (err instanceof HttpError) {
@@ -90,5 +124,15 @@ export async function POST(
     }
     console.error('leave decide failed', err)
     return NextResponse.json({ error: 'internal' }, { status: 500 })
+  }
+}
+
+function serialise(row: typeof schema.leaveRequests.$inferSelect) {
+  return {
+    id: row.id,
+    status: row.status,
+    decidedAt: row.decidedAt?.toISOString() ?? null,
+    decidedBy: row.decidedBy,
+    decidedNote: row.decidedNote,
   }
 }

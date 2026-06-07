@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte, isNull } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, like, not } from 'drizzle-orm'
 import { auth, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
@@ -31,7 +31,8 @@ export default async function DashboardPage() {
         .where(
           and(
             eq(schema.githubEvents.userId, session.appUserId),
-            gte(schema.githubEvents.occurredAt, periodStart)
+            gte(schema.githubEvents.occurredAt, periodStart),
+            not(like(schema.githubEvents.externalId, 'seed-%')),
           )
         )
         .orderBy(desc(schema.githubEvents.occurredAt))
@@ -67,6 +68,16 @@ export default async function DashboardPage() {
   const primaryOrg = memberships[0] ?? null
   const primaryOrgId = primaryOrg?.orgId ?? null
   const canSeeTeam = primaryOrg ? roleAtLeast(primaryOrg.role, 'manager') : false
+
+  // For the welcome tour we need to know if this user has *ever* punched in.
+  const anyShift = await db
+    .select({ id: schema.shifts.id })
+    .from(schema.shifts)
+    .where(eq(schema.shifts.userId, session.appUserId))
+    .limit(1)
+  const hasAnyShift = anyShift.length > 0
+
+  const friendlyName = me.name ?? character?.name ?? me.login ?? session.login
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
@@ -109,6 +120,8 @@ export default async function DashboardPage() {
 
       <DashboardClient
         orgId={primaryOrgId}
+        userName={friendlyName}
+        hasAnyShift={hasAnyShift}
         initialEvents={events.map(serializeEvent)}
         initialNarrative={latestNarrative ? serializeNarrative(latestNarrative) : null}
         periodStart={periodStart.toISOString()}

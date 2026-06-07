@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/toast'
 
 export default function AcceptInviteClient({ token, orgId }: { token: string; orgId: number }) {
   const router = useRouter()
+  const toast = useToast()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,11 +19,14 @@ export default function AcceptInviteClient({ token, orgId }: { token: string; or
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.message || data?.error || 'failed')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`)
+      toast.push({ kind: 'success', title: 'Joined!', body: 'Welcome to your team.' })
       router.push(`/org/${orgId}`)
     } catch (e) {
-      setError(String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      toast.push({ kind: 'error', title: 'Could not accept invite', body: msg })
       setBusy(false)
     }
   }

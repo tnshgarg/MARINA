@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
+import { useToast } from '@/components/toast'
 
 type Leave = {
   id: number
@@ -33,6 +34,7 @@ export default function LeavesClient({
   leaves: Leave[]
 }) {
   const router = useRouter()
+  const toast = useToast()
   const [filter, setFilter] = useState<Leave['status'] | 'all'>('all')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export default function LeavesClient({
     return leaves.filter((l) => l.status === filter)
   }, [leaves, filter])
 
-  async function decide(id: number, decision: 'approve' | 'deny') {
+  async function decide(id: number, decision: 'approve' | 'deny' | 'reopen') {
     setBusy(`${id}-${decision}`)
     setError(null)
     try {
@@ -51,11 +53,22 @@ export default function LeavesClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'failed')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || data?.message || `HTTP ${res.status}`)
+      toast.push({
+        kind: 'success',
+        title:
+          decision === 'approve'
+            ? 'Leave approved'
+            : decision === 'deny'
+              ? 'Leave denied'
+              : 'Leave reopened',
+      })
       router.refresh()
     } catch (e) {
-      setError(String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      toast.push({ kind: 'error', title: 'Could not save decision', body: msg })
     } finally {
       setBusy(null)
     }
@@ -69,64 +82,155 @@ export default function LeavesClient({
   ]
 
   return (
-    <div className="app-card">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 flex-wrap">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setFilter(t.id)}
-            className={`px-3 py-1.5 rounded-lg text-[13px] font-medium ${
-              filter === t.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t.label} <span className="text-slate-400">({t.count})</span>
-          </button>
-        ))}
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-1 flex-wrap">
+        <div
+          className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+          role="tablist"
+        >
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setFilter(t.id)}
+              role="tab"
+              aria-selected={filter === t.id}
+              className={`px-3 py-1 text-[12px] font-medium rounded-md transition ${
+                filter === t.id
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {t.label}
+              <span className="ml-1 text-slate-400 tabular-nums">{t.count}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      {error && <p className="px-5 py-2 text-[12px] text-rose-600">{error}</p>}
+      {error && <p className="px-4 py-2 text-[12px] text-rose-600">{error}</p>}
       <ul className="divide-y divide-slate-100">
         {filtered.length === 0 && (
-          <li className="px-5 py-10 text-center text-slate-500">No requests in this view.</li>
+          <li className="px-5 py-10 text-center text-[12.5px] text-slate-500">
+            No requests in this view.
+          </li>
         )}
         {filtered.map((l) => (
-          <li key={l.id} className="px-5 py-4 flex items-start gap-4 flex-wrap">
-            <CharacterAvatar characterKey={l.user.characterKey} size={42} />
+          <li key={l.id} className="px-5 py-4 flex items-start gap-3 flex-wrap">
+            <CharacterAvatar characterKey={l.user.characterKey} size={32} />
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[14px] font-medium text-slate-900">
+                <p className="text-[13px] font-medium text-slate-900">
                   {l.user.name ?? `@${l.user.login}`}
                 </p>
                 <span className={`pill ${STATUS_PILL[l.status]}`}>{l.status}</span>
               </div>
-              <p className="text-[12px] text-slate-500 mt-0.5">
+              <p className="text-[11.5px] text-slate-500 mt-0.5">
                 {fmtDateRange(l.startDate, l.endDate)} · submitted {timeAgo(l.createdAt)}
               </p>
-              <p className="mt-2 text-[13px] text-slate-700 leading-snug">{l.reason}</p>
+              <p className="mt-1.5 text-[12.5px] text-slate-700 leading-snug">{l.reason}</p>
               {l.decidedNote && (
-                <p className="mt-1 text-[12px] text-slate-500">Manager note: {l.decidedNote}</p>
+                <p className="mt-1 text-[11.5px] text-slate-500">
+                  Manager note: {l.decidedNote}
+                </p>
               )}
             </div>
-            {isManager && l.status === 'pending' && (
-              <div className="flex gap-2 self-center">
-                <button
-                  className="btn-good"
-                  disabled={busy === `${l.id}-approve`}
-                  onClick={() => decide(l.id, 'approve')}
-                >
-                  {busy === `${l.id}-approve` ? '…' : 'Approve'}
-                </button>
-                <button
-                  className="btn-bad"
-                  disabled={busy === `${l.id}-deny`}
-                  onClick={() => decide(l.id, 'deny')}
-                >
-                  {busy === `${l.id}-deny` ? '…' : 'Deny'}
-                </button>
-              </div>
+            {isManager && (
+              <DecisionActions
+                leave={l}
+                busy={busy}
+                onDecide={(d) => decide(l.id, d)}
+              />
             )}
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * Decision controls per row. Pending → primary Approve + outline Deny.
+ * Decided → small "Change decision" disclosure that reveals Flip + Reopen.
+ * Reopening clears decidedAt/decidedBy/decidedNote and returns status to pending.
+ */
+function DecisionActions({
+  leave: l,
+  busy,
+  onDecide,
+}: {
+  leave: Leave
+  busy: string | null
+  onDecide: (d: 'approve' | 'deny' | 'reopen') => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  if (l.status === 'pending') {
+    return (
+      <div className="flex gap-1.5 self-center">
+        <button
+          className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
+          disabled={busy === `${l.id}-approve`}
+          onClick={() => onDecide('approve')}
+        >
+          {busy === `${l.id}-approve` ? '…' : 'Approve'}
+        </button>
+        <button
+          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium disabled:opacity-50 transition"
+          disabled={busy === `${l.id}-deny`}
+          onClick={() => onDecide('deny')}
+        >
+          {busy === `${l.id}-deny` ? '…' : 'Deny'}
+        </button>
+      </div>
+    )
+  }
+
+  if (l.status === 'cancelled') {
+    return (
+      <span className="self-center text-[11.5px] text-slate-400">
+        Cancelled by employee
+      </span>
+    )
+  }
+
+  // approved or denied → reversible
+  const flipTo: 'approve' | 'deny' = l.status === 'approved' ? 'deny' : 'approve'
+  const flipLabel = flipTo === 'approve' ? 'Approve instead' : 'Deny instead'
+
+  return (
+    <div className="self-center flex items-center gap-1.5 relative">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11.5px] font-medium transition"
+        >
+          Change decision
+        </button>
+      ) : (
+        <>
+          <button
+            className="px-2.5 py-1 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-[11.5px] font-medium disabled:opacity-50 transition"
+            disabled={busy === `${l.id}-${flipTo}`}
+            onClick={() => onDecide(flipTo)}
+          >
+            {busy === `${l.id}-${flipTo}` ? '…' : flipLabel}
+          </button>
+          <button
+            className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11.5px] font-medium disabled:opacity-50 transition"
+            disabled={busy === `${l.id}-reopen`}
+            onClick={() => onDecide('reopen')}
+            title="Set back to pending — clears the decision"
+          >
+            {busy === `${l.id}-reopen` ? '…' : 'Reopen'}
+          </button>
+          <button
+            onClick={() => setOpen(false)}
+            className="text-[11px] text-slate-400 hover:text-slate-600 px-1"
+            aria-label="Close decision actions"
+          >
+            ×
+          </button>
+        </>
+      )}
     </div>
   )
 }

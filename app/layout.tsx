@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { NavProgress } from "@/components/nav-progress";
+import { ToastProvider } from "@/components/toast";
 
 export const metadata: Metadata = {
   title: "Project MARINA",
@@ -24,7 +25,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <NavProgress />
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

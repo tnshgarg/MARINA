@@ -16,7 +16,7 @@ export default function LandingClient({
 }) {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<{ sent: boolean; devLink?: string } | null>(null)
+  const [result, setResult] = useState<{ dispatched: boolean; devLink?: string; notes?: string[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function startMagic(e: React.FormEvent) {
@@ -32,7 +32,11 @@ export default function LandingClient({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error ?? 'failed')
-      setResult({ sent: !!data.sent, devLink: data.devLink })
+      setResult({
+        dispatched: !!data.dispatched,
+        devLink: data.devLink,
+        notes: Array.isArray(data.notes) ? data.notes : [],
+      })
     } catch (e) {
       setError(String(e))
     } finally {
@@ -108,6 +112,14 @@ export default function LandingClient({
               <p className="mt-3 text-[11px] text-slate-500">
                 Free for the first 5 operators forever · No credit card needed
               </p>
+              {process.env.NODE_ENV !== 'production' && (
+                <a
+                  href="/dev/login"
+                  className="mt-4 inline-block text-[11px] text-rose-600 hover:text-rose-700 hover:underline"
+                >
+                  🛠 Dev login (instant sign-in as any seeded user)
+                </a>
+              )}
             </>
           )}
           {(error || authError) && (
@@ -133,24 +145,55 @@ export default function LandingClient({
   )
 }
 
-function SuccessCard({ result, email }: { result: { sent: boolean; devLink?: string }; email: string }) {
+function SuccessCard({
+  result,
+  email,
+}: {
+  result: { dispatched: boolean; devLink?: string; notes?: string[] }
+  email: string
+}) {
+  const hasNotes = (result.notes?.length ?? 0) > 0
+  const dispatched = result.dispatched && !hasNotes
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
-      <p className="text-[24px] mb-2">📬</p>
+    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 text-left">
+      <p className="text-[24px] mb-2">{dispatched ? '📬' : '🔗'}</p>
       <p className="text-[15px] font-semibold text-emerald-900">
-        {result.sent ? 'Check your inbox' : 'Link generated — but email isn’t set up'}
+        {dispatched ? 'Check your inbox' : 'Link generated — use it below'}
       </p>
       <p className="mt-1 text-[13px] text-emerald-800">
-        {result.sent
+        {dispatched
           ? `We sent a one-click sign-in link to ${email}. It expires in 15 minutes.`
-          : `Your dev server doesn’t have RESEND_API_KEY configured. Use the link below to sign in (this only shows in dev).`}
+          : `Email delivery isn't fully configured — sign in with the link below.`}
       </p>
+
       {result.devLink && (
-        <div className="mt-3 rounded-lg bg-white border border-emerald-200 p-3 text-[12px] break-all">
-          <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700 mb-1">Dev link</p>
-          <a href={result.devLink} className="text-emerald-700 hover:underline font-mono">
+        <a
+          href={result.devLink}
+          className="mt-3 inline-flex items-center gap-2 w-full justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-[14px] font-medium transition"
+        >
+          Sign in now →
+        </a>
+      )}
+
+      {result.devLink && (
+        <details className="mt-3 group">
+          <summary className="cursor-pointer text-[11px] text-emerald-700 select-none">
+            Or copy the raw link
+          </summary>
+          <div className="mt-2 rounded-lg bg-white border border-emerald-200 p-3 text-[11px] break-all font-mono text-emerald-800">
             {result.devLink}
-          </a>
+          </div>
+        </details>
+      )}
+
+      {hasNotes && (
+        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-[12px] text-amber-900">
+          <p className="font-semibold mb-1">⚠️ Why didn&apos;t I get an email?</p>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {result.notes!.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

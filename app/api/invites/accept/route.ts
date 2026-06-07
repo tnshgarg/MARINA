@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
@@ -21,7 +22,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'invite expired' }, { status: 410 })
     }
 
-    // If already a member, just mark accepted and route them to the org.
     const existing = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.orgId, invite.orgId),
@@ -41,6 +41,14 @@ export async function POST(req: Request) {
       .update(schema.invites)
       .set({ acceptedAt: new Date() })
       .where(eq(schema.invites.id, invite.id))
+
+    // Clear the pending-invite cookie now that we've accepted.
+    try {
+      const jar = await cookies()
+      jar.delete('marina_pending_invite')
+    } catch {
+      // ignore
+    }
 
     return NextResponse.json({ ok: true, orgId: invite.orgId })
   } catch (err) {

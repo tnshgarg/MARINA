@@ -214,6 +214,39 @@ html, body {
 }
 .textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
 
+/* Make native date/time/number inputs match the .input look exactly. */
+.input[type="date"],
+.input[type="time"],
+.input[type="datetime-local"],
+.input[type="number"] {
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 1.2;
+}
+/* Tame WebKit's calendar / clock indicator so it isn't a bright contrast blob. */
+.input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  filter: grayscale(1);
+  transition: opacity 80ms ease;
+}
+.input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.input::-webkit-inner-spin-button,
+.input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Style search inputs so they don't look out of place. */
+.input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  height: 14px; width: 14px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 6l8 8M14 6l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 6l8 8M14 6l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
 /* ---------- Sidebar ---------- */
 .app-shell {
   display: grid;
@@ -225,7 +258,21 @@ html, body {
   background: white;
   display: flex;
   flex-direction: column;
+  /* Pin the sidebar to the viewport so the sign-out footer is always visible. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
+/* The middle nav area scrolls; the brand + workspace + footer stay put. */
+.app-sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.app-sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.app-sidebar-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+.app-sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 .nav-item {
   display: flex;
   align-items: center;
@@ -409,6 +456,148 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .rise-in, .skel { animation: none; }
   .hover-lift:hover, .stat-tile:hover { transform: none; }
+}
+
+/* ============================================================
+ * Modern polish — added on top of the base theme
+ * ============================================================ */
+
+/* Glass-effect cards (subtle frost + ring) */
+.app-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.95));
+  backdrop-filter: saturate(120%);
+}
+
+/* Stronger focus states for keyboard users */
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid rgba(99,102,241,0.45);
+  outline-offset: 2px;
+}
+
+/* Cleaner button press feel */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255,255,255,0.35);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 320ms ease, height 320ms ease, opacity 320ms ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.btn-primary:active::after {
+  width: 200%;
+  height: 200%;
+  opacity: 1;
+  transition: width 0s, height 0s, opacity 0s;
+}
+
+/* Nicer table row interactions */
+.app-table tbody tr {
+  position: relative;
+}
+.app-table tbody tr::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background 160ms ease;
+}
+.app-table tbody tr:hover::before {
+  background: linear-gradient(180deg, #6366f1, #ec4899);
+}
+
+/* Pill animation when state changes */
+.pill {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.pill:hover {
+  transform: translateY(-1px);
+}
+
+/* Smoother nav-item active state */
+.nav-item-active {
+  position: relative;
+}
+.nav-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  background: linear-gradient(180deg, #6366f1, #ec4899);
+  border-radius: 0 3px 3px 0;
+}
+
+/* Refined typography */
+.app-h1 {
+  letter-spacing: -0.02em;
+}
+
+/* Smooth gradient text */
+.gradient-text {
+  background-image: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Card with depth */
+.app-card-elevated {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -12px rgba(15, 23, 42, 0.12);
+}
+
+/* Better selection */
+::selection {
+  background: rgba(99, 102, 241, 0.2);
+  color: #1e1b4b;
+}
+
+/* Hide scrollbar but allow scrolling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Avatar entrance pop */
+.avatar {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.avatar:hover {
+  transform: scale(1.05);
+}
+
+/* Smooth modal open */
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fixed > .bg-white,
+.fixed > div.w-full {
+  animation: modalPop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .dot {

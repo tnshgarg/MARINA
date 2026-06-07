@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { CharacterAvatar } from '@/components/character-avatar'
+import { CheckInButton } from './check-in-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,64 +41,71 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="app-h1">Breaks & Updates</h1>
-        <p className="mt-1 app-sub">
-          Real-time visibility into ongoing breaks and recent updates from your team.
+      <div className="mb-5">
+        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Breaks</h1>
+        <p className="mt-1.5 text-[13px] text-slate-600">
+          Real-time view of who&apos;s paused right now, plus the last 72 hours of breaks.
         </p>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        <section className="col-span-12 lg:col-span-7 app-card app-card-lg hover-lift">
-          <div className="section-title-row">
-            <h2 className="app-h2">On break now</h2>
-            <span className="pill pill-slate">{ongoing.length}</span>
+      <div className="grid grid-cols-12 gap-5">
+        <section className="col-span-12 lg:col-span-7 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
+            <h2 className="text-[14px] font-semibold text-slate-900">Paused now</h2>
+            <span className="text-[12px] text-slate-500 tabular-nums">{ongoing.length}</span>
           </div>
           {ongoing.length === 0 ? (
-            <p className="mt-3 app-sub">Nobody on break right now.</p>
+            <p className="px-4 py-6 text-[12.5px] text-slate-500">Nobody&apos;s paused right now.</p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="divide-y divide-slate-100">
               {ongoing.map(({ b, u }) => (
-                <li
-                  key={b.id}
-                  className="rise-in rounded-xl border border-slate-200 bg-slate-50 p-3 flex items-start gap-3"
-                >
-                  <CharacterAvatar characterKey={u.characterKey} size={40} />
+                <li key={b.id} className="px-4 py-3 flex items-start gap-3">
+                  <CharacterAvatar characterKey={u.characterKey} size={32} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium text-slate-900 truncate">
+                    <p className="text-[13px] font-medium text-slate-900 truncate">
                       {u.name ?? `@${u.login}`}
+                      <span className="ml-1.5 text-[10.5px] text-slate-500 capitalize font-normal">
+                        · {b.category ?? 'other'}
+                      </span>
                     </p>
                     <p className="text-[11px] text-slate-500">
                       Started {timeAgo(b.startedAt.toISOString())}
                     </p>
-                    <p className="mt-1 text-[13px] text-slate-700 leading-snug">{b.reason}</p>
+                    <p className="mt-1 text-[12.5px] text-slate-700 leading-snug">{b.reason}</p>
                   </div>
+                  <CheckInButton
+                    orgId={orgId}
+                    breakId={b.id}
+                    startedAt={b.startedAt.toISOString()}
+                    category={b.category ?? 'other'}
+                    userName={u.name ?? `@${u.login}`}
+                  />
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        <section className="col-span-12 lg:col-span-5 app-card app-card-lg hover-lift">
-          <div className="section-title-row">
-            <h2 className="app-h2">Recent breaks</h2>
-            <span className="text-[12px] text-slate-500">Last 72 hours</span>
+        <section className="col-span-12 lg:col-span-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
+            <h2 className="text-[14px] font-semibold text-slate-900">Recent breaks</h2>
+            <span className="text-[11.5px] text-slate-500">Last 72 hours</span>
           </div>
           {recent.length === 0 ? (
-            <p className="mt-3 app-sub">No recent breaks logged.</p>
+            <p className="px-4 py-6 text-[12.5px] text-slate-500">No recent breaks logged.</p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="divide-y divide-slate-100">
               {recent.slice(0, 12).map(({ b, u }) => (
-                <li key={b.id} className="flex items-start gap-3">
-                  <CharacterAvatar characterKey={u.characterKey} size={32} />
+                <li key={b.id} className="px-4 py-2.5 flex items-start gap-3">
+                  <CharacterAvatar characterKey={u.characterKey} size={26} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-slate-900 truncate">
+                    <p className="text-[12.5px] font-medium text-slate-900 truncate">
                       {u.name ?? `@${u.login}`}
                     </p>
                     <p className="text-[11px] text-slate-500">
                       {fmtDuration(b)} · {timeAgo(b.startedAt.toISOString())}
                     </p>
-                    <p className="mt-1 text-[12px] text-slate-600 leading-snug">{b.reason}</p>
+                    <p className="text-[11.5px] text-slate-600 leading-snug">{b.reason}</p>
                   </div>
                 </li>
               ))}

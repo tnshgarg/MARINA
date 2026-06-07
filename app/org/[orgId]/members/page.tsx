@@ -3,6 +3,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
+import { PeopleTabs } from '@/components/org-tabs'
 import MembersClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -42,10 +43,13 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="app-h1">Team Members</h1>
-        <p className="mt-1 app-sub">Recruit, manage, and remove members.</p>
+      <div className="mb-4">
+        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">People</h1>
+        <p className="mt-1.5 text-[13px] text-slate-600">
+          Manage the roster, invite teammates, and review punched-in shifts.
+        </p>
       </div>
+      <PeopleTabs orgId={orgId} />
 
       <MembersClient
         orgId={orgId}

@@ -20,6 +20,8 @@ export function NavLink(props: ComponentProps<typeof Link>) {
         if (e.defaultPrevented) return
         // Only animate normal left-clicks without modifiers.
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+        // Don't animate when opening in a new tab.
+        if ((props as { target?: string }).target === '_blank') return
         fireNavProgress()
       }}
     />

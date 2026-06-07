@@ -31,9 +31,28 @@ export async function POST(req: Request) {
   const base = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin
   const link = `${base.replace(/\/+$/, '')}/auth/verify?token=${encodeURIComponent(plaintext)}&redirect=${encodeURIComponent(redirectTo)}`
 
-  // Send via Resend (if configured) or log the link for dev.
+  // Send via Resend (if configured) — and detect the test-domain silent-drop.
   const apiKey = process.env.RESEND_API_KEY
-  let emailSent = false
+  const from = process.env.RESEND_FROM || 'MARINA <onboarding@resend.dev>'
+  const usingResendTestDomain = /onboarding@resend\.dev|@resend\.dev>/i.test(from)
+  let emailDispatched = false
+  let providerError: string | null = null
+  let resendId: string | null = null
+
+  // Resend's test sender domain `onboarding@resend.dev` SILENTLY DROPS mail
+  // sent to anyone other than the verified account owner. We can't detect this
+  // from the API response — Resend returns 200. So when the test domain is in
+  // use, we deliberately ALSO return the sign-in link in the JSON so users can
+  // proceed even when no email arrives.
+  const ALWAYS_RETURN_LINK_REASONS: string[] = []
+  if (!apiKey) {
+    ALWAYS_RETURN_LINK_REASONS.push('No RESEND_API_KEY is configured.')
+  } else if (usingResendTestDomain) {
+    ALWAYS_RETURN_LINK_REASONS.push(
+      'Using Resend test domain (onboarding@resend.dev) — mail to non-owner addresses is silently dropped. Set RESEND_FROM and verify your domain at resend.com/domains.'
+    )
+  }
+
   if (apiKey) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
@@ -43,33 +62,43 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM || 'MARINA <onboarding@resend.dev>',
+          from,
           to: email,
           subject: 'Your MARINA sign-in link',
           html: renderHtml(link),
           text: renderText(link),
         }),
       })
-      emailSent = res.ok
-      if (!res.ok) {
+      emailDispatched = res.ok
+      if (res.ok) {
+        const data = (await res.json().catch(() => null)) as { id?: string } | null
+        resendId = data?.id ?? null
+      } else {
         const txt = await res.text().catch(() => '')
         console.error('[magic] resend failed', res.status, txt)
+        providerError = `${res.status}: ${txt.slice(0, 200)}`
       }
     } catch (err) {
       console.error('[magic] resend threw', err)
+      providerError = err instanceof Error ? err.message : String(err)
     }
   }
 
-  if (!emailSent) {
-    // Dev / no-Resend mode: surface the link in logs.
-    console.log(`[magic] sign-in link for ${email} → ${link}`)
+  // Always log the link in dev (NODE_ENV !== 'production').
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`\n[magic] sign-in link for ${email}:\n${link}\n`)
   }
+
+  // Decide whether to include the link in the response.
+  const showLink = !emailDispatched || ALWAYS_RETURN_LINK_REASONS.length > 0 || process.env.NODE_ENV !== 'production'
 
   return NextResponse.json({
     ok: true,
-    sent: emailSent,
-    // In dev (when no email provider is configured), include the link so the user can click it.
-    devLink: emailSent ? undefined : link,
+    dispatched: emailDispatched,
+    resendId,
+    providerError,
+    notes: ALWAYS_RETURN_LINK_REASONS,
+    devLink: showLink ? link : undefined,
   })
 }
 

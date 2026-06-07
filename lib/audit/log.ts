@@ -6,6 +6,8 @@ export type AuditAction =
   | 'leave.cancelled'
   | 'break.started'
   | 'break.ended'
+  | 'break.checked_in'
+  | 'blocker.pinged'
   | 'shift.punch_in'
   | 'shift.punch_out'
   | 'shift.verified'

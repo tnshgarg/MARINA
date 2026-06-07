@@ -1,9 +1,7 @@
-import Link from 'next/link'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { requireSessionOrRedirect, listMembershipsForCurrentUser } from '@/lib/auth/guards'
-import { CharacterAvatar } from '@/components/character-avatar'
-import { getCharacter } from '@/lib/characters/data'
+import { listMembershipsForCurrentUser, requireSessionOrRedirect, roleAtLeast } from '@/lib/auth/guards'
+import { SettingsTabs } from '@/components/org-tabs'
 import SettingsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +9,6 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   const session = await requireSessionOrRedirect()
 
-  // Ensure a settings row exists.
   let settings = await db.query.userSettings.findFirst({
     where: eq(schema.userSettings.userId, session.appUserId),
   })
@@ -24,7 +21,6 @@ export default async function SettingsPage() {
   }
 
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-  const character = me ? getCharacter(me.characterKey) : null
 
   const devices = await db
     .select()
@@ -32,31 +28,32 @@ export default async function SettingsPage() {
     .where(eq(schema.agentTokens.userId, session.appUserId))
     .orderBy(desc(schema.agentTokens.pairedAt))
 
+  // Detect a connected Google account so the Calendar card can show status.
+  const googleAccount = await db.query.accounts.findFirst({
+    where: and(
+      eq(schema.accounts.userId, session.appUserId),
+      eq(schema.accounts.provider, 'google'),
+    ),
+  })
+
+  // Find an org we can scope the workspace tab to, if any.
   const memberships = await listMembershipsForCurrentUser()
-  const primaryOrgId = memberships[0]?.orgId ?? null
+  const managerOrg = memberships.find((m) => roleAtLeast(m.role, 'manager'))?.orgId ?? null
 
   return (
-    <main className="min-h-screen bg-[var(--m-bg)]">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <CharacterAvatar characterKey={me?.characterKey} size={40} />
-            <div>
-              <p className="app-eyebrow">Settings</p>
-              <h1 className="app-h2">
-                {character?.name ?? me?.name ?? `@${session.login}`}
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-[13px]">
-            <Link href="/dashboard" className="text-slate-600 hover:text-indigo-600">My console</Link>
-            {primaryOrgId && (
-              <Link href={`/org/${primaryOrgId}`} className="text-slate-600 hover:text-indigo-600">Team</Link>
-            )}
-            <Link href="/me/shots" className="text-slate-600 hover:text-indigo-600">My captures</Link>
-          </div>
+    <>
+      <div className="mb-4 flex items-baseline justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Settings</h1>
+          <p className="mt-1.5 text-[13px] text-slate-600">
+            Workspace-wide configuration on the left, your personal preferences here.
+          </p>
         </div>
-      </header>
+        <p className="text-[12px] text-slate-500">
+          Signed in as <span className="text-slate-800 font-medium">{me?.name ?? `@${session.login}`}</span>
+        </p>
+      </div>
+      {managerOrg && <SettingsTabs orgId={managerOrg} />}
 
       <SettingsClient
         initialSettings={{
@@ -74,7 +71,8 @@ export default async function SettingsPage() {
           lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
           revokedAt: d.revokedAt?.toISOString() ?? null,
         }))}
+        googleConnected={!!googleAccount}
       />
-    </main>
+    </>
   )
 }

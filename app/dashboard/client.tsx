@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { StoryCard } from '@/components/story-card'
+import { WelcomeTour } from '@/components/welcome-tour'
+import { MeetingsPanel } from '@/components/meetings-panel'
 
 type EventDto = {
   id: number
@@ -47,6 +49,8 @@ type TodaySummary = {
 
 type Props = {
   orgId: number | null
+  userName: string
+  hasAnyShift: boolean
   initialEvents: EventDto[]
   initialNarrative: NarrativeDto | null
   periodStart: string
@@ -87,6 +91,8 @@ const LEAVE_PILL: Record<LeaveDto['status'], string> = {
 
 export default function DashboardClient({
   orgId,
+  userName,
+  hasAnyShift,
   initialEvents,
   initialNarrative,
   periodEnd,
@@ -269,6 +275,20 @@ export default function DashboardClient({
 
       {/* Main column */}
       <div className="col-span-12 lg:col-span-8 space-y-6">
+        {/* Welcome tour — hides itself once the user has real activity */}
+        <WelcomeTour
+          name={userName}
+          orgId={orgId}
+          hasGitHub={initialEvents.length > 0}
+          hasAgent={today.sampleCount > 0}
+          hasActiveShift={hasAnyShift}
+          hasLeavesOrBreaks={myLeaves.length > 0 || recentBreaks.length > 0}
+          storyExists={!!narrative}
+          onOpenBreak={() => setBreakOpen(true)}
+          onOpenLeave={() => setLeaveOpen(true)}
+          onRunSync={() => void runSync()}
+        />
+
         {/* AI Story */}
         <StoryCard endpoint="/api/me/story" />
 
@@ -403,6 +423,8 @@ export default function DashboardClient({
 
       {/* Right rail */}
       <aside className="col-span-12 lg:col-span-4 space-y-6">
+        <MeetingsPanel />
+
         {/* Actions */}
         <section className="app-card app-card-lg">
           <h3 className="app-h2">Quick actions</h3>
