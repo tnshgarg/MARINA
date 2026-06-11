@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const ms = await db
     .select({ orgId: schema.memberships.orgId })
     .from(schema.memberships)
-    .where(eq(schema.memberships.userId, agent.user.id))
+    .where(and(eq(schema.memberships.userId, agent.user.id), isNull(schema.memberships.endedAt)))
     .limit(1)
   const orgId = ms[0]?.orgId ?? null
 
@@ -28,16 +28,28 @@ export async function POST(req: Request) {
     })
   }
 
-  const [row] = await db
-    .insert(schema.shifts)
-    .values({
-      userId: agent.user.id,
-      orgId: orgId ?? undefined,
-      punchedInVia: 'agent',
+  let row: typeof schema.shifts.$inferSelect
+  try {
+    ;[row] = await db
+      .insert(schema.shifts)
+      .values({
+        userId: agent.user.id,
+        orgId: orgId ?? undefined,
+        punchedInVia: 'agent',
+      })
+      .returning()
+  } catch (err) {
+    // Race condition — concurrent punch-in. Return the now-existing shift.
+    const isUnique = err instanceof Error && /unique|duplicate key/i.test(err.message)
+    if (!isUnique) throw err
+    const open = await db.query.shifts.findFirst({
+      where: and(eq(schema.shifts.userId, agent.user.id), isNull(schema.shifts.punchedOutAt)),
     })
-    .returning()
+    if (!open) throw err
+    return NextResponse.json({ ok: true, alreadyOpen: true, shift: serialise(open) })
+  }
 
-  void audit({
+  audit({
     action: 'shift.punch_in',
     orgId,
     actorUserId: agent.user.id,

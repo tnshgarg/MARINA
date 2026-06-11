@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db, schema } from '@/lib/db/client'
 import { generateMagicToken, isValidEmail, MAGIC_TTL_MINUTES } from '@/lib/auth/magic'
+import { checkRateLimit } from '@/lib/auth/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -10,6 +11,16 @@ export async function POST(req: Request) {
   const email = (body.email ?? '').trim().toLowerCase()
   if (!email || !isValidEmail(email)) {
     return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+  }
+
+  // 5 magic links per email per 15 min. Blocks spam + brute attempts.
+  const limited = await checkRateLimit(`magic_link:${email}`, 5, 15 * 60_000)
+  if (!limited.allowed) {
+    const retryS = Math.max(1, Math.round((limited.resetAtMs - Date.now()) / 1000))
+    return NextResponse.json(
+      { error: `Too many sign-in attempts. Try again in ${Math.ceil(retryS / 60)} minutes.` },
+      { status: 429, headers: { 'Retry-After': String(retryS) } },
+    )
   }
   const redirectTo = typeof body.redirectTo === 'string' && body.redirectTo.startsWith('/')
     ? body.redirectTo

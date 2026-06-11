@@ -24,11 +24,18 @@ export type SectionTab = {
 export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
   const pathname = usePathname() ?? ''
 
+  // "Best match wins" — when two tabs both technically match the current path
+  // (e.g. /settings + /settings/integrations both prefix-match /settings/…),
+  // we want the longest matchPrefix to win so nested routes stay active alone.
+  const activeKey = tabs
+    .filter((t) => pathname === t.matchPrefix || pathname.startsWith(t.matchPrefix + '/'))
+    .sort((a, b) => b.matchPrefix.length - a.matchPrefix.length)[0]?.key
+
   return (
     <div className="border-b border-slate-200 mb-6">
       <nav className="flex gap-1 -mb-px" aria-label="Section tabs">
         {tabs.map((t) => {
-          const active = pathname === t.matchPrefix || pathname.startsWith(t.matchPrefix + '/')
+          const active = t.key === activeKey
           return (
             <Link
               key={t.key}

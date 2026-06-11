@@ -4,6 +4,8 @@ import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
+import { inbox } from '@/lib/notify/inbox'
+import { sendEmployeeEmail } from '@/lib/email/send'
 
 export const runtime = 'nodejs'
 
@@ -101,7 +103,7 @@ export async function POST(
 
     if (newStatus !== 'pending') {
       const requester = await db.query.users.findFirst({ where: eq(schema.users.id, row.userId) })
-      void notify({
+      notify({
         kind: 'leave.decided',
         orgId,
         userName: requester?.name ?? `@${requester?.login ?? 'unknown'}`,
@@ -111,6 +113,33 @@ export async function POST(
         endDate: row.endDate,
         note: note || null,
       })
+
+      // The employee — not just the manager — should know about their own leave.
+      const verb = newStatus === 'approved' ? 'approved' : 'denied'
+      inbox({
+        userId: row.userId,
+        orgId,
+        kind: 'leave.decided',
+        title: `Your leave was ${verb}`,
+        body: `${row.startDate} → ${row.endDate}${note ? ` · ${note}` : ''}`,
+        href: `/dashboard`,
+      })
+      if (requester?.email) {
+        sendEmployeeEmail(
+          requester.email,
+          `[MARINA] Your leave was ${verb}`,
+          [
+            `Hi ${requester.name ?? requester.login},`,
+            ``,
+            `Your leave request for ${row.startDate} to ${row.endDate} was ${verb}.`,
+            note ? `Manager note: ${note}` : null,
+            ``,
+            `Open MARINA: ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/dashboard`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        )
+      }
     }
 
     return NextResponse.json({

@@ -129,7 +129,7 @@ export function MeetingsPanel() {
             <button
               type="button"
               onClick={askPermission}
-              className="text-[11.5px] text-indigo-600 hover:text-indigo-700 font-medium"
+              className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
             >
               Enable notifications
             </button>
@@ -172,7 +172,7 @@ function MeetingRow({
   return (
     <li
       className={`px-4 py-2.5 flex items-start gap-3 ${
-        isNext ? 'bg-indigo-50/40' : isPast ? 'opacity-60' : ''
+        isNext ? 'bg-[var(--m-accent-soft)]/60' : isPast ? 'opacity-60' : ''
       }`}
     >
       <div className="shrink-0 w-14 text-[11px] text-slate-500 tabular-nums leading-tight pt-0.5">

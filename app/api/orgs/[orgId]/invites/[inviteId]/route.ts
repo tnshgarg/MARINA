@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { audit, requestMeta } from '@/lib/audit/log'
 
 export const runtime = 'nodejs'
 
 export async function DELETE(
-  _req: Request,
-  ctx: { params: Promise<{ orgId: string; inviteId: string }> }
+  req: Request,
+  ctx: { params: Promise<{ orgId: string; inviteId: string }> },
 ) {
   const { orgId: orgIdRaw, inviteId: inviteIdRaw } = await ctx.params
   const orgId = Number(orgIdRaw)
@@ -17,20 +18,29 @@ export async function DELETE(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { session } = await requireMembership(orgId, 'manager')
     const deleted = await db
       .delete(schema.invites)
       .where(
         and(
           eq(schema.invites.id, inviteId),
           eq(schema.invites.orgId, orgId),
-          isNull(schema.invites.acceptedAt)
-        )
+          isNull(schema.invites.acceptedAt),
+        ),
       )
       .returning()
     if (deleted.length === 0) {
       return NextResponse.json({ error: 'invite not found or already accepted' }, { status: 404 })
     }
+    audit({
+      action: 'invite.revoked',
+      orgId,
+      actorUserId: session.appUserId,
+      targetType: 'invite',
+      targetId: inviteId,
+      payload: { email: deleted[0]!.email, role: deleted[0]!.role },
+      ...requestMeta(req),
+    })
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof HttpError) {

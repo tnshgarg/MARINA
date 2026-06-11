@@ -108,13 +108,21 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
   return JSON.parse(text) as GoogleTokenResponse
 }
 
-/** Revoke a token at Google. Best-effort. */
-export async function revokeToken(token: string): Promise<void> {
+/**
+ * Revoke a token at Google. Returns `true` if Google confirmed revocation
+ * (status 200), `false` if the revocation failed for any reason. Callers
+ * deciding whether to honour a user's "Disconnect" request should treat
+ * `false` as "still connected upstream" and surface that.
+ */
+export async function revokeToken(token: string): Promise<boolean> {
   try {
-    await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-    })
-  } catch {
-    // ignore
+    const res = await fetch(
+      `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`,
+      { method: 'POST' },
+    )
+    return res.ok
+  } catch (err) {
+    console.error('[google] revokeToken failed', err)
+    return false
   }
 }

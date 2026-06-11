@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { holidaysForRegion } from '@/lib/holidays/india'
 
@@ -15,7 +15,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ orgId: string
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'owner')
     const body = (await req.json().catch(() => ({}))) as {
       name?: string
       slackWebhookUrl?: string | null
@@ -23,7 +22,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ orgId: string
       avatarMode?: 'hero' | 'photo'
       workdayStartHour?: number
       workdayEndHour?: number
+      trackedGithubOrgs?: string[]
     }
+    // Pick the right capability: integration-touching fields need
+    // manage_integrations; everything else (name, region, hours, etc.)
+    // needs manage_workspace. Owners always pass either check.
+    const touchesIntegrations =
+      body.slackWebhookUrl !== undefined || body.trackedGithubOrgs !== undefined
+    const { session } = touchesIntegrations
+      ? await requireCapability(orgId, 'manage_integrations')
+      : await requireCapability(orgId, 'manage_workspace')
 
     const patch: Partial<typeof schema.orgs.$inferInsert> = {}
     if (typeof body.name === 'string' && body.name.trim().length > 0) {
@@ -49,6 +57,22 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ orgId: string
     }
     if (typeof body.workdayEndHour === 'number' && body.workdayEndHour >= 0 && body.workdayEndHour <= 23) {
       patch.workdayEndHour = Math.floor(body.workdayEndHour)
+    }
+    if (Array.isArray(body.trackedGithubOrgs)) {
+      // Normalize: lower-case, trim, dedupe, allowed chars only, cap at 20.
+      const cleaned: string[] = []
+      const seen = new Set<string>()
+      for (const raw of body.trackedGithubOrgs) {
+        if (typeof raw !== 'string') continue
+        const o = raw.trim().toLowerCase()
+        if (!o) continue
+        if (!/^[a-z0-9][a-z0-9-]{0,38}$/.test(o)) continue
+        if (seen.has(o)) continue
+        seen.add(o)
+        cleaned.push(o)
+        if (cleaned.length >= 20) break
+      }
+      patch.trackedGithubOrgs = cleaned
     }
 
     if (Object.keys(patch).length === 0) {

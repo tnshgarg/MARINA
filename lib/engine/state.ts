@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, lt, sql, sum } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import type { DailyState } from '@/lib/db/schema'
+import { dayBoundsInTz, DEFAULT_TZ } from '@/lib/time/tz'
 
 export type ComputedState = {
   state: DailyState
@@ -13,12 +14,17 @@ export type ComputedState = {
   reason: string
 }
 
-export function dayBoundsUtc(day: Date | string): { start: Date; end: Date; iso: string } {
-  const d = typeof day === 'string' ? new Date(`${day}T00:00:00Z`) : new Date(day)
-  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
-  const iso = start.toISOString().slice(0, 10)
-  return { start, end, iso }
+/**
+ * Calendar-day bounds. Kept named `dayBoundsUtc` for backward compat but it
+ * is now timezone-aware: pass `tz` (org timezone) so 9pm IST work doesn't
+ * land in tomorrow's bucket.
+ *
+ * When called without `tz`, falls back to Asia/Kolkata (MARINA is India-first).
+ */
+export function dayBoundsUtc(day: Date | string, tz: string = DEFAULT_TZ): { start: Date; end: Date; iso: string } {
+  const d = typeof day === 'string' ? new Date(`${day}T12:00:00Z`) : new Date(day)
+  const { startIso, endIso, iso } = dayBoundsInTz(d, tz)
+  return { start: startIso, end: endIso, iso }
 }
 
 export async function computeDailyState(userId: number, day: Date | string = new Date()): Promise<ComputedState> {

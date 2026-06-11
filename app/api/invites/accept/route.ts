@@ -30,10 +30,17 @@ export async function POST(req: Request) {
     })
 
     if (!existing) {
+      // Carry the invite's discipline + job title onto the new membership so
+      // the new teammate gets the role-appropriate UI from their first login.
+      // Older invites without these columns fall back to safe defaults.
+      const inviteDiscipline = (invite as { discipline?: string }).discipline ?? 'other'
+      const inviteJobTitle = (invite as { jobTitle?: string | null }).jobTitle ?? null
       await db.insert(schema.memberships).values({
         orgId: invite.orgId,
         userId: session.appUserId,
         role: invite.role,
+        discipline: inviteDiscipline as never,
+        jobTitle: inviteJobTitle,
       })
     }
 

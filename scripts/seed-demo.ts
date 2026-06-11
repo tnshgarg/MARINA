@@ -9,7 +9,7 @@
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '../lib/db/client'
-import type { LeaveType } from '../lib/db/schema'
+import type { Discipline, LeaveType } from '../lib/db/schema'
 
 type Seed = {
   login: string
@@ -17,19 +17,81 @@ type Seed = {
   characterKey: string
   email: string
   role: 'owner' | 'manager' | 'member'
+  /** Functional discipline — drives the role-aware UI labels. */
+  discipline: Discipline
+  /** Job title shown under the name in the modal subtitle. */
+  jobTitle: string
+  /** Birthday as MM-DD (year intentionally not stored). */
+  birthdayMmDd: string
+  /** Joining date YYYY-MM-DD, used for work-anniversary reminders. */
+  joinedOn: string
+  /** Extra owner-shaped capabilities granted by the owner. */
+  extraCaps?: string[]
+  /** Working days bitmap, Sun..Sat. Defaults to Mon–Fri if omitted. */
+  workingDays?: boolean[]
 }
 
+// Spread across ALL disciplines so every role-aware surface has live data.
+// Today's date when this file ships: 2026-06-11. Birthdays are skewed so
+// at least three fall inside the next 30 days, giving the celebrations
+// widget something to render right out of the box.
 const SEED_HEROES: Seed[] = [
-  { login: 'tanish',  name: 'Tanish Garg',         characterKey: 'iron_man',   email: 'tanish@acmedemo.in',  role: 'owner'   },
-  { login: 'priya',   name: 'Priya Nair',          characterKey: 'spider_man', email: 'priya@acmedemo.in',   role: 'manager' },
-  { login: 'rahul',   name: 'Rahul Sharma',        characterKey: 'captain',    email: 'rahul@acmedemo.in',   role: 'manager' },
-  { login: 'sneha',   name: 'Sneha Patil',         characterKey: 'thor',       email: 'sneha@acmedemo.in',   role: 'member'  },
-  { login: 'arjun',   name: 'Arjun Mehta',         characterKey: 'hulk',       email: 'arjun@acmedemo.in',   role: 'member'  },
-  { login: 'natasha', name: 'Natasha Bose',        characterKey: 'widow',      email: 'natasha@acmedemo.in', role: 'member'  },
-  { login: 'sid',     name: 'Siddharth Kapoor',    characterKey: 'strange',    email: 'sid@acmedemo.in',     role: 'member'  },
-  { login: 'logan',   name: 'Logan Iyer',          characterKey: 'wolverine',  email: 'logan@acmedemo.in',   role: 'member'  },
-  { login: 'kavya',   name: 'Kavya Krishnamurthy', characterKey: 'panther',    email: 'kavya@acmedemo.in',   role: 'member'  },
-  { login: 'dev',     name: 'Devendra Pillai',     characterKey: 'deadpool',   email: 'dev@acmedemo.in',     role: 'member'  },
+  {
+    login: 'tanish', name: 'Tanish Garg', characterKey: 'iron_man', email: 'tanish@acmedemo.in',
+    role: 'owner', discipline: 'exec', jobTitle: 'Founder & CEO',
+    birthdayMmDd: '07-15', joinedOn: '2024-01-15',
+  },
+  {
+    login: 'priya', name: 'Priya Nair', characterKey: 'spider_man', email: 'priya@acmedemo.in',
+    role: 'manager', discipline: 'product', jobTitle: 'Head of Product',
+    birthdayMmDd: '06-20', joinedOn: '2024-02-01',
+    // People-shaped manager: can edit celebrations + workspace settings.
+    extraCaps: ['manage_celebrations', 'manage_workspace'],
+  },
+  {
+    login: 'rahul', name: 'Rahul Sharma', characterKey: 'captain', email: 'rahul@acmedemo.in',
+    role: 'manager', discipline: 'engineering', jobTitle: 'Engineering Manager',
+    birthdayMmDd: '11-08', joinedOn: '2024-03-10',
+    // Engineering manager: integrations + export_data so they can manage GH allowlist
+    extraCaps: ['manage_integrations', 'export_data'],
+  },
+  {
+    login: 'sneha', name: 'Sneha Patil', characterKey: 'thor', email: 'sneha@acmedemo.in',
+    role: 'member', discipline: 'design', jobTitle: 'Senior Designer',
+    birthdayMmDd: '06-25', joinedOn: '2024-05-22',
+  },
+  {
+    login: 'arjun', name: 'Arjun Mehta', characterKey: 'hulk', email: 'arjun@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Backend Engineer',
+    birthdayMmDd: '02-14', joinedOn: '2024-06-12',  // one-year anniversary in two days
+  },
+  {
+    login: 'natasha', name: 'Natasha Bose', characterKey: 'widow', email: 'natasha@acmedemo.in',
+    role: 'member', discipline: 'sales', jobTitle: 'Account Executive',
+    birthdayMmDd: '06-30', joinedOn: '2025-01-15',
+  },
+  {
+    login: 'sid', name: 'Siddharth Kapoor', characterKey: 'strange', email: 'sid@acmedemo.in',
+    role: 'member', discipline: 'support', jobTitle: 'Customer Support Lead',
+    birthdayMmDd: '09-03', joinedOn: '2024-08-01',
+    // 6-day work week — Sun off, Mon–Sat on.
+    workingDays: [false, true, true, true, true, true, true],
+  },
+  {
+    login: 'logan', name: 'Logan Iyer', characterKey: 'wolverine', email: 'logan@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Senior Frontend Engineer',
+    birthdayMmDd: '12-01', joinedOn: '2023-06-11',  // 3-year anniversary TODAY (2026-06-11)
+  },
+  {
+    login: 'kavya', name: 'Kavya Krishnamurthy', characterKey: 'panther', email: 'kavya@acmedemo.in',
+    role: 'member', discipline: 'marketing', jobTitle: 'Growth Marketing Lead',
+    birthdayMmDd: '06-14', joinedOn: '2024-10-01',
+  },
+  {
+    login: 'dev', name: 'Devendra Pillai', characterKey: 'deadpool', email: 'dev@acmedemo.in',
+    role: 'member', discipline: 'ops', jobTitle: 'Operations Manager',
+    birthdayMmDd: '03-22', joinedOn: '2024-11-15',
+  },
 ]
 
 async function main(): Promise<void> {
@@ -70,6 +132,9 @@ async function main(): Promise<void> {
         name: s.name,
         email: s.email,
         characterKey: s.characterKey,
+        // People-care fields — drives birthday + anniversary widget.
+        birthdayMmDd: s.birthdayMmDd,
+        joinedOn: s.joinedOn,
       })
       .returning()
     userRows.push({ id: u.id, seed: s })
@@ -84,6 +149,8 @@ async function main(): Promise<void> {
       name: orgName,
       ownerId: owner.id,
       holidayRegion: 'IN',
+      // Pre-fill the GitHub allowlist so engineering events are auto-filtered.
+      trackedGithubOrgs: ['acme'],
     })
     .returning()
   for (const u of userRows) {
@@ -91,9 +158,13 @@ async function main(): Promise<void> {
       orgId: org.id,
       userId: u.id,
       role: u.seed.role,
+      discipline: u.seed.discipline,
+      jobTitle: u.seed.jobTitle,
+      extraCaps: u.seed.extraCaps ?? [],
+      workingDays: u.seed.workingDays ?? [false, true, true, true, true, true, false],
     })
   }
-  console.log(`[seed-demo] created org id=${org.id}`)
+  console.log(`[seed-demo] created org id=${org.id} with disciplines + caps`)
 
   const byLogin = new Map(userRows.map((u) => [u.seed.login, u.id]))
 
@@ -370,6 +441,69 @@ async function main(): Promise<void> {
             ? 'Mostly idle and on Slack today. Worth a quick check-in.'
             : 'Healthy mix of coding, meetings, and reviews.',
     })
+  }
+
+  // ─── Self-reported deliverables — universal output ────────────────────────
+  // One per non-engineer + a couple for engineers, spread over the last week.
+  const DELIVERABLES: Array<{ login: string; kind: string; title: string; url?: string; daysAgo: number }> = [
+    // Designer
+    { login: 'sneha', kind: 'design', title: 'Shipped onboarding redesign v2', url: 'https://figma.com/file/onboarding-v2', daysAgo: 0 },
+    { login: 'sneha', kind: 'design', title: 'Design review for billing flow', daysAgo: 2 },
+    // Sales
+    { login: 'natasha', kind: 'deal', title: 'Closed annual deal — TechFlow ₹12 lakh', daysAgo: 0 },
+    { login: 'natasha', kind: 'deal', title: '3 demos scheduled this week', daysAgo: 1 },
+    { login: 'natasha', kind: 'deal', title: 'Renewed Acme Corp — 2 year term', daysAgo: 4 },
+    // Support
+    { login: 'sid', kind: 'ticket', title: 'Resolved 14 tickets · CSAT 4.8', daysAgo: 0 },
+    { login: 'sid', kind: 'ticket', title: 'Published new FAQ page', url: 'https://acmedemo.in/help', daysAgo: 3 },
+    // Marketing
+    { login: 'kavya', kind: 'campaign', title: 'Launched Q2 webinar series', daysAgo: 1 },
+    { login: 'kavya', kind: 'campaign', title: 'Posted weekly newsletter (2.4k opens)', daysAgo: 5 },
+    // Ops
+    { login: 'dev', kind: 'task', title: 'Closed Q1 books, sent to CA', daysAgo: 2 },
+    { login: 'dev', kind: 'task', title: 'Renewed all SaaS subscriptions', daysAgo: 6 },
+    // Product
+    { login: 'priya', kind: 'spec', title: 'Finalised Q3 roadmap', daysAgo: 1 },
+    // Engineering (a couple, since engineers ALSO can log non-GH work)
+    { login: 'rahul', kind: 'spec', title: 'Architecture doc for billing v2', daysAgo: 3 },
+    { login: 'arjun', kind: 'task', title: 'Investigated Stripe webhook race condition', daysAgo: 4 },
+    // Founder
+    { login: 'tanish', kind: 'decision', title: 'Hiring freeze decision documented', daysAgo: 2 },
+  ]
+  let deliverablesInserted = 0
+  for (const d of DELIVERABLES) {
+    const uid = byLogin.get(d.login)
+    if (!uid) continue
+    const completedAt = new Date(now.getTime() - d.daysAgo * 24 * 60 * 60_000 - Math.floor(Math.random() * 6 * 60 * 60_000))
+    await db.insert(schema.deliverables).values({
+      userId: uid,
+      orgId: org.id,
+      title: d.title,
+      url: d.url ?? null,
+      kind: d.kind,
+      completedAt,
+      pinnedShotAt: completedAt,
+    })
+    deliverablesInserted++
+  }
+  console.log(`[seed-demo] inserted ${deliverablesInserted} self-reported deliverables`)
+
+  // ─── A scheduled 1:1 between owner and a designer ─────────────────────────
+  const designerId = byLogin.get('sneha')
+  if (designerId) {
+    const tomorrow15 = new Date(now)
+    tomorrow15.setDate(tomorrow15.getDate() + 1)
+    tomorrow15.setHours(15, 0, 0, 0)
+    await db.insert(schema.scheduledMeetings).values({
+      orgId: org.id,
+      organiserUserId: owner.id,
+      attendeeUserId: designerId,
+      title: '1:1 with Sneha — design retro',
+      agenda: 'How did the onboarding redesign land? Anything blocking us for Q3?',
+      startAt: tomorrow15,
+      endAt: new Date(tomorrow15.getTime() + 30 * 60_000),
+    })
+    console.log(`[seed-demo] scheduled a sample 1:1 with @sneha`)
   }
 
   void and

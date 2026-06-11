@@ -24,8 +24,14 @@ export async function POST() {
       return NextResponse.json({ ok: true, alreadyDisconnected: true })
     }
 
-    if (account.refresh_token) await revokeToken(account.refresh_token)
-    else if (account.access_token) await revokeToken(account.access_token)
+    // Await Google revocation so we know whether upstream is actually disconnected.
+    // If it failed we still purge local state but tell the user to revoke at
+    // myaccount.google.com — important for DPDP "right to disconnect" compliance.
+    const revoked = account.refresh_token
+      ? await revokeToken(account.refresh_token)
+      : account.access_token
+        ? await revokeToken(account.access_token)
+        : true
 
     await db
       .delete(schema.accounts)
@@ -46,7 +52,12 @@ export async function POST() {
         ),
       )
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({
+      ok: true,
+      revokedUpstream: revoked,
+      // If false, the user should also revoke at https://myaccount.google.com/permissions
+      manualRevokeUrl: revoked ? null : 'https://myaccount.google.com/permissions',
+    })
   } catch (err) {
     if (err instanceof HttpError) {
       return NextResponse.json({ error: err.message }, { status: err.status })

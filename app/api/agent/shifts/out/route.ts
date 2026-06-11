@@ -6,6 +6,7 @@ import { verifyShiftSummary } from '@/lib/engine/verify-shift'
 import { buildStory } from '@/lib/engine/story'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
+import { afterResponse } from '@/lib/after'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -79,11 +80,8 @@ export async function POST(req: Request) {
     ...requestMeta(req),
   })
 
-  // Fire-and-forget daily story generation so the manager sees a fresh story
-  // by the time they next open the dashboard. Failures don't block punch-out.
-  void buildStory(agent.user.id, new Date()).catch((err) => {
-    console.error('[shifts/out] background story generation failed', err)
-  })
+  // Daily story generation runs in `after()` so it survives serverless teardown.
+  afterResponse(() => buildStory(agent.user.id, new Date()), 'shifts/out story')
 
   if (verified.orgId) {
     const user = agent.user

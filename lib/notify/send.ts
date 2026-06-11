@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { afterResponse } from '@/lib/after'
 
 export type NotifyEvent =
   | { kind: 'leave.requested'; orgId: number; userName: string; userLogin: string; startDate: string; endDate: string; leaveType: string; reason: string }
@@ -15,31 +16,36 @@ export type NotifyEvent =
  * Best-effort fan-out. Reads the org's slack webhook + falls back to emailing
  * the org owner via Resend. Never throws; all errors are logged.
  */
-export async function notify(event: NotifyEvent): Promise<void> {
-  try {
-    const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, event.orgId) })
-    if (!org) return
+/**
+ * Fan out a notification. Wraps the work in Next's `after()` so callers don't
+ * have to `void notify(...)` and the work actually finishes even when the
+ * serverless function returns its response immediately.
+ */
+export function notify(event: NotifyEvent): void {
+  afterResponse(() => dispatch(event), `notify:${event.kind}`)
+}
 
-    const { title, text, color } = renderEvent(event)
+async function dispatch(event: NotifyEvent): Promise<void> {
+  const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, event.orgId) })
+  if (!org) return
 
-    // Slack
-    if (org.slackWebhookUrl) {
-      void sendSlack(org.slackWebhookUrl, title, text, color)
+  const { title, text, color } = renderEvent(event)
+
+  // Slack
+  if (org.slackWebhookUrl) {
+    await sendSlack(org.slackWebhookUrl, title, text, color)
+  }
+
+  // Email fallback: deliver to org owner if no Slack and event is high-priority
+  const highPriority =
+    event.kind === 'leave.requested' ||
+    event.kind === 'shift.suspicious' ||
+    event.kind === 'state.blocked'
+  if (highPriority && !org.slackWebhookUrl) {
+    const owner = await db.query.users.findFirst({ where: eq(schema.users.id, org.ownerId) })
+    if (owner?.email) {
+      await sendEmail(owner.email, `[MARINA] ${title}`, text)
     }
-
-    // Email fallback: deliver to org owner if no Slack and event is high-priority
-    const highPriority =
-      event.kind === 'leave.requested' ||
-      event.kind === 'shift.suspicious' ||
-      event.kind === 'state.blocked'
-    if (highPriority && !org.slackWebhookUrl) {
-      const owner = await db.query.users.findFirst({ where: eq(schema.users.id, org.ownerId) })
-      if (owner?.email) {
-        void sendEmail(owner.email, `[MARINA] ${title}`, text)
-      }
-    }
-  } catch (err) {
-    console.error('[notify] failed', err)
   }
 }
 

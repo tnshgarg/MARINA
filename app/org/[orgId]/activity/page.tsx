@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
-import { and, desc, eq, inArray, not, like } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, not, like, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { withMembershipWindow } from '@/lib/auth/tenant-scope'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { ActivityTabs } from '@/components/org-tabs'
 import { SyncTeamButton } from './sync-button'
@@ -12,12 +13,24 @@ const TYPE_LABEL: Record<string, string> = {
   pr_opened: 'PR opened',
   pr_reviewed: 'review',
   issue_closed: 'issue closed',
+  deliverable: 'shipped',
 }
 const TYPE_PILL: Record<string, string> = {
   commit: 'pill-info',
   pr_opened: 'pill-violet',
   pr_reviewed: 'pill-good',
   issue_closed: 'pill-pink',
+  deliverable: 'pill-good',
+}
+
+type FeedItem = {
+  id: string
+  occurredAt: Date
+  type: 'commit' | 'pr_opened' | 'pr_reviewed' | 'issue_closed' | 'deliverable'
+  title: string
+  url: string | null
+  source: string  // repo for GH events, "self-reported · <kind>" for deliverables
+  user: { id: number; login: string; name: string | null; characterKey: string | null }
 }
 
 // Manager+ guard from parent layout.
@@ -29,10 +42,12 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
   const memberRows = await db
     .select({ userId: schema.memberships.userId })
     .from(schema.memberships)
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), sql`${schema.memberships.endedAt} IS NULL`))
   const userIds = memberRows.map((m) => m.userId)
 
-  const [events, members] = await Promise.all([
+  const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+  const [ghRows, deliverableRows, members] = await Promise.all([
     userIds.length
       ? db
           .select({ e: schema.githubEvents, u: schema.users })
@@ -41,14 +56,36 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
           .where(
             and(
               inArray(schema.githubEvents.userId, userIds),
-              // Hide demo seed rows from the real activity view.
-              // Real events have numeric or SHA externalIds; seed rows start with "seed-".
               not(like(schema.githubEvents.externalId, 'seed-%')),
+              // Multi-tenant isolation: only show events that fell within
+              // the user's membership window for THIS org. Without this a
+              // user in two orgs leaks data across them.
+              withMembershipWindow(
+                orgId,
+                sql.raw('github_events.user_id'),
+                sql.raw('github_events.occurred_at'),
+              ),
             ),
           )
           .orderBy(desc(schema.githubEvents.occurredAt))
           .limit(100)
       : Promise.resolve([] as Array<{ e: typeof schema.githubEvents.$inferSelect; u: typeof schema.users.$inferSelect }>),
+    // Self-reported deliverables — universal output, works for non-engineers.
+    userIds.length
+      ? db
+          .select({ d: schema.deliverables, u: schema.users })
+          .from(schema.deliverables)
+          .innerJoin(schema.users, eq(schema.deliverables.userId, schema.users.id))
+          .where(
+            and(
+              eq(schema.deliverables.orgId, orgId),
+              inArray(schema.deliverables.userId, userIds),
+              gte(schema.deliverables.completedAt, since30),
+            ),
+          )
+          .orderBy(desc(schema.deliverables.completedAt))
+          .limit(100)
+      : Promise.resolve([] as Array<{ d: typeof schema.deliverables.$inferSelect; u: typeof schema.users.$inferSelect }>),
     userIds.length
       ? db
           .select()
@@ -56,6 +93,34 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
           .where(inArray(schema.users.id, userIds))
       : Promise.resolve([] as Array<typeof schema.users.$inferSelect>),
   ])
+
+  // Merge into one feed sorted by time so engineers' PRs and designers'
+  // deliverables sit side by side, not in two separate lists.
+  const feed: FeedItem[] = []
+  for (const { e, u } of ghRows) {
+    feed.push({
+      id: `gh-${e.id}`,
+      occurredAt: e.occurredAt,
+      type: e.type as FeedItem['type'],
+      title: e.title,
+      url: e.url,
+      source: e.repo,
+      user: { id: u.id, login: u.login, name: u.name, characterKey: u.characterKey },
+    })
+  }
+  for (const { d, u } of deliverableRows) {
+    feed.push({
+      id: `dl-${d.id}`,
+      occurredAt: d.completedAt,
+      type: 'deliverable',
+      title: d.title,
+      url: d.url,
+      source: d.kind ? `self-reported · ${d.kind}` : 'self-reported',
+      user: { id: u.id, login: u.login, name: u.name, characterKey: u.characterKey },
+    })
+  }
+  feed.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
+  const events = feed.slice(0, 150)
 
   const membersWithGitHub = members.filter((m) => !!m.accessToken)
   const membersWithoutGitHub = members.filter((m) => !m.accessToken)
@@ -71,7 +136,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
         <div>
           <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Activity</h1>
           <p className="mt-1.5 text-[13px] text-slate-600">
-            Recent GitHub activity and weekly insights across the team.
+            Recent activity across the team — GitHub events plus self-reported deliverables.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -109,23 +174,15 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
         </div>
       )}
 
-      {/* Coverage strip — be honest about who has GitHub linked */}
-      {membersWithoutGitHub.length > 0 && (
+      {/* Coverage strip — but only nag about GitHub if at least one teammate
+          IS an engineer with it linked, otherwise the message is misleading
+          for design / sales / support teams who don't need GitHub. */}
+      {membersWithGitHub.length > 0 && membersWithoutGitHub.length > 0 && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5">
           <p className="text-[12.5px] text-amber-900 leading-snug">
-            <strong>{membersWithoutGitHub.length}</strong> of {members.length} member
-            {members.length === 1 ? '' : 's'} haven&apos;t connected GitHub — their activity won&apos;t appear here.
-            {membersWithoutGitHub.length <= 5 && (
-              <>
-                {' '}Missing:{' '}
-                {membersWithoutGitHub.map((m, i) => (
-                  <span key={m.id}>
-                    {i > 0 && ', '}@{m.login}
-                  </span>
-                ))}
-                .
-              </>
-            )}
+            <strong>{membersWithoutGitHub.length}</strong> of {members.length} teammate
+            {members.length === 1 ? '' : 's'} haven&apos;t connected GitHub.
+            They can still appear here by marking work as done from their personal dashboard.
           </p>
         </div>
       )}
@@ -135,28 +192,32 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
           <EmptyState withGitHub={membersWithGitHub.length} totalMembers={members.length} />
         ) : (
           <ul className="divide-y divide-slate-100">
-            {events.map(({ e, u }) => (
+            {events.map((e) => (
               <li
                 key={e.id}
                 className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50/60 transition-colors"
               >
-                <CharacterAvatar characterKey={u.characterKey} size={28} />
+                <CharacterAvatar characterKey={e.user.characterKey} size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`pill ${TYPE_PILL[e.type] ?? 'pill-slate'}`}>
                       {TYPE_LABEL[e.type] ?? e.type}
                     </span>
-                    <a
-                      href={e.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[13px] text-slate-900 hover:text-indigo-600 truncate"
-                    >
-                      {e.title}
-                    </a>
+                    {e.url ? (
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[13px] text-slate-900 hover:text-indigo-600 truncate"
+                      >
+                        {e.title}
+                      </a>
+                    ) : (
+                      <span className="text-[13px] text-slate-900 truncate">{e.title}</span>
+                    )}
                   </div>
                   <p className="text-[11.5px] text-slate-500 mt-0.5">
-                    {u.name ?? `@${u.login}`} · {e.repo} · {timeAgo(e.occurredAt.toISOString())}
+                    {e.user.name ?? `@${e.user.login}`} · {e.source} · {timeAgo(e.occurredAt.toISOString())}
                   </p>
                 </div>
               </li>

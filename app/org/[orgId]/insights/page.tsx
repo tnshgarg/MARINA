@@ -1,14 +1,21 @@
 import { notFound } from 'next/navigation'
-import { and, desc, eq, gte, inArray, isNull, like, lt, not } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, like, lt, not, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { ActivityTabs } from '@/components/org-tabs'
+import { withMembershipWindow } from '@/lib/auth/tenant-scope'
 
 export const dynamic = 'force-dynamic'
 
 // Demo seed rows have externalId LIKE 'seed-%'. Filter them from any
 // authentic-data view so the org doesn't see fake GitHub events.
 const NOT_SEED = not(like(schema.githubEvents.externalId, 'seed-%'))
+const inThisOrgWindow = (orgId: number) =>
+  withMembershipWindow(
+    orgId,
+    sql.raw('github_events.user_id'),
+    sql.raw('github_events.occurred_at'),
+  )
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -35,7 +42,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   const userIds = memberRows.map((m) => m.userId)
   const userById = new Map(memberRows.map((m) => [m.userId, m]))
@@ -79,6 +86,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               inArray(schema.githubEvents.userId, userIds),
               gte(schema.githubEvents.occurredAt, since7),
               NOT_SEED,
+              inThisOrgWindow(orgId),
             ),
           )
       : Promise.resolve([] as (typeof schema.githubEvents.$inferSelect)[]),
@@ -92,6 +100,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               gte(schema.githubEvents.occurredAt, since14),
               lt(schema.githubEvents.occurredAt, since7),
               NOT_SEED,
+              inThisOrgWindow(orgId),
             ),
           )
       : Promise.resolve([] as (typeof schema.githubEvents.$inferSelect)[]),
@@ -131,6 +140,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               inArray(schema.githubEvents.userId, userIds),
               gte(schema.githubEvents.occurredAt, since3),
               NOT_SEED,
+              inThisOrgWindow(orgId),
             ),
           )
       : Promise.resolve([] as (typeof schema.githubEvents.$inferSelect)[]),
@@ -147,6 +157,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               gte(schema.githubEvents.occurredAt, since14),
               lt(schema.githubEvents.occurredAt, new Date(now.getTime() - 24 * 3600 * 1000)),
               NOT_SEED,
+              inThisOrgWindow(orgId),
             ),
           )
           .orderBy(desc(schema.githubEvents.occurredAt))
@@ -196,6 +207,11 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
     return true
   })
 
+  // Does this team have any GitHub-linked engineers? If not, the velocity /
+  // stale-PR / quiet-engineer cards are noise — hide them entirely so the
+  // page is genuinely useful for non-engineering teams.
+  const teamHasGithub = memberRows.some((m) => !!m.hasGithub)
+
   // ---- Render -------------------------------------------------------------
   return (
     <>
@@ -239,20 +255,23 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
           </ul>
         </InsightCard>
 
-        {/* Velocity */}
-        <InsightCard
-          tone="emerald"
-          title="Velocity vs last week"
-          subtitle="Shipped events this 7d window vs the previous one."
-          source="Source: github_events (commits + PRs + reviews + issues)"
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <VelocityList items={topUp} userById={userById} dir="up" emptyMsg="No standout this week." />
-            <VelocityList items={topDown} userById={userById} dir="down" emptyMsg="No drops detected." />
-          </div>
-        </InsightCard>
+        {/* Velocity — engineering-only */}
+        {teamHasGithub && (
+          <InsightCard
+            tone="emerald"
+            title="Velocity vs last week"
+            subtitle="Shipped GitHub events this 7d window vs the previous one."
+            source="Source: github_events (commits + PRs + reviews + issues)"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <VelocityList items={topUp} userById={userById} dir="up" emptyMsg="No standout this week." />
+              <VelocityList items={topDown} userById={userById} dir="down" emptyMsg="No drops detected." />
+            </div>
+          </InsightCard>
+        )}
 
-        {/* Stale PRs */}
+        {/* Stale PRs — engineering-only */}
+        {teamHasGithub && (
         <InsightCard
           tone="amber"
           title={`Stale PRs · ${staleFinal.length}`}
@@ -276,6 +295,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
             })}
           </ul>
         </InsightCard>
+        )}
 
         {/* Long-day alert */}
         <InsightCard
@@ -329,28 +349,32 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
           </ul>
         </InsightCard>
 
-        {/* Quiet members */}
-        <InsightCard
-          tone="slate"
-          title={`Quiet · ${quietList.length}`}
-          subtitle="No GitHub events in the last 3 days. Worth a check-in."
-          source="Source: github_events table; exclude members without GitHub linked"
-          empty={quietList.length === 0}
-        >
-          <ul className="space-y-2">
-            {quietList.slice(0, 6).map((m) => (
-              <li key={m.userId} className="flex items-center gap-2.5 text-[13px]">
-                <CharacterAvatar characterKey={m.characterKey} size={26} />
-                <span className="truncate">
-                  <strong>{m.name ?? `@${m.login}`}</strong>
-                </span>
-                <span className="ml-auto text-[11.5px] text-slate-500">
-                  {m.lastSyncedAt ? `last sync ${humanDuration(now.getTime() - new Date(m.lastSyncedAt).getTime())} ago` : 'no sync yet'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </InsightCard>
+        {/* Quiet members — engineering-only (the "no GitHub events" signal
+            is meaningless for designers, sales, etc., so don't show the card
+            unless at least one engineer is linked) */}
+        {teamHasGithub && (
+          <InsightCard
+            tone="slate"
+            title={`Quiet · ${quietList.length}`}
+            subtitle="No GitHub events in the last 3 days. Worth a check-in."
+            source="Source: github_events table; excludes members without GitHub linked"
+            empty={quietList.length === 0}
+          >
+            <ul className="space-y-2">
+              {quietList.slice(0, 6).map((m) => (
+                <li key={m.userId} className="flex items-center gap-2.5 text-[13px]">
+                  <CharacterAvatar characterKey={m.characterKey} size={26} />
+                  <span className="truncate">
+                    <strong>{m.name ?? `@${m.login}`}</strong>
+                  </span>
+                  <span className="ml-auto text-[11.5px] text-slate-500">
+                    {m.lastSyncedAt ? `last sync ${humanDuration(now.getTime() - new Date(m.lastSyncedAt).getTime())} ago` : 'no sync yet'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </InsightCard>
+        )}
       </div>
     </>
   )

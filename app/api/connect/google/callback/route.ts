@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { decodeState, exchangeCode } from '@/lib/google/oauth'
+import { afterResponse } from '@/lib/after'
 
 export const runtime = 'nodejs'
 
@@ -103,10 +104,11 @@ export async function GET(req: Request) {
       }
     }
 
-    // Kick off an initial sync in the background.
-    import('@/lib/google/calendar').then(({ syncCalendar }) =>
-      syncCalendar(state.userId).catch((err) => console.error('[google] initial sync failed', err)),
-    )
+    // Kick off an initial sync via `after()` so it survives the redirect.
+    afterResponse(async () => {
+      const { syncCalendar } = await import('@/lib/google/calendar')
+      await syncCalendar(state.userId)
+    }, 'google initial sync')
 
     const returnTo = state.returnTo.startsWith('/') ? state.returnTo : '/settings'
     return NextResponse.redirect(new URL(`${returnTo}?calendar=connected`, req.url))

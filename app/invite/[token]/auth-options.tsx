@@ -6,10 +6,12 @@ export default function InviteAuthOptions({
   token,
   email,
   githubSignIn,
+  googleSignIn,
 }: {
   token: string
   email: string
   githubSignIn: () => Promise<void>
+  googleSignIn?: () => Promise<void>
 }) {
   const [emailMode, setEmailMode] = useState(false)
   const [typedEmail, setTypedEmail] = useState(email)
@@ -85,6 +87,23 @@ export default function InviteAuthOptions({
               Continue with GitHub
             </button>
           </form>
+
+          {googleSignIn && (
+            <form action={googleSignIn}>
+              <button
+                type="submit"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[14px] font-medium transition"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+                  <path fill="#4285F4" d="M21.6 12.227c0-.679-.06-1.336-.169-1.969H12.18v3.726h5.281c-.226 1.227-.92 2.265-1.962 2.961v2.461h3.171c1.85-1.703 2.93-4.215 2.93-7.18z" />
+                  <path fill="#34A853" d="M12.18 21.5c2.648 0 4.867-.875 6.49-2.367l-3.171-2.461c-.875.586-1.992.937-3.319.937-2.554 0-4.71-1.726-5.484-4.039H3.422v2.539C5.039 19.273 8.336 21.5 12.18 21.5z" />
+                  <path fill="#FBBC05" d="M6.696 13.57a5.67 5.67 0 010-3.633V7.398H3.422a9.5 9.5 0 000 8.711l3.274-2.539z" />
+                  <path fill="#EA4335" d="M12.18 5.898c1.437 0 2.726.492 3.742 1.461l2.812-2.812C16.93 2.852 14.71 1.5 12.18 1.5 8.336 1.5 5.039 3.727 3.422 7.398l3.274 2.54c.773-2.313 2.93-4.04 5.484-4.04z" />
+                </svg>
+                Continue with Google
+              </button>
+            </form>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

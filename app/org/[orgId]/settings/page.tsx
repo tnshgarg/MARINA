@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { INDIA_REGIONS } from '@/lib/holidays/india'
 import { SettingsTabs } from '@/components/org-tabs'
 import OrgSettingsClient from './client'
@@ -14,10 +14,14 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
   if (!Number.isInteger(orgId)) notFound()
 
   try {
-    await requireMembership(orgId, 'owner')
+    await requireCapability(orgId, 'manage_workspace')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
-    if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)
+    if (err instanceof HttpError && err.status === 403) {
+      // Manager without workspace rights → bounce them to their personal
+      // /settings page where they can manage their own profile + agent.
+      redirect('/settings')
+    }
     throw err
   }
 

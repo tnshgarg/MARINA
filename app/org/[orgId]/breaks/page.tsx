@@ -15,7 +15,7 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
   const memberRows = await db
     .select({ userId: schema.memberships.userId })
     .from(schema.memberships)
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
   const userIds = memberRows.map((m) => m.userId)
 
   const breaks = userIds.length

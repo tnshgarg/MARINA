@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import GitHub from 'next-auth/providers/github'
+import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { db, schema } from '@/lib/db/client'
 import { eq } from 'drizzle-orm'
@@ -44,6 +45,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GITHUB_SECRET,
       authorization: { params: { scope: 'read:user user:email repo' } },
     }),
+
+    // Google Workspace SSO — only loaded when env vars are set. Requires a
+    // separate OAuth client from the Calendar-connect one (this is sign-in,
+    // not data scope), but the same project works fine.
+    ...(process.env.GOOGLE_SSO_CLIENT_ID && process.env.GOOGLE_SSO_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_SSO_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_SSO_CLIENT_SECRET,
+            authorization: {
+              params: {
+                prompt: 'select_account',
+                access_type: 'offline',
+                // We only need profile + email for SSO. Calendar uses /api/connect/google.
+                scope: 'openid email profile',
+              },
+            },
+            // Trust verified Google emails to merge accounts with existing
+            // GitHub/magic-link users that share the same address.
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
 
     // Email magic-link via Credentials.
     Credentials({
@@ -182,6 +206,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const numericId = Number(user.id)
           if (Number.isFinite(numericId)) {
             const row = await db.query.users.findFirst({ where: eq(schema.users.id, numericId) })
+            if (row) {
+              t.appUserId = row.id
+              t.login = row.login
+              t.accessToken = undefined
+            }
+          }
+        }
+
+        // Google SSO — merge with existing user-by-email when possible.
+        if (account?.provider === 'google' && profile) {
+          const gProfile = profile as { email?: string; name?: string; picture?: string; sub?: string }
+          const email = gProfile.email?.toLowerCase()
+          if (email) {
+            let row = await db.query.users.findFirst({
+              where: eq(schema.users.email, email),
+            })
+            if (!row) {
+              const login = await pickUniqueLogin(email.split('@')[0]!.slice(0, 32))
+              const [created] = await db
+                .insert(schema.users)
+                .values({
+                  email,
+                  login,
+                  name: gProfile.name ?? null,
+                  avatarUrl: gProfile.picture ?? null,
+                  image: gProfile.picture ?? null,
+                })
+                .returning()
+              row = created
+            } else if (!row.avatarUrl && gProfile.picture) {
+              await db
+                .update(schema.users)
+                .set({ avatarUrl: gProfile.picture, image: gProfile.picture, name: row.name ?? gProfile.name ?? null })
+                .where(eq(schema.users.id, row.id))
+            }
             if (row) {
               t.appUserId = row.id
               t.login = row.login

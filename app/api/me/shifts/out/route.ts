@@ -6,6 +6,7 @@ import { verifyShiftSummary } from '@/lib/engine/verify-shift'
 import { buildStory } from '@/lib/engine/story'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
+import { afterResponse } from '@/lib/after'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60 // AI call can take ~10-30s
@@ -81,11 +82,8 @@ export async function POST(req: Request) {
       ...requestMeta(req),
     })
 
-    // Fire-and-forget daily story generation so the manager sees a fresh story
-    // by the time they next open the dashboard. Failures don't block punch-out.
-    void buildStory(session.appUserId, new Date()).catch((err) => {
-      console.error('[shifts/out] background story generation failed', err)
-    })
+    // Daily story generation runs in `after()` so it survives serverless teardown.
+    afterResponse(() => buildStory(session.appUserId, new Date()), 'shifts/out story')
 
     // Notify the manager
     if (verified.orgId) {

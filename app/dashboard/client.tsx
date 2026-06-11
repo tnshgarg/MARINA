@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { StoryCard } from '@/components/story-card'
 import { WelcomeTour } from '@/components/welcome-tour'
 import { MeetingsPanel } from '@/components/meetings-panel'
+import { LogDeliverableCard } from '@/components/log-deliverable-card'
 
 type EventDto = {
   id: number
@@ -256,17 +257,26 @@ export default function DashboardClient({
   const todayDateStr = new Date().toISOString().slice(0, 10)
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 grid gap-6 grid-cols-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 grid gap-5 sm:gap-6 grid-cols-12">
       {/* Active break banner */}
       {activeBreak && (
-        <div className="col-span-12 app-card app-card-lg" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="app-eyebrow" style={{ color: '#b45309' }}>You&apos;re on break</p>
-              <p className="app-h2 mt-1">{formatElapsed(breakElapsed)}</p>
-              <p className="app-sub mt-1">Reason: {activeBreak.reason}</p>
+        <div
+          className="col-span-12 app-card app-card-lg"
+          style={{ background: '#fffbeb', borderColor: '#fde68a' }}
+        >
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <p className="app-eyebrow" style={{ color: '#b45309' }}>
+                You&apos;re on break
+              </p>
+              <p className="app-h2 mt-1 tabular-nums">{formatElapsed(breakElapsed)}</p>
+              <p className="app-sub mt-1 truncate">Reason: {activeBreak.reason}</p>
             </div>
-            <button onClick={endBreak} disabled={busy === 'break-end'} className="btn-primary">
+            <button
+              onClick={endBreak}
+              disabled={busy === 'break-end'}
+              className="btn-primary shrink-0 whitespace-nowrap"
+            >
               {busy === 'break-end' ? 'Ending…' : 'End break'}
             </button>
           </div>
@@ -291,6 +301,34 @@ export default function DashboardClient({
 
         {/* AI Story */}
         <StoryCard endpoint="/api/me/story" />
+
+        {/* Universal-output banner — without this hint, designers/sales/etc.
+            who arrive on the dashboard never realise they can log work, and
+            the manager view stays blank. */}
+        <div className="rounded-xl border border-[var(--m-accent)]/30 bg-gradient-to-br from-[var(--m-accent-soft)]/40 to-white px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-[var(--m-accent-2)]">
+              New
+            </p>
+            <p className="text-[13px] font-semibold text-[var(--m-ink)] mt-0.5">
+              You can now mark work as done
+            </p>
+            <p className="text-[12px] text-[var(--m-ink-3)] leading-snug">
+              Designs shipped, deals closed, tickets resolved — log them below. Your manager sees
+              them on the Activity tab regardless of your role.
+            </p>
+          </div>
+          <a
+            href="#log-deliverable"
+            className="shrink-0 text-[12px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
+          >
+            Try it ↓
+          </a>
+        </div>
+
+        {/* Mark work as done — universal output, works for every role */}
+        <div id="log-deliverable" />
+        <LogDeliverableCard />
 
         {/* Today summary */}
         <section className="app-card app-card-lg">
@@ -346,21 +384,27 @@ export default function DashboardClient({
         {/* Work narrative */}
         <section className="app-card app-card-lg">
           <div className="section-title-row flex-wrap gap-3">
-            <div>
+            <div className="min-w-0">
               <h2 className="app-h2">Work Narrative</h2>
-              <p className="app-sub mt-1">Last 7 days · ending {new Date(periodEnd).toLocaleDateString()}</p>
+              <p className="app-sub mt-1">
+                Last 7 days · ending {new Date(periodEnd).toLocaleDateString()}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value as 'groq' | 'openai')}
-                className="select max-w-[180px]"
+                className="select max-w-[160px]"
                 disabled={busy !== null}
               >
                 <option value="groq">Groq · Llama 3.3</option>
                 <option value="openai">OpenAI · 4o-mini</option>
               </select>
-              <button onClick={runNarrative} disabled={busy !== null || isPending} className="btn-primary">
+              <button
+                onClick={runNarrative}
+                disabled={busy !== null || isPending}
+                className="btn-primary whitespace-nowrap"
+              >
                 {busy === 'narrative' ? 'Generating…' : 'Generate'}
               </button>
             </div>
@@ -406,7 +450,7 @@ export default function DashboardClient({
                       href={e.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[14px] text-slate-900 hover:text-indigo-600 line-clamp-2"
+                      className="text-[14px] text-slate-900 hover:text-[var(--m-accent)] line-clamp-2"
                     >
                       {e.title}
                     </a>
@@ -428,22 +472,30 @@ export default function DashboardClient({
         {/* Actions */}
         <section className="app-card app-card-lg">
           <h3 className="app-h2">Quick actions</h3>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button onClick={runSync} disabled={busy !== null} className="btn-secondary justify-center">
-              {busy === 'sync' ? 'Syncing…' : '⟳ Sync GitHub'}
+          <div className="mt-3 flex flex-col gap-2">
+            <button
+              onClick={runSync}
+              disabled={busy !== null}
+              className="btn-secondary justify-center whitespace-nowrap"
+            >
+              {busy === 'sync' ? 'Syncing…' : 'Sync GitHub'}
             </button>
             {!activeBreak && (
-              <button onClick={() => setBreakOpen(true)} disabled={busy !== null} className="btn-secondary justify-center">
-                ☕ Take a break
+              <button
+                onClick={() => setBreakOpen(true)}
+                disabled={busy !== null}
+                className="btn-secondary justify-center whitespace-nowrap"
+              >
+                Take a break
               </button>
             )}
             <button
               onClick={() => setLeaveOpen(true)}
               disabled={busy !== null || !orgId}
-              className="btn-secondary col-span-2 justify-center"
+              className="btn-secondary justify-center whitespace-nowrap"
               title={!orgId ? 'Join an org first' : undefined}
             >
-              🌴 Request leave
+              Request leave
             </button>
           </div>
           {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
@@ -688,11 +740,21 @@ function duration(startIso: string, endIso: string): string {
 }
 
 function formatElapsed(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
+  // Under an hour: m:ss live counter. Past that, drop to a readable "1h 24m"
+  // form — once you're hours in, watching seconds tick gets noisy. Past 24h
+  // we add a day prefix so "62:37:26" never happens.
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+  const totalMin = Math.floor(seconds / 60)
+  const days = Math.floor(totalMin / (60 * 24))
+  const h = Math.floor((totalMin % (60 * 24)) / 60)
+  const m = totalMin % 60
+  if (days > 0) return `${days}d ${h}h ${m}m`
+  return `${h}h ${m}m`
 }
 
 function fmtDateRange(start: string, end: string): string {

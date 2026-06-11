@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import ScrumClient from './client'
@@ -39,7 +39,7 @@ export default async function ScrumPage({ params }: { params: Promise<{ orgId: s
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   memberRows.sort((a, b) => {
     if (a.role !== b.role) {

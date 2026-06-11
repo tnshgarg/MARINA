@@ -22,10 +22,22 @@ export function ActivityTabs({ orgId }: { orgId: number }) {
   return <SectionTabs tabs={tabs} />
 }
 
-export function SettingsTabs({ orgId }: { orgId: number }) {
-  const tabs: SectionTab[] = [
-    { key: 'workspace', label: 'Workspace', href: `/org/${orgId}/settings`, matchPrefix: `/org/${orgId}/settings` },
-    { key: 'profile',   label: 'Profile',   href: `/settings`,              matchPrefix: `/settings`              },
-  ]
+export function SettingsTabs({
+  orgId,
+  caps,
+}: {
+  orgId: number
+  caps?: { manageWorkspace?: boolean; manageIntegrations?: boolean }
+}) {
+  // Profile is always available — it lives on /settings and is per-user.
+  // Workspace + Integrations only appear if the viewer has the capability.
+  const tabs: SectionTab[] = []
+  if (caps?.manageWorkspace !== false) {
+    tabs.push({ key: 'workspace', label: 'Workspace', href: `/org/${orgId}/settings`, matchPrefix: `/org/${orgId}/settings` })
+  }
+  if (caps?.manageIntegrations !== false) {
+    tabs.push({ key: 'integrations', label: 'Integrations', href: `/org/${orgId}/settings/integrations`, matchPrefix: `/org/${orgId}/settings/integrations` })
+  }
+  tabs.push({ key: 'profile', label: 'Profile', href: `/settings`, matchPrefix: `/settings` })
   return <SectionTabs tabs={tabs} />
 }

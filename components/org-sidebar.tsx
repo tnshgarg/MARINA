@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { CharacterAvatar } from "@/components/character-avatar";
 import { NavLink } from "@/components/nav-link";
+import { NotificationBell } from "@/components/notification-bell";
 import { getCharacter } from "@/lib/characters/data";
 
 type NavEntry = {
@@ -159,7 +160,7 @@ export function OrgSidebar({
 
       {/* Pinned footer — always visible regardless of scroll */}
       <div className="shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <CharacterAvatar characterKey={characterKey} size={32} />
           <div className="min-w-0 flex-1">
             <p className="text-[12.5px] font-medium text-slate-900 truncate">
@@ -167,6 +168,7 @@ export function OrgSidebar({
             </p>
             <p className="text-[11px] text-slate-500 truncate">{role}</p>
           </div>
+          <NotificationBell />
           <form action={signOutAction}>
             <button
               type="submit"

@@ -22,6 +22,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   try {
     const { session } = await requireMembership(orgId, 'manager')
 
+    const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
+    const trackedOrgs = (org as { trackedGithubOrgs?: string[] } | undefined)?.trackedGithubOrgs ?? []
+
     const memberships = await db
       .select({ userId: schema.memberships.userId })
       .from(schema.memberships)
@@ -38,7 +41,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
         continue
       }
       try {
-        const res = await syncUserActivity(uid, user.login, user.accessToken, 30)
+        const res = await syncUserActivity(uid, user.login, user.accessToken, 30, trackedOrgs)
         results.push({ userId: uid, login: user.login, inserted: res.inserted })
       } catch (err) {
         results.push({ userId: uid, login: user.login, error: (err as Error).message })

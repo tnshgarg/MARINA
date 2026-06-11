@@ -1,4 +1,5 @@
 import { db, schema } from '@/lib/db/client'
+import { afterResponse } from '@/lib/after'
 
 export type AuditAction =
   | 'leave.requested'
@@ -14,6 +15,7 @@ export type AuditAction =
   | 'member.invited'
   | 'member.removed'
   | 'member.role_changed'
+  | 'member.updated'
   | 'invite.revoked'
   | 'device.paired'
   | 'device.revoked'
@@ -34,22 +36,31 @@ export type AuditPayload = {
   userAgent?: string | null
 }
 
-export async function audit(input: AuditPayload): Promise<void> {
-  try {
-    await db.insert(schema.auditLogs).values({
-      orgId: input.orgId ?? null,
-      actorUserId: input.actorUserId ?? null,
-      action: input.action,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      payload: input.payload as never,
-      ip: input.ip ?? null,
-      userAgent: input.userAgent ?? null,
-    })
-  } catch (err) {
-    // Audit must never break the request path.
-    console.error('[audit] write failed', err)
-  }
+/**
+ * Record an audit entry. Uses Next's `after()` so the write survives serverless
+ * function teardown — `void audit(...)` callers don't lose entries when Vercel
+ * tears down the container before the promise resolves.
+ *
+ * Audit must never break the request path; any write failure is swallowed and
+ * logged. Callers can ignore the returned void.
+ */
+export function audit(input: AuditPayload): void {
+  afterResponse(
+    () =>
+      db
+        .insert(schema.auditLogs)
+        .values({
+          orgId: input.orgId ?? null,
+          actorUserId: input.actorUserId ?? null,
+          action: input.action,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          payload: input.payload as never,
+          ip: input.ip ?? null,
+          userAgent: input.userAgent ?? null,
+        }),
+    `audit:${input.action}`,
+  )
 }
 
 export function requestMeta(req: Request): { ip: string | null; userAgent: string | null } {

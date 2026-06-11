@@ -76,3 +76,59 @@ function renderInviteText(i: SendInviteEmailInput): string {
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 }
+
+/**
+ * Generic HTML-or-text email sender. Awaits the Resend response and returns
+ * an `{ ok, id, error }` result so the caller can decide whether to retry.
+ * Use this for the CEO digest, password resets, anything where we need to
+ * know whether it actually went out.
+ */
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+}: {
+  to: string
+  subject: string
+  html?: string
+  text?: string
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' }
+  const from = process.env.RESEND_FROM || 'Project MARINA <onboarding@resend.dev>'
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ from, to, subject, html, text: text ?? stripTags(html ?? '') }),
+    })
+    const body = (await res.json().catch(() => null)) as { id?: string; message?: string } | null
+    if (!res.ok) return { ok: false, error: `${res.status}: ${body?.message ?? 'send failed'}` }
+    return { ok: true, id: body?.id }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Generic plain-text email to an employee. Fire-and-forget; runs in
+ * background. Use for leave decisions, calendar reminders, etc.
+ */
+export function sendEmployeeEmail(to: string, subject: string, text: string): void {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    console.log(`[email] no RESEND_API_KEY, would have sent to ${to}: ${subject}`)
+    return
+  }
+  const from = process.env.RESEND_FROM || 'Project MARINA <onboarding@resend.dev>'
+  void fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ from, to, subject, text }),
+  }).catch((err) => console.error('[email] employee send failed', err))
+}

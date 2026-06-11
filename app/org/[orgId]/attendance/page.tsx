@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { PeopleTabs } from '@/components/org-tabs'
 import AttendanceClient from './client'
@@ -47,7 +47,7 @@ export default async function AttendancePage({
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
     .orderBy(desc(schema.memberships.createdAt))
 
   const memberByUserId = new Map(memberRows.map((m) => [m.userId, m]))

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authenticateAgent } from '@/lib/agent/auth'
 import { checkLimit, rateLimitHeaders } from '@/lib/agent/rate-limit'
 import { getBlobStore, shotKey } from '@/lib/storage/blob'
 import { getVisionProvider, progressScore } from '@/lib/ai/vision'
+import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
 import { log } from '@/lib/log/log'
 import type { VisionAnalysis } from '@/lib/ai/vision'
 
@@ -118,15 +119,40 @@ export async function POST(req: Request) {
     })
     .returning()
 
+  // Resolve the user's org so spend can be charged to it.
+  const firstMembership = await db.query.memberships.findFirst({
+    where: and(eq(schema.memberships.userId, agent.user.id), isNull(schema.memberships.endedAt)),
+  })
+  const orgIdForBudget = firstMembership?.orgId ?? null
+
   // Inline vision. Best-effort: if it fails, we still keep the screenshot and
   // a stagnation engine pass can re-analyze later.
   let analysisOut: VisionAnalysis | null = null
   try {
     if (!process.env.OPENAI_API_KEY) {
       log.warn('agent.shot.vision_skipped_no_key', { userId: agent.user.id })
+    } else if (!(await canSpend(orgIdForBudget, 'vision')).allowed) {
+      // Budget exhausted — skip vision but keep the screenshot. The "no analysis"
+      // case is already handled downstream (focus ratio dampens to neutral).
+      log.warn('agent.shot.vision_skipped_budget', { userId: agent.user.id, orgId: orgIdForBudget })
     } else {
       const provider = getVisionProvider()
       const visionRes = await provider.analyze({ bytes: jpeg, mime: 'image/jpeg' })
+
+      recordSpend({
+        orgId: orgIdForBudget,
+        userId: agent.user.id,
+        kind: 'vision',
+        provider: visionRes.provider,
+        model: visionRes.model,
+        imageCount: 1,
+        costCents: estimateCostCents({
+          kind: 'vision',
+          provider: visionRes.provider,
+          model: visionRes.model,
+          imageCount: 1,
+        }),
+      })
 
       // Find the most recent prior analysis for this user within the last 90 min.
       const since = new Date(capturedAt.getTime() - 90 * 60 * 1000)

@@ -1,4 +1,5 @@
 import { pgTable, serial, text, integer, timestamp, jsonb, index, boolean, uniqueIndex, date, primaryKey } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -15,6 +16,11 @@ export const users = pgTable('users', {
   // GitHub sync state — null = never synced
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
   lastSyncError: text('last_sync_error'),
+  // People-care fields. Birthday is stored as MM-DD (year ignored on purpose
+  // — nobody wants to surface age). joinedOn is the actual joining date,
+  // used to compute work anniversaries.
+  birthdayMmDd: text('birthday_mm_dd'),     // e.g. "07-24"
+  joinedOn: text('joined_on'),              // ISO date "2024-01-15"
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -105,18 +111,27 @@ export const githubEvents = pgTable(
   })
 )
 
-export const narratives = pgTable('narratives', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
-  periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
-  body: text('body').notNull(),
-  signal: text('signal').$type<'High' | 'Steady' | 'Low' | 'Blocked'>().notNull(),
-  blockers: jsonb('blockers').$type<string[]>().notNull().default([]),
-  provider: text('provider').notNull(),
-  model: text('model').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const narratives = pgTable(
+  'narratives',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    body: text('body').notNull(),
+    signal: text('signal').$type<'High' | 'Steady' | 'Low' | 'Blocked'>().notNull(),
+    blockers: jsonb('blockers').$type<string[]>().notNull().default([]),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Reading "latest narrative for user X" is hot — index for it.
+    userCreatedIdx: index('narratives_user_created_idx').on(t.userId, t.createdAt),
+  }),
+)
+
+export type Plan = 'free' | 'team' | 'scale'
 
 export const orgs = pgTable('orgs', {
   id: serial('id').primaryKey(),
@@ -128,10 +143,84 @@ export const orgs = pgTable('orgs', {
   avatarMode: text('avatar_mode').$type<'hero' | 'photo'>().notNull().default('hero'),
   workdayStartHour: integer('workday_start_hour').notNull().default(9),
   workdayEndHour: integer('workday_end_hour').notNull().default(18),
+  /**
+   * IANA timezone identifier (e.g. "Asia/Kolkata"). Used for day-boundary
+   * computation so end-of-day work in IST doesn't get bucketed under UTC's
+   * tomorrow. Defaults to Asia/Kolkata since MARINA is India-first.
+   */
+  timezone: text('timezone').notNull().default('Asia/Kolkata'),
+  // Billing — plan, seat cap, trial. Stripe/Razorpay IDs nullable until connected.
+  plan: text('plan').$type<Plan>().notNull().default('free'),
+  seatsPurchased: integer('seats_purchased').notNull().default(5),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+  billingProvider: text('billing_provider'), // 'razorpay' | 'stripe' | null
+  billingCustomerId: text('billing_customer_id'),
+  billingSubscriptionId: text('billing_subscription_id'),
+  // AI-cost ceiling per calendar month (cents-of-USD). 0 = no spend allowed.
+  monthlyAiBudgetCents: integer('monthly_ai_budget_cents').notNull().default(5000),
+  /**
+   * GitHub organisations whose activity the org wants to track. When set,
+   * the sync filter EXCLUDES events from any repo whose owner isn't in this
+   * list — so an employee's open-source contributions to unrelated orgs
+   * stay private. Empty list = track everything (legacy behaviour).
+   *
+   * Format: lowercased GitHub org/user logins, e.g. ["acme", "acme-labs"].
+   */
+  trackedGithubOrgs: jsonb('tracked_github_orgs').$type<string[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export type Role = 'owner' | 'manager' | 'member'
+
+/**
+ * Functional discipline of the person inside the org. Drives which signals
+ * the UI surfaces: engineers see commit/PR counts, designers see file-edit
+ * activity, sales sees calls/deals, support sees tickets closed, etc.
+ *
+ * We default everyone to 'other' so legacy memberships still render in a
+ * generic but useful way (hours worked, focus time, meetings, deliverables).
+ */
+export type Discipline =
+  | 'engineering'
+  | 'design'
+  | 'product'
+  | 'sales'
+  | 'support'
+  | 'marketing'
+  | 'ops'
+  | 'hr'
+  | 'finance'
+  | 'exec'
+  | 'other'
+
+export const DISCIPLINE_LABEL: Record<Discipline, string> = {
+  engineering: 'Engineering',
+  design: 'Design',
+  product: 'Product',
+  sales: 'Sales',
+  support: 'Customer Support',
+  marketing: 'Marketing',
+  ops: 'Operations',
+  hr: 'People / HR',
+  finance: 'Finance',
+  exec: 'Leadership',
+  other: 'Other',
+}
+
+/** What "shipped" means for each discipline. Used as the deliverables label. */
+export const DISCIPLINE_DELIVERABLE: Record<Discipline, string> = {
+  engineering: 'PRs & commits',
+  design: 'designs & reviews',
+  product: 'docs & specs',
+  sales: 'deals & calls',
+  support: 'tickets resolved',
+  marketing: 'campaigns & posts',
+  ops: 'tasks completed',
+  hr: 'cases handled',
+  finance: 'reports filed',
+  exec: 'decisions logged',
+  other: 'deliverables',
+}
 
 export const memberships = pgTable(
   'memberships',
@@ -140,6 +229,41 @@ export const memberships = pgTable(
     orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
     userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     role: text('role').$type<Role>().notNull(),
+    /**
+     * Functional discipline — engineering / design / sales / support / etc.
+     * Drives the role-aware UI. Defaults to 'other' for legacy rows.
+     */
+    discipline: text('discipline').$type<Discipline>().notNull().default('other'),
+    /** Optional free-text title — "Senior Frontend", "Account Executive", … */
+    jobTitle: text('job_title'),
+    /**
+     * Granular capabilities the owner has explicitly granted to this person
+     * on TOP of their base role. Lets the corporate hierarchy work without
+     * giving every manager full owner rights. Owners always have all caps
+     * implicitly (we never read this column for them).
+     *
+     * See `lib/auth/capabilities.ts` for the canonical list.
+     */
+    extraCaps: jsonb('extra_caps').$type<string[]>().notNull().default([]),
+    /**
+     * Reporting line — who this person reports to inside the org. Optional;
+     * a flat team leaves this null. Drives "your reports" filtered views.
+     */
+    reportsToMembershipId: integer('reports_to_membership_id'),
+    /**
+     * Per-employee working days. Bitmap: index 0=Sunday, 6=Saturday. Default
+     * Mon–Fri. Drives attendance "weekend vs absent" classification per
+     * person instead of org-wide.
+     */
+    workingDays: jsonb('working_days').$type<boolean[]>().notNull().default([
+      false, true, true, true, true, true, false,
+    ]),
+    /**
+     * When the member was removed (soft-delete). Reads scoped to org should
+     * filter events to `occurredAt BETWEEN createdAt AND COALESCE(endedAt, now())`
+     * so a user in two orgs doesn't leak data across them.
+     */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
@@ -155,6 +279,13 @@ export const invites = pgTable(
     orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     role: text('role').$type<Role>().notNull(),
+    /**
+     * Discipline assigned at invite-time so the new teammate immediately gets
+     * the role-appropriate UI on first sign-in. Manager can re-assign later
+     * from the Profile tab of the member modal.
+     */
+    discipline: text('discipline').$type<Discipline>().notNull().default('other'),
+    jobTitle: text('job_title'),
     token: text('token').notNull().unique(),
     invitedBy: integer('invited_by').notNull().references(() => users.id, { onDelete: 'set null' }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -435,6 +566,13 @@ export const shifts = pgTable(
   (t) => ({
     userActiveIdx: index('shifts_user_active_idx').on(t.userId, t.punchedOutAt),
     orgRecentIdx: index('shifts_org_recent_idx').on(t.orgId, t.punchedInAt),
+    // Race-condition guard: at most one open shift per user. Partial unique
+    // index, only enforces uniqueness when punched_out_at IS NULL. Two
+    // simultaneous punch-in requests will now have ONE succeed and the other
+    // fail with a unique-violation, instead of creating two open shifts.
+    oneOpenPerUser: uniqueIndex('shifts_one_open_per_user_idx')
+      .on(t.userId)
+      .where(sql`${t.punchedOutAt} IS NULL`),
   })
 )
 
@@ -484,7 +622,9 @@ export const auditLogs = pgTable(
   'audit_logs',
   {
     id: serial('id').primaryKey(),
-    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'cascade' }),
+    // SET NULL not CASCADE — DPDP / SOC2 require we retain the decision history
+    // after an org is deleted. Trail survives; org reference becomes orphaned.
+    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'set null' }),
     actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
     action: text('action').notNull(), // e.g. 'leave.decided', 'member.removed'
     targetType: text('target_type'),  // 'user' | 'membership' | 'leave' | 'device' | 'org'
@@ -606,6 +746,86 @@ export const scrumCoverage = pgTable(
 export type ScrumCoverage = typeof scrumCoverage.$inferSelect
 export type NewScrumCoverage = typeof scrumCoverage.$inferInsert
 
+/**
+ * Per-org per-month AI spend ledger. Every vision / story / narrative call
+ * appends a row. The budget gatekeeper sums the current month and refuses
+ * new spend once monthlyAiBudgetCents is reached.
+ */
+export const aiSpend = pgTable(
+  'ai_spend',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    kind: text('kind').notNull(), // 'vision' | 'story' | 'narrative' | 'verify_shift'
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    imageCount: integer('image_count').notNull().default(0),
+    costCents: integer('cost_cents').notNull(), // estimated cost in cents-of-USD
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgCreatedIdx: index('ai_spend_org_created_idx').on(t.orgId, t.createdAt),
+  }),
+)
+export type AiSpend = typeof aiSpend.$inferSelect
+export type NewAiSpend = typeof aiSpend.$inferInsert
+
+/**
+ * In-app notifications for end-users (bell icon). Notifications are also
+ * fanned out via Slack/email by lib/notify/send.ts — the inbox is the
+ * everybody-gets-this channel that doesn't depend on external integrations.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // 'leave.decided', 'blocker.pinged', 'break.checkin', ...
+    title: text('title').notNull(),
+    body: text('body'),
+    href: text('href'), // relative URL the bell click should open
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCreatedIdx: index('notifications_user_created_idx').on(t.userId, t.createdAt),
+    userUnreadIdx: index('notifications_user_unread_idx').on(t.userId, t.readAt),
+  }),
+)
+export type Notification = typeof notifications.$inferSelect
+export type NewNotification = typeof notifications.$inferInsert
+
+/**
+ * Rate-limit ledger for sensitive endpoints (magic-link issue, pairing-code
+ * generate). One row per call; cleanup via cron sweep.
+ */
+export const rateLimitEvents = pgTable(
+  'rate_limit_events',
+  {
+    id: serial('id').primaryKey(),
+    bucket: text('bucket').notNull(), // 'magic_link:<email>', 'pair_code:<userId>', ...
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    bucketOccurredIdx: index('rate_limit_bucket_occurred_idx').on(t.bucket, t.occurredAt),
+  }),
+)
+
+/**
+ * Resumable-cursor state for jobs that can't finish in a single Vercel
+ * function invocation. Story-generation cron writes its progress here so
+ * the next invocation picks up where it left off.
+ */
+export const jobCursors = pgTable('job_cursors', {
+  job: text('job').primaryKey(), // e.g. 'stories:yesterday'
+  cursor: text('cursor').notNull(), // opaque JSON
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type GithubEvent = typeof githubEvents.$inferSelect
@@ -614,8 +834,83 @@ export type Narrative = typeof narratives.$inferSelect
 export type NewNarrative = typeof narratives.$inferInsert
 export type Org = typeof orgs.$inferSelect
 export type NewOrg = typeof orgs.$inferInsert
+/**
+ * Self-reported work items — designers, salespeople, ops folks need a way
+ * to log "I shipped X today" since they don't have a GitHub feed. Each row
+ * is one deliverable, optionally pointing at a URL (Figma file, Notion doc,
+ * deal, ticket). The manager sees these in the Activity tab regardless of
+ * the employee's discipline.
+ *
+ * Verification: the row can pin a screenshot timestamp. The existing screen-
+ * monitor pipeline can then cross-check that the user really was on the
+ * tool they claimed at that time — non-intrusively, no extra work for the
+ * employee.
+ */
+export const deliverables = pgTable(
+  'deliverables',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    detail: text('detail'),
+    url: text('url'),
+    /** Free-text, e.g. "design" / "deal" / "ticket" / "doc". Optional. */
+    kind: text('kind'),
+    /** When the work was actually completed (defaults to row creation time). */
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Optional pin to a screenshot/shot_analysis at the time of completion. */
+    pinnedShotAt: timestamp('pinned_shot_at', { withTimezone: true }),
+    verificationStatus: text('verification_status')
+      .$type<'unverified' | 'verified' | 'mismatch'>()
+      .notNull()
+      .default('unverified'),
+    verificationNotes: text('verification_notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCompletedIdx: index('deliverables_user_completed_idx').on(t.userId, t.completedAt),
+    orgRecentIdx: index('deliverables_org_recent_idx').on(t.orgId, t.completedAt),
+  }),
+)
+
 export type Membership = typeof memberships.$inferSelect
 export type NewMembership = typeof memberships.$inferInsert
+export type Deliverable = typeof deliverables.$inferSelect
+export type NewDeliverable = typeof deliverables.$inferInsert
+
+/**
+ * Internal meeting scheduled by a manager from inside MARINA. We always
+ * store the record so the 1:1 cadence is auditable. When the organiser
+ * has Google Calendar connected, we ALSO push the event to Google so
+ * both calendars are in sync; otherwise the row is the source of truth
+ * and we just notify the attendee in-app.
+ */
+export const scheduledMeetings = pgTable(
+  'scheduled_meetings',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    organiserUserId: integer('organiser_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    attendeeUserId: integer('attendee_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    agenda: text('agenda'),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    googleEventId: text('google_event_id'),
+    conferenceUrl: text('conference_url'),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    organiserIdx: index('scheduled_meetings_organiser_idx').on(t.organiserUserId, t.startAt),
+    attendeeIdx: index('scheduled_meetings_attendee_idx').on(t.attendeeUserId, t.startAt),
+    orgIdx: index('scheduled_meetings_org_idx').on(t.orgId, t.startAt),
+  }),
+)
+
+export type ScheduledMeeting = typeof scheduledMeetings.$inferSelect
+export type NewScheduledMeeting = typeof scheduledMeetings.$inferInsert
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect

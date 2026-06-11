@@ -4,30 +4,70 @@
    `@import "tailwindcss"` at the top to satisfy that. */
 
 :root {
-  --m-bg: #f9fafb;          /* page background */
-  --m-bg-soft: #f3f4f6;     /* secondary surfaces (sidebar etc.) */
-  --m-card: #ffffff;
-  --m-border: #e5e7eb;
-  --m-border-soft: #f1f5f9;
-  --m-ink: #0f172a;         /* slate-900 */
-  --m-ink-2: #334155;       /* slate-700 */
-  --m-ink-3: #64748b;       /* slate-500 */
-  --m-ink-4: #94a3b8;       /* slate-400 */
-  --m-accent: #6366f1;      /* indigo-500 */
-  --m-accent-2: #4f46e5;
-  --m-good: #10b981;
-  --m-warn: #f59e0b;
-  --m-bad: #ef4444;
-  --m-info: #0ea5e9;
+  /* ----------- Brand palette -----------
+   * Sage / cream / charcoal — built for a calm, premium feel.
+   * Inspired by Lattice, Things, Linear.
+   *
+   * - cream / mist:  soft warm backgrounds
+   * - charcoal:      near-black ink that's gentler than pure black
+   * - sage / moss:   primary accent (replaces hot indigo)
+   * - clay:          warm secondary accent (used sparingly for emphasis)
+   * - sky / amber / rose: status colours
+   */
+  --m-bg:        #f8f6f1;   /* warm cream, our "paper" */
+  --m-bg-soft:   #efece5;   /* sage-tinted neutral for chrome */
+  --m-card:      #ffffff;
+  --m-border:    #e5e0d4;   /* warm border that doesn't fight the cream */
+  --m-border-soft: #efece5;
+
+  --m-ink:       #1a1f2e;   /* near-black charcoal, softer than slate-900 */
+  --m-ink-2:     #2d3447;
+  --m-ink-3:     #5e6678;
+  --m-ink-4:     #8a91a3;
+  --m-ink-5:     #b8bdcb;
+
+  --m-accent:        #3f6b54;   /* deep sage — primary brand */
+  --m-accent-2:      #2f5240;   /* darker sage for hover */
+  --m-accent-soft:   #e8ede7;   /* mint background fill */
+  --m-accent-glow:   rgba(63, 107, 84, 0.16);
+
+  --m-clay:          #c47b56;   /* warm clay/terracotta — secondary accent */
+  --m-clay-soft:     #f4ebe3;
+  --m-clay-deep:     #a35e3d;
+
+  --m-gold:          #c19a4d;   /* highlight for premium chips */
+  --m-gold-soft:     #f5ecd4;
+
+  --m-good:          #547d62;
+  --m-good-soft:     #e3ede5;
+  --m-warn:          #c2904a;
+  --m-warn-soft:     #f5ecd4;
+  --m-bad:           #ad4c52;
+  --m-bad-soft:      #f3dfe0;
+  --m-info:          #517a8a;
+  --m-info-soft:     #e2ebef;
 
   --background: var(--m-bg);
   --foreground: var(--m-ink);
+
+  /* Shadow scale — soft, warm, never harsh */
+  --m-shadow-sm: 0 1px 2px rgba(26, 31, 46, 0.04);
+  --m-shadow:    0 1px 3px rgba(26, 31, 46, 0.04), 0 1px 2px rgba(26, 31, 46, 0.06);
+  --m-shadow-lg: 0 6px 24px -8px rgba(26, 31, 46, 0.08), 0 2px 6px rgba(26, 31, 46, 0.04);
+  --m-shadow-xl: 0 24px 48px -16px rgba(26, 31, 46, 0.12), 0 4px 12px rgba(26, 31, 46, 0.06);
+
+  /* Radii — slightly squared for a Linear/Things feel, not bubbly */
+  --m-radius-sm: 6px;
+  --m-radius:    10px;
+  --m-radius-lg: 14px;
+  --m-radius-xl: 18px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', 'Iowan Old Style', 'Times New Roman', serif;
   --font-mono: ui-monospace, Menlo, monospace;
 }
 
@@ -36,7 +76,20 @@ html, body {
   color: var(--m-ink);
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  /* OpenType features for premium polish:
+   * - cv02/cv03/cv04/cv11: alternate glyphs (Linear/Things style)
+   * - ss01: stylistic single-storey 'a'
+   * - tnum: tabular numerals everywhere there's data
+   */
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  text-rendering: optimizeLegibility;
+}
+
+/* Editorial serif — used for landing hero, big headings, marketing surfaces. */
+.font-display {
+  font-family: var(--font-serif);
+  font-feature-settings: 'liga', 'dlig', 'kern';
+  letter-spacing: -0.005em;
 }
 
 /* ---------- Typography ---------- */
@@ -76,11 +129,148 @@ html, body {
 .app-card {
   background: var(--m-card);
   border: 1px solid var(--m-border);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-radius: var(--m-radius-lg);
+  box-shadow: var(--m-shadow-sm);
 }
 .app-card-tight { padding: 16px; }
 .app-card-lg { padding: 20px; }
+
+/* Editorial paper — for marketing surfaces, cream textured background */
+.paper {
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(63, 107, 84, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(196, 123, 86, 0.04) 0%, transparent 50%),
+    var(--m-bg);
+}
+
+/* ---------- Landing animations ---------- */
+
+/* Float — gentle vertical bob for hero accents */
+@keyframes m-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.m-float { animation: m-float 6s ease-in-out infinite; }
+
+/* Marquee — for the customer logo strip */
+@keyframes m-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.m-marquee {
+  animation: m-marquee 38s linear infinite;
+  will-change: transform;
+}
+.m-marquee:hover { animation-play-state: paused; }
+
+/* Slow pulse — for "live" status dots that we want to feel alive but not jittery */
+@keyframes m-slow-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.85); }
+}
+.m-slow-pulse { animation: m-slow-pulse 2.4s ease-in-out infinite; }
+
+/* Ribbon shimmer — sweeps once on view; runs forever subtly in hero */
+@keyframes m-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(180%); }
+}
+.m-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.m-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%);
+  animation: m-shimmer 3.6s ease-in-out infinite;
+}
+
+/* Reveal-on-scroll — paired with the <Reveal> component which adds .is-visible */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Counter tick — for big stat numbers that count up on reveal */
+.counter-tick {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Card lift on hover for the workflows / resource cards */
+.lift-on-hover {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+.lift-on-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--m-shadow-lg);
+  border-color: var(--m-ink-5);
+}
+
+/* Soft brand gradient text for the hero italic word */
+.brand-gradient-text {
+  background: linear-gradient(110deg, var(--m-accent) 0%, var(--m-gold) 50%, var(--m-clay) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Editorial long-form typography for /privacy, /terms, /dpa */
+.legal-prose h1 {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--m-ink);
+  margin: 0 0 8px;
+}
+.legal-prose h2 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  color: var(--m-ink);
+  margin: 40px 0 12px;
+}
+.legal-prose h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--m-ink);
+  margin: 24px 0 8px;
+}
+.legal-prose p,
+.legal-prose ul,
+.legal-prose ol {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--m-ink-2);
+  margin: 0 0 14px;
+}
+.legal-prose ul, .legal-prose ol { padding-left: 1.25em; }
+.legal-prose li { margin-bottom: 4px; }
+.legal-prose a {
+  color: var(--m-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.2em;
+}
+.legal-prose strong { color: var(--m-ink); font-weight: 600; }
+.legal-prose code {
+  font-family: var(--font-mono);
+  background: var(--m-bg-soft);
+  border: 1px solid var(--m-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 13px;
+}
 
 /* ---------- Pills ---------- */
 .pill {
@@ -102,49 +292,69 @@ html, body {
   background: currentColor;
   opacity: 0.85;
 }
-.pill-good   { background: #ecfdf5; color: #047857; }
-.pill-info   { background: #eff6ff; color: #1d4ed8; }
-.pill-warn   { background: #fffbeb; color: #b45309; }
-.pill-bad    { background: #fef2f2; color: #b91c1c; }
-.pill-violet { background: #f5f3ff; color: #6d28d9; }
-.pill-slate  { background: #f1f5f9; color: #475569; }
-.pill-sky    { background: #eff6ff; color: #0369a1; }
-.pill-pink   { background: #fdf2f8; color: #be185d; }
+.pill-good   { background: var(--m-good-soft); color: var(--m-good); }
+.pill-info   { background: var(--m-info-soft); color: var(--m-info); }
+.pill-warn   { background: var(--m-warn-soft); color: var(--m-warn); }
+.pill-bad    { background: var(--m-bad-soft);  color: var(--m-bad); }
+.pill-violet { background: var(--m-clay-soft); color: var(--m-clay-deep); }
+.pill-slate  { background: var(--m-bg-soft);   color: var(--m-ink-2); }
+.pill-sky    { background: var(--m-info-soft); color: var(--m-info); }
+.pill-pink   { background: var(--m-bad-soft);  color: var(--m-bad); }
+.pill-gold   { background: var(--m-gold-soft); color: var(--m-gold); }
 
 /* ---------- Buttons ---------- */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 8px 16px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  background: var(--m-accent);
+  background: var(--m-ink);     /* deep charcoal — feels more luxe than sage */
   color: white;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 80ms ease;
+  transition: background 150ms ease, transform 80ms ease;
+  box-shadow: var(--m-shadow-sm);
 }
-.btn-primary:hover { background: var(--m-accent-2); }
-.btn-primary:disabled { opacity: 0.55; cursor: default; }
+.btn-primary:hover { background: var(--m-ink-2); transform: translateY(-0.5px); }
+.btn-primary:disabled { opacity: 0.45; cursor: default; transform: none; }
 
 .btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: 10px;
+  padding: 7px 13px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  background: white;
+  background: var(--m-card);
   color: var(--m-ink-2);
   border: 1px solid var(--m-border);
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease;
+  transition: background 150ms ease, border-color 150ms ease;
 }
-.btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-secondary:hover { background: var(--m-bg); border-color: var(--m-ink-4); }
 .btn-secondary:disabled { opacity: 0.55; cursor: default; }
+
+/* Editorial primary — sage gradient, for marketing CTAs only */
+.btn-sage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  background: linear-gradient(180deg, var(--m-accent) 0%, var(--m-accent-2) 100%);
+  color: white;
+  border: 1px solid var(--m-accent-2);
+  cursor: pointer;
+  transition: filter 150ms ease, transform 80ms ease;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, var(--m-shadow);
+}
+.btn-sage:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
 .btn-good {
   display: inline-flex;
@@ -285,16 +495,64 @@ html, body {
   font-weight: 500;
   text-decoration: none;
 }
-.nav-item:hover { background: #f3f4f6; }
+.nav-item:hover { background: var(--m-bg-soft); }
 .nav-item-active {
-  background: #eef2ff;
+  background: var(--m-accent-soft);
   color: var(--m-accent-2);
 }
 .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.8; }
 
 @media (max-width: 900px) {
+  /* Single column. Sidebar becomes a slide-in drawer activated by the
+     mobile-top-bar hamburger. */
   .app-shell { grid-template-columns: 1fr; }
-  .app-sidebar { display: none; }
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 200ms ease-out;
+    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.15);
+  }
+  body.mobile-nav-open .app-sidebar {
+    transform: translateX(0);
+  }
+  .mobile-top-bar {
+    display: flex;
+  }
+  /* Add padding so content isn't hidden under the fixed top bar. */
+  .app-shell > main { padding-top: 52px; }
+}
+
+/* Top bar only renders on mobile via component, but ensure desktop hides it. */
+.mobile-top-bar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: white;
+  border-bottom: 1px solid var(--m-border);
+  height: 52px;
+}
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 55;
+  border: 0;
+  cursor: pointer;
+  animation: navBackdropIn 180ms ease-out;
+}
+@keyframes navBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ---------- Avatars ---------- */

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { and, desc, eq, gte, inArray } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { PeopleTabs } from '@/components/org-tabs'
@@ -48,7 +48,7 @@ export default async function ShiftsPage({
   const memberRows = await db
     .select({ userId: schema.memberships.userId })
     .from(schema.memberships)
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), sql`${schema.memberships.endedAt} IS NULL`))
   const userIds = memberRows.map((m) => m.userId)
 
   const since = sinceFor(range)

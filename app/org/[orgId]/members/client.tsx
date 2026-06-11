@@ -14,14 +14,32 @@ type Member = {
   avatarUrl: string | null
   characterKey: string | null
   role: string
+  discipline: string
+  jobTitle: string | null
 }
 
 type PendingInvite = {
   id: number
   email: string
   role: string
+  discipline: string
+  jobTitle: string | null
   token: string
   expiresAt: string
+}
+
+const DISCIPLINE_BADGE_LABEL: Record<string, string> = {
+  engineering: 'Engineering',
+  design: 'Design',
+  product: 'Product',
+  sales: 'Sales',
+  support: 'Support',
+  marketing: 'Marketing',
+  ops: 'Ops',
+  hr: 'People',
+  finance: 'Finance',
+  exec: 'Leadership',
+  other: 'Team',
 }
 
 export default function MembersClient({
@@ -41,6 +59,11 @@ export default function MembersClient({
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'member' | 'manager'>('member')
+  const [discipline, setDiscipline] = useState<
+    'engineering' | 'design' | 'product' | 'sales' | 'support' |
+    'marketing' | 'ops' | 'hr' | 'finance' | 'exec' | 'other'
+  >('other')
+  const [jobTitle, setJobTitle] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
@@ -57,11 +80,17 @@ export default function MembersClient({
       const res = await fetch(`/api/orgs/${orgId}/invites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({
+          email,
+          role,
+          discipline,
+          jobTitle: jobTitle.trim() || null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`)
       setEmail('')
+      setJobTitle('')
       setLastInviteLink(data.inviteUrl)
       setLinkSent(Boolean(data.email?.sent))
       toast.push({
@@ -170,33 +199,70 @@ export default function MembersClient({
     <div className="space-y-5">
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-[14px] font-semibold text-slate-900">Invite a teammate</h2>
-        <p className="text-[12px] text-slate-500 mt-0.5">They&apos;ll get an email with a one-time link.</p>
-        <form onSubmit={invite} className="mt-3 flex gap-2 flex-wrap">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="teammate@example.com"
-            className="input flex-1 min-w-[200px]"
-            disabled={busy}
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
-            className="select max-w-[160px]"
-            disabled={busy}
-          >
-            <option value="member">Member</option>
-            <option value="manager">Manager</option>
-          </select>
-          <button
-            type="submit"
-            disabled={busy}
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
-          >
-            {busy ? 'Sending…' : 'Send invite'}
-          </button>
+        <p className="text-[12px] text-slate-500 mt-0.5">
+          Pick their team role and discipline so they land in the right view from day one.
+        </p>
+        <form onSubmit={invite} className="mt-3 space-y-2">
+          <div className="grid sm:grid-cols-2 gap-2">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="teammate@example.com"
+              className="input"
+              disabled={busy}
+            />
+            <input
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="Job title (optional) — e.g. Senior Designer"
+              maxLength={80}
+              className="input"
+              disabled={busy}
+            />
+          </div>
+          <div className="grid sm:grid-cols-3 gap-2">
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
+              className="select"
+              disabled={busy}
+              aria-label="Org role"
+            >
+              <option value="member">Member</option>
+              <option value="manager">Manager</option>
+            </select>
+            <select
+              value={discipline}
+              onChange={(e) => setDiscipline(e.target.value as typeof discipline)}
+              className="select sm:col-span-2"
+              disabled={busy}
+              aria-label="Discipline"
+            >
+              <option value="other">Discipline — Other / unsure</option>
+              <option value="engineering">Engineering</option>
+              <option value="design">Design</option>
+              <option value="product">Product</option>
+              <option value="sales">Sales</option>
+              <option value="support">Customer Support</option>
+              <option value="marketing">Marketing</option>
+              <option value="ops">Operations</option>
+              <option value="hr">People / HR</option>
+              <option value="finance">Finance</option>
+              <option value="exec">Leadership</option>
+            </select>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            >
+              {busy ? 'Sending…' : 'Send invite'}
+            </button>
+          </div>
         </form>
         {lastInviteLink && (
           <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700">
@@ -236,9 +302,14 @@ export default function MembersClient({
               return (
                 <li key={i.id} className="px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-medium text-slate-900 truncate">{i.email}</p>
+                    <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                      {i.email}
+                      {i.jobTitle && <span className="text-slate-400 font-normal"> · {i.jobTitle}</span>}
+                    </p>
                     <p className="text-[11px] text-slate-500">
-                      {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}
+                      {i.role}
+                      {i.discipline !== 'other' && <> · {DISCIPLINE_BADGE_LABEL[i.discipline] ?? i.discipline}</>}
+                      {' · expires '}{new Date(i.expiresAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex gap-1.5">
@@ -304,15 +375,22 @@ export default function MembersClient({
                           {m.name ?? `@${m.login}`}
                         </p>
                         <p className="text-[11.5px] text-slate-500 truncate">
-                          {hero ? hero.name : `@${m.login}`}
+                          {m.jobTitle ?? (hero ? hero.name : `@${m.login}`)}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <span className={`pill ${m.role === 'owner' ? 'pill-violet' : m.role === 'manager' ? 'pill-info' : 'pill-slate'}`}>
-                      {m.role}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`pill ${m.role === 'owner' ? 'pill-violet' : m.role === 'manager' ? 'pill-info' : 'pill-slate'}`}>
+                        {m.role}
+                      </span>
+                      {m.discipline !== 'other' && (
+                        <span className="text-[10.5px] uppercase tracking-wider text-slate-500">
+                          {DISCIPLINE_BADGE_LABEL[m.discipline] ?? m.discipline}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="text-[12.5px] text-slate-600">{m.email ?? '—'}</td>
                   <td>

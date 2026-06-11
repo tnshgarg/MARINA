@@ -33,7 +33,7 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
     .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   const pendingInvites = await db
     .select()
@@ -63,11 +63,15 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
           avatarUrl: r.u.avatarUrl,
           characterKey: r.u.characterKey,
           role: r.m.role,
+          discipline: (r.m as { discipline?: string }).discipline ?? 'other',
+          jobTitle: (r.m as { jobTitle?: string | null }).jobTitle ?? null,
         }))}
         pendingInvites={pendingInvites.map((i) => ({
           id: i.id,
           email: i.email,
           role: i.role,
+          discipline: (i as { discipline?: string }).discipline ?? 'other',
+          jobTitle: (i as { jobTitle?: string | null }).jobTitle ?? null,
           token: i.token,
           expiresAt: i.expiresAt.toISOString(),
         }))}

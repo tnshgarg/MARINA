@@ -8,6 +8,7 @@ import { getCharacter } from '@/lib/characters/data'
 import { useToast } from '@/components/toast'
 import { MemberDetailModal } from './member-detail-modal'
 import { MeetingsPanel } from '@/components/meetings-panel'
+import { CelebrationsWidget } from '@/components/celebrations-widget'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
 type DailyState = 'High' | 'Steady' | 'Blocked' | 'Disengaged' | 'PossiblyDummying' | 'NoData'
@@ -153,6 +154,7 @@ export default function TeamDashboardClient({
   orgId,
   viewerUserId,
   isManager,
+  isOwner,
   greeting,
   snapshot,
   members,
@@ -164,6 +166,7 @@ export default function TeamDashboardClient({
   orgId: number
   viewerUserId: number
   isManager: boolean
+  isOwner: boolean
   greeting: string
   snapshot: Snapshot
   members: MemberCard[]
@@ -293,17 +296,21 @@ export default function TeamDashboardClient({
     }
   }
 
-  // "Things worth reviewing today" — up to 3 picks
+  // "Things worth reviewing today" — up to 3 picks. We surface (in priority):
+  //   1. Oldest pending leave request
+  //   2. Anyone with an active 'blocked' break
+  //   3. Anyone flagged Blocked / Disengaged / PossiblyDummying via dailyState
+  //   4. Anyone on a long shift (>9h active) — worth a wellbeing check-in
+  // The section always renders so managers see the empty-state when calm.
   const reviewing = useMemo(() => {
     const picks: Array<{
-      kind: 'leave' | 'block' | 'inactive'
+      kind: 'leave' | 'block' | 'inactive' | 'long-day'
       member: MemberCard | null
       leave?: PendingLeave
       label: string
       detail: string
     }> = []
 
-    // First pick a pending leave (if any) — render alongside
     if (pendingLeaves[0]) {
       const lv = pendingLeaves[0]
       const member = members.find((m) => m.userId === lv.user.id) ?? null
@@ -316,7 +323,22 @@ export default function TeamDashboardClient({
       })
     }
 
-    // Picks for blocked / inactive members
+    // Active blockers first (structured signal trumps dailyState heuristics)
+    for (const m of members) {
+      if (picks.length >= 3) break
+      if (m.ongoingBreak?.category === 'blocked' && !picks.find((p) => p.member?.userId === m.userId)) {
+        const target = m.ongoingBreak.waitingOn
+          ? `@${m.ongoingBreak.waitingOn.login}`
+          : m.ongoingBreak.waitingOnExternal ?? 'someone'
+        picks.push({
+          kind: 'block',
+          member: m,
+          label: 'Blocked now',
+          detail: `Waiting on ${target}. ${m.ongoingBreak.reason ?? ''}`.trim(),
+        })
+      }
+    }
+
     for (const m of members) {
       if (picks.length >= 3) break
       if (!m.dailyState) continue
@@ -325,7 +347,7 @@ export default function TeamDashboardClient({
           kind: 'block',
           member: m,
           label: 'Waiting on review',
-          detail: m.dailyState.reason,
+          detail: m.dailyState.reason || 'Activity pattern suggests they are stuck.',
         })
       } else if (
         (m.dailyState.state === 'Disengaged' || m.dailyState.state === 'PossiblyDummying') &&
@@ -334,11 +356,26 @@ export default function TeamDashboardClient({
         picks.push({
           kind: 'inactive',
           member: m,
-          label: 'Inactive',
-          detail: m.dailyState.reason,
+          label: 'Looks inactive',
+          detail: m.dailyState.reason || 'Low output despite being on-shift.',
         })
       }
     }
+
+    // Long-day check (>9h total activity captured)
+    for (const m of members) {
+      if (picks.length >= 3) break
+      const totalSec = m.activity.activeSeconds + m.activity.idleSeconds
+      if (totalSec > 9 * 3600 && !picks.find((p) => p.member?.userId === m.userId)) {
+        picks.push({
+          kind: 'long-day',
+          member: m,
+          label: 'Long day',
+          detail: `${Math.floor(totalSec / 3600)}h tracked today — consider a wellbeing check-in.`,
+        })
+      }
+    }
+
     return picks.slice(0, 3)
   }, [members, pendingLeaves])
 
@@ -401,17 +438,26 @@ export default function TeamDashboardClient({
             />
           )}
 
-          {reviewing.length > 0 && (
-            <section className="rounded-xl border border-slate-200 bg-white">
-              <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3">
-                <h2 className="text-[14px] font-semibold text-slate-900">Worth a look</h2>
-                <Link
-                  href={`/org/${orgId}/leaves`}
-                  className="text-[12px] text-slate-500 hover:text-slate-900"
-                >
-                  View leaves →
-                </Link>
-              </div>
+          <section className="rounded-xl border border-slate-200 bg-white">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3">
+              <h2 className="text-[14px] font-semibold text-slate-900">
+                Worth a look
+                {reviewing.length > 0 && (
+                  <span className="ml-1.5 text-slate-400 tabular-nums">{reviewing.length}</span>
+                )}
+              </h2>
+              <Link
+                href={`/org/${orgId}/leaves`}
+                className="text-[12px] text-slate-500 hover:text-slate-900"
+              >
+                View leaves →
+              </Link>
+            </div>
+            {reviewing.length === 0 ? (
+              <p className="px-5 py-8 text-center text-[12.5px] text-slate-500">
+                All quiet — no pending leaves, no blockers, no long days. Great time to plan ahead.
+              </p>
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                 {reviewing.map((r, idx) => (
                   <ReviewCard
@@ -424,8 +470,8 @@ export default function TeamDashboardClient({
                   />
                 ))}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
           {/* Team Members */}
           <section>
@@ -439,7 +485,7 @@ export default function TeamDashboardClient({
                   placeholder="Search…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-slate-200 bg-white text-[12.5px] outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-slate-200 bg-white text-[12.5px] outline-none focus:border-[var(--m-accent)] focus:ring-2 focus:ring-[var(--m-accent-glow)] transition"
                 />
               </div>
             </div>
@@ -478,6 +524,7 @@ export default function TeamDashboardClient({
         {/* Right rail — consolidated, minimal */}
         <aside className="col-span-12 xl:col-span-3 space-y-5">
           <MeetingsPanel />
+          <CelebrationsWidget orgId={orgId} />
           <LeavePanel
             orgId={orgId}
             isManager={isManager}
@@ -496,6 +543,7 @@ export default function TeamDashboardClient({
         open={detailMember !== null}
         onClose={() => setDetailMember(null)}
         isManager={isManager}
+        isOwner={isOwner}
       />
     </>
   )
@@ -713,7 +761,7 @@ function ReviewCard({
   onOpen,
 }: {
   pick: {
-    kind: 'leave' | 'block' | 'inactive'
+    kind: 'leave' | 'block' | 'inactive' | 'long-day'
     member: MemberCard | null
     leave?: PendingLeave
     label: string
@@ -732,8 +780,10 @@ function ReviewCard({
     pick.kind === 'leave'
       ? 'pill-warn'
       : pick.kind === 'block'
-        ? 'pill-sky'
-        : 'pill-bad'
+        ? 'pill-bad'
+        : pick.kind === 'long-day'
+          ? 'pill-info'
+          : 'pill-slate'
 
   const clickable = !!(m && onOpen)
   const handleOpen = () => {
@@ -808,6 +858,10 @@ function ReviewCard({
           <span className="text-[11.5px] text-slate-500">
             Last active {timeSinceLabel(m?.activity)}
           </span>
+        ) : pick.kind === 'long-day' ? (
+          <span className="text-[11.5px] text-[var(--m-accent)]">
+            Suggest a wellbeing check-in
+          </span>
         ) : null}
       </div>
     </div>
@@ -852,7 +906,7 @@ function MemberCardView({
       role="button"
       tabIndex={0}
       aria-label={`Open details for ${m.name ?? `@${m.login}`}`}
-      className="cursor-pointer text-left w-full rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 transition-all overflow-hidden"
+      className="cursor-pointer text-left w-full rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/40 transition-all overflow-hidden"
     >
       {/* Header */}
       <div className="px-5 pt-4 pb-3 flex items-start gap-3">
@@ -901,20 +955,18 @@ function MemberCardView({
         </div>
       )}
 
-      {/* Today timeline ribbon */}
+      {/* Right now — instant-read line. Manager glances and knows what's happening. */}
       <div className="px-5 pb-3">
-        <TodayRibbon member={m} statusKey={statusKey} />
-        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-500">
-          <span><span className="text-slate-700 font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
-          <span><span className="text-slate-700 font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
-          {m.activity.topApp && (
-            <span className="truncate">
-              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: appColor(m.activity.topApp) }} />
-              {m.activity.topApp}
-            </span>
-          )}
+        <RightNowLine member={m} statusKey={statusKey} />
+
+        <div className="mt-2.5">
+          <TodayRibbon member={m} statusKey={statusKey} />
+        </div>
+        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[var(--m-ink-3)]">
+          <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
+          <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
           {totalShiftSec > 9 * 3600 && (
-            <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] text-amber-700 font-medium" title="Working over 9h — suggest a break">
+            <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] text-[var(--m-warn)] font-medium" title="Working over 9h — suggest a break">
               long day
             </span>
           )}
@@ -927,7 +979,7 @@ function MemberCardView({
           <ul className="space-y-1">
             {bullets.map((b, i) => (
               <li key={i} className="text-[12.5px] text-slate-700 leading-snug flex gap-2">
-                <span className="text-indigo-500 mt-0.5">•</span>
+                <span className="text-[var(--m-accent)] mt-0.5">•</span>
                 <span className="break-words">{b}</span>
               </li>
             ))}
@@ -962,7 +1014,7 @@ function MemberCardView({
               type="button"
               onClick={onSync}
               disabled={busy !== null || !m.hasGithub}
-              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {busy === `sync-${m.membershipId}` ? 'Syncing…' : 'Sync'}
             </button>
@@ -970,7 +1022,7 @@ function MemberCardView({
               type="button"
               onClick={onBrief}
               disabled={busy !== null}
-              className="px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-2.5 py-1 rounded-md bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {busy === `brief-${m.membershipId}` ? 'Briefing…' : 'Brief'}
             </button>
@@ -999,30 +1051,215 @@ function TodayRibbon({
 }) {
   if (statusKey === 'off') {
     const offReason = m.onLeaveToday ? 'On leave today' : 'Off-clock'
-    return <div className="h-1.5 rounded-full bg-slate-100" title={offReason} />
+    return <div className="h-1.5 rounded-full bg-[var(--m-bg-soft)]" title={offReason} />
   }
 
   const totalSec = m.activity.activeSeconds + m.activity.idleSeconds
   if (totalSec === 0) {
-    // On-shift but no data yet — empty track tinted by status
-    return <div className={`h-1.5 rounded-full bg-slate-100`} title="Awaiting first activity sample" />
+    return (
+      <div className="h-1.5 rounded-full bg-[var(--m-bg-soft)]" title="Awaiting first activity sample" />
+    )
   }
 
   const total = Math.max(1, totalSec)
   const activePct = (m.activity.activeSeconds / total) * 100
   const idlePct = (m.activity.idleSeconds / total) * 100
-  const breakCls = statusKey === 'blocked' ? 'bg-rose-400' : 'bg-slate-400'
+  const breakCls = statusKey === 'blocked' ? 'bg-[var(--m-bad)]/70' : 'bg-[var(--m-ink-4)]/70'
   return (
     <div
-      className="h-1.5 rounded-full overflow-hidden flex bg-slate-100"
+      className="h-1.5 rounded-full overflow-hidden flex bg-[var(--m-bg-soft)]"
       title={`${formatHm(m.activity.activeSeconds)} focused · ${formatHm(m.activity.idleSeconds)} idle`}
     >
-      <div className="h-full bg-emerald-500" style={{ width: `${activePct}%` }} />
-      <div className="h-full bg-slate-300" style={{ width: `${idlePct}%` }} />
-      {m.ongoingBreak && (
-        <div className={`h-full flex-1 min-w-[6%] ${breakCls}`} />
+      <div className="h-full bg-[var(--m-accent)]" style={{ width: `${activePct}%` }} />
+      <div className="h-full bg-[var(--m-ink-5)]" style={{ width: `${idlePct}%` }} />
+      {m.ongoingBreak && <div className={`h-full flex-1 min-w-[6%] ${breakCls}`} />}
+    </div>
+  )
+}
+
+/**
+ * "Right now" line — first thing a manager reads on each member card.
+ *
+ * Surfaces in priority order:
+ *   1. Blocked → "Blocked · waiting on @rahul · 47m"
+ *   2. On break → "On a meeting break · 12m"
+ *   3. On leave → "On leave today · Sick"
+ *   4. Off-clock → "Off-clock · last seen 4h ago"
+ *   5. Working → "Right now: VS Code · auth-flow.ts" (with live pulse dot)
+ *
+ * The pulse dot is a CSS animation so it ticks even when the rest of the
+ * dashboard is idle — the manager subconsciously perceives "this is live."
+ */
+function RightNowLine({
+  member: m,
+  statusKey,
+}: {
+  member: MemberCard
+  statusKey: SimpleStatus
+}) {
+  const baseCls = 'inline-flex items-center gap-2 text-[12.5px] leading-snug'
+
+  if (statusKey === 'blocked' && m.ongoingBreak) {
+    const mins = humanDuration(Date.now() - new Date(m.ongoingBreak.startedAt).getTime())
+    const target = m.ongoingBreak.waitingOn
+      ? `@${m.ongoingBreak.waitingOn.login}`
+      : m.ongoingBreak.waitingOnExternal ?? 'someone'
+    return (
+      <div className={`${baseCls} text-[var(--m-bad)]`}>
+        <PulseDot tone="bad" />
+        <span><span className="font-medium">Blocked</span> · waiting on {target} · {mins}</span>
+      </div>
+    )
+  }
+
+  if (statusKey === 'paused' && m.ongoingBreak) {
+    const mins = humanDuration(Date.now() - new Date(m.ongoingBreak.startedAt).getTime())
+    const label =
+      m.ongoingBreak.category === 'meeting' ? 'In a meeting' :
+      m.ongoingBreak.category === 'lunch'   ? 'Out for lunch' :
+      m.ongoingBreak.category === 'errand'  ? 'On an errand' :
+      m.ongoingBreak.category === 'focus'   ? 'Focus / no-disturb' :
+      m.ongoingBreak.category === 'personal' ? 'Personal time' :
+      'Paused'
+    return (
+      <div className={`${baseCls} text-[var(--m-ink-2)]`}>
+        <PulseDot tone="paused" />
+        <span><span className="font-medium">{label}</span> · {mins}</span>
+      </div>
+    )
+  }
+
+  if (statusKey === 'off') {
+    if (m.onLeaveToday) {
+      return (
+        <div className={`${baseCls} text-[var(--m-warn)]`}>
+          <Dot tone="warn" />
+          <span><span className="font-medium">On leave</span> today</span>
+        </div>
+      )
+    }
+    return (
+      <div className={`${baseCls} text-[var(--m-ink-3)]`}>
+        <Dot tone="off" />
+        <span><span className="font-medium">Off-clock</span></span>
+      </div>
+    )
+  }
+
+  // Working
+  const app = m.activity.topApp
+  return (
+    <div className={`${baseCls} text-[var(--m-ink)] min-w-0`}>
+      <PulseDot tone="good" />
+      <span className="text-[var(--m-ink-3)] shrink-0">Right now</span>
+      {app ? (
+        <>
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <AppGlyph app={app} />
+            <span className="font-medium truncate">{app}</span>
+          </span>
+        </>
+      ) : (
+        <span className="font-medium text-[var(--m-good)]">Heads-down</span>
       )}
     </div>
+  )
+}
+
+function PulseDot({ tone }: { tone: 'good' | 'bad' | 'paused' }) {
+  const color =
+    tone === 'good' ? 'var(--m-good)' :
+    tone === 'bad'  ? 'var(--m-bad)'  :
+    'var(--m-ink-4)'
+  return (
+    <span className="relative inline-flex shrink-0">
+      <span
+        className="absolute inset-0 rounded-full opacity-60 animate-ping"
+        style={{ background: color }}
+      />
+      <span className="relative inline-block w-2 h-2 rounded-full" style={{ background: color }} />
+    </span>
+  )
+}
+
+function Dot({ tone }: { tone: 'warn' | 'off' }) {
+  const color = tone === 'warn' ? 'var(--m-warn)' : 'var(--m-ink-5)'
+  return <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+}
+
+/**
+ * Tiny mono-color glyph per known app family. Falls back to a colored dot
+ * when the app isn't recognised. Keeps the right-now line scannable.
+ */
+function AppGlyph({ app }: { app: string }) {
+  const lower = app.toLowerCase()
+  if (/code|webstorm|intellij|vim|emacs|cursor|xcode|android studio/.test(lower)) return <CodeGlyph />
+  if (/figma|sketch|illustrator|photoshop|adobe/.test(lower)) return <DesignGlyph />
+  if (/slack|discord|teams|telegram|whatsapp/.test(lower)) return <ChatGlyph />
+  if (/zoom|meet|hangouts|webex/.test(lower)) return <VideoGlyph />
+  if (/chrome|safari|firefox|edge|arc/.test(lower)) return <BrowserGlyph />
+  if (/mail|outlook|gmail/.test(lower)) return <MailGlyph />
+  if (/notion|linear|jira|confluence/.test(lower)) return <DocGlyph />
+  return (
+    <span
+      className="inline-block w-3 h-3 rounded-sm shrink-0"
+      style={{ background: appColor(app) }}
+    />
+  )
+}
+
+function CodeGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-accent)] shrink-0">
+      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function DesignGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-clay)] shrink-0">
+      <circle cx={12} cy={12} r={4} />
+      <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeLinecap="round" />
+    </svg>
+  )
+}
+function ChatGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-info)] shrink-0">
+      <path d="M21 12a8 8 0 11-3-6.2V11l3 1z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function VideoGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-info)] shrink-0">
+      <rect x={3} y={6} width={13} height={12} rx={2} />
+      <path d="M16 10l5-2v8l-5-2z" />
+    </svg>
+  )
+}
+function BrowserGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-ink-3)] shrink-0">
+      <circle cx={12} cy={12} r={9} />
+      <path d="M3 12h18M12 3a13 13 0 010 18M12 3a13 13 0 000 18" strokeLinecap="round" />
+    </svg>
+  )
+}
+function MailGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-clay)] shrink-0">
+      <rect x={3} y={5} width={18} height={14} rx={2} />
+      <path d="M3 7l9 6 9-6" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function DocGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-gold)] shrink-0">
+      <path d="M6 3h9l4 4v14H6z" strokeLinejoin="round" />
+      <path d="M15 3v4h4M9 13h6M9 17h4" strokeLinecap="round" />
+    </svg>
   )
 }
 
@@ -1105,7 +1342,7 @@ function LeavePanel({
 }
 
 const CATEGORY_PILL: Record<BreakCategory, { label: string; cls: string }> = {
-  focus: { label: 'Focus', cls: 'bg-indigo-50 text-indigo-700' },
+  focus: { label: 'Focus', cls: 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]' },
   meeting: { label: 'Meeting', cls: 'bg-sky-50 text-sky-700' },
   blocked: { label: 'Blocked', cls: 'bg-rose-50 text-rose-700' },
   lunch: { label: 'Lunch', cls: 'bg-amber-50 text-amber-700' },

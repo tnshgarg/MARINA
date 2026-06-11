@@ -81,27 +81,35 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <CharacterAvatar characterKey={me.characterKey} size={42} />
-            <div>
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <CharacterAvatar characterKey={me.characterKey} size={40} />
+            <div className="min-w-0">
               <p className="app-eyebrow">My console</p>
-              <h1 className="app-h2 truncate">
-                {character?.name ?? me.name ?? `@${session.login}`}
-                <span className="ml-2 text-[12px] font-normal text-slate-500">
+              <h1 className="app-h2 truncate flex items-baseline gap-2">
+                <span className="truncate">
+                  {character?.name ?? me.name ?? `@${session.login}`}
+                </span>
+                <span className="text-[12px] font-normal text-slate-500 truncate">
                   @{session.login}
                 </span>
               </h1>
             </div>
           </div>
-          <nav className="flex items-center gap-3 text-[13px]">
+          <nav className="flex items-center gap-4 text-[13px] shrink-0">
             {canSeeTeam && primaryOrgId && (
-              <Link href={`/org/${primaryOrgId}`} className="text-slate-600 hover:text-indigo-600 transition-colors">
+              <Link
+                href={`/org/${primaryOrgId}`}
+                className="text-slate-600 hover:text-[var(--m-accent)] transition-colors"
+              >
                 Team
               </Link>
             )}
-            <Link href="/settings" className="text-slate-600 hover:text-indigo-600 transition-colors">
+            <Link
+              href="/settings"
+              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors"
+            >
               Settings
             </Link>
             <form

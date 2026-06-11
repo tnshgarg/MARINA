@@ -28,30 +28,43 @@ export function buildNarrativeMessages(input: NarrativeInput): ChatMessage[] {
       reviewsGiven: grouped.reviews.length,
       issuesClosed: grouped.issues.length,
     },
+    // Include URLs so the LLM can extract PR numbers from the path (e.g. /pull/482).
     commitsByRepo: groupByRepo(grouped.commits),
-    pullRequests: grouped.prs.map((e) => ({ repo: e.repo, title: e.title })),
+    pullRequests: grouped.prs.map((e) => ({
+      repo: e.repo,
+      title: e.title,
+      number: extractIssueNumber(e.url),
+      url: e.url,
+    })),
     reviewsByRepo: groupByRepo(grouped.reviews),
-    issuesClosed: grouped.issues.map((e) => ({ repo: e.repo, title: e.title })),
+    issuesClosed: grouped.issues.map((e) => ({
+      repo: e.repo,
+      title: e.title,
+      number: extractIssueNumber(e.url),
+      url: e.url,
+    })),
   }
 
   const system: ChatMessage = {
     role: 'system',
     content:
-      'You are an AI Chief of Staff that writes brief, factual work narratives for engineering managers. ' +
+      'You are an AI Chief of Staff that writes factual, concrete work narratives for engineering managers. ' +
       'You only describe what the data shows. You never speculate about effort, motivation, or personal life. ' +
+      'Be SPECIFIC — name PR titles, PR numbers, repo names, and commit subjects when surfacing them. ' +
+      'Prefer "PR #482 (acme/web) — Fix double-submit on leave form" over "made a PR." ' +
       'You always return strict JSON matching the schema given by the user.',
   }
 
   const user: ChatMessage = {
     role: 'user',
     content: [
-      'Given the following structured GitHub activity for one engineer over the last 7 days, write a daily-style narrative.',
+      "Write a brief for this engineer's last 7 days. Be specific — name the work, don't just count it.",
       '',
       'Return JSON with exactly these fields:',
       '{',
-      '  "body": "3 to 5 sentence paragraph summarising the work in plain English",',
+      '  "body": "3 to 5 sentence paragraph. Quote 1-3 PR / commit titles by name when relevant. If you reference a PR, include the number like \\"PR #482\\". Name the repos.",',
       '  "signal": "High" | "Steady" | "Low" | "Blocked",',
-      '  "blockers": ["short bullet-style inferred blockers, e.g. \'No commits in 3 days on repo-x despite open PR\'. Empty array if none."]',
+      '  "blockers": ["short bullet-style inferred blockers, e.g. \'PR #482 has been open 4 days without review\'. Empty array if none."]',
       '}',
       '',
       'Signal rules:',
@@ -59,6 +72,13 @@ export function buildNarrativeMessages(input: NarrativeInput): ChatMessage[] {
       '- Steady: regular output, normal week.',
       '- Low: very little measurable activity.',
       '- Blocked: activity suggests they tried (e.g. opened a PR) but downstream signals are missing (no merges, no reviews received).',
+      '',
+      'Style:',
+      '- Reference specific PRs by number and title — e.g., "shipped PR #482 (acme/web) fixing double-submit on the leave form".',
+      '- Reference repos by name — "acme/web", "acme/api".',
+      '- Group commits when there are many ("9 commits across acme/web focused on auth refactor").',
+      '- Do NOT add filler sentences like "The work was spread across multiple repos" — just describe the work.',
+      '- If a PR has no merge or review, surface that as a likely blocker.',
       '',
       'Data:',
       '```json',
@@ -97,6 +117,15 @@ function groupEvents(events: GithubEvent[]) {
     reviews: events.filter((e) => e.type === 'pr_reviewed'),
     issues: events.filter((e) => e.type === 'issue_closed'),
   }
+}
+
+/**
+ * Pull the PR / issue number out of a GitHub URL.
+ * Handles: /pull/123, /issues/456, /pulls/789
+ */
+function extractIssueNumber(url: string): number | null {
+  const m = url.match(/\/(?:pull|pulls|issues)\/(\d+)/)
+  return m ? Number(m[1]) : null
 }
 
 function groupByRepo(events: GithubEvent[]): Array<{ repo: string; count: number; sample: string[] }> {

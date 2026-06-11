@@ -36,7 +36,9 @@ export async function POST(
       )
     }
 
-    const result = await syncUserActivity(user.id, user.login, user.accessToken, 7)
+    const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
+    const trackedOrgs = (org as { trackedGithubOrgs?: string[] } | undefined)?.trackedGithubOrgs ?? []
+    const result = await syncUserActivity(user.id, user.login, user.accessToken, 7, trackedOrgs)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     if (err instanceof HttpError) {

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import type { Membership, Role, User } from '@/lib/db/schema'
@@ -63,7 +63,13 @@ export async function listMembershipsForCurrentUser(): Promise<Array<Membership 
     })
     .from(schema.memberships)
     .innerJoin(schema.orgs, eq(schema.memberships.orgId, schema.orgs.id))
-    .where(eq(schema.memberships.userId, session.appUserId))
+    .where(
+      and(
+        eq(schema.memberships.userId, session.appUserId),
+        // Soft-deleted memberships shouldn't appear in nav / org picker.
+        isNull(schema.memberships.endedAt),
+      ),
+    )
   return rows.map((r) => ({ ...r.m, org: r.o }))
 }
 
@@ -75,7 +81,9 @@ export async function requireMembership(orgId: number, minRole: Role = 'member')
   const membership = await db.query.memberships.findFirst({
     where: and(
       eq(schema.memberships.orgId, orgId),
-      eq(schema.memberships.userId, session.appUserId)
+      eq(schema.memberships.userId, session.appUserId),
+      // Removed-and-not-reinvited members can't be guarded as active members.
+      isNull(schema.memberships.endedAt),
     ),
   })
   if (!membership) throw new HttpError(403, 'not a member of this org')
@@ -83,4 +91,23 @@ export async function requireMembership(orgId: number, minRole: Role = 'member')
     throw new HttpError(403, `requires role >= ${minRole}`)
   }
   return { session, membership }
+}
+
+/**
+ * Capability-based guard. Owners always pass; managers/members pass if the
+ * capability has been explicitly granted on their membership via extraCaps.
+ *
+ * Use this for surfaces the owner may want to delegate (e.g. let a People
+ * manager edit celebrations, let a Finance manager view all data) without
+ * giving them full owner powers.
+ */
+export async function requireCapability(orgId: number, cap: string): Promise<{
+  session: ResolvedSession
+  membership: Membership
+}> {
+  const { session, membership } = await requireMembership(orgId, 'member')
+  if (membership.role === 'owner') return { session, membership }
+  const extra = (membership as { extraCaps?: string[] }).extraCaps ?? []
+  if (extra.includes(cap)) return { session, membership }
+  throw new HttpError(403, `missing capability: ${cap}`)
 }

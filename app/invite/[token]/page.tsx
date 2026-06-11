@@ -84,6 +84,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     'use server'
     await signIn('github', { redirectTo: `/invite/${token}` })
   }
+  async function gSignIn() {
+    'use server'
+    await signIn('google', { redirectTo: `/invite/${token}` })
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 flex items-start justify-center pt-20 px-6">
@@ -133,7 +137,12 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                 <AcceptInviteClient token={token} orgId={org.id} />
               </div>
             ) : (
-              <InviteAuthOptions token={token} email={invite.email} githubSignIn={ghSignIn} />
+              <InviteAuthOptions
+                token={token}
+                email={invite.email}
+                githubSignIn={ghSignIn}
+                googleSignIn={process.env.GOOGLE_SSO_CLIENT_ID ? gSignIn : undefined}
+              />
             )}
           </div>
         )}

@@ -25,16 +25,35 @@ export async function POST(req: Request) {
       })
     }
 
-    const [row] = await db
-      .insert(schema.shifts)
-      .values({
-        userId: session.appUserId,
-        orgId: orgId ?? undefined,
-        punchedInVia: 'web',
+    let row: typeof schema.shifts.$inferSelect
+    try {
+      ;[row] = await db
+        .insert(schema.shifts)
+        .values({
+          userId: session.appUserId,
+          orgId: orgId ?? undefined,
+          punchedInVia: 'web',
+        })
+        .returning()
+    } catch (insertErr) {
+      // Race: a concurrent request just opened a shift. The partial unique
+      // index `shifts_one_open_per_user_idx` rejected us. Re-read and return
+      // the existing one so the user gets a clean "alreadyOpen" response.
+      const isUnique =
+        insertErr instanceof Error &&
+        /unique|duplicate key/i.test(insertErr.message)
+      if (!isUnique) throw insertErr
+      const open = await db.query.shifts.findFirst({
+        where: and(
+          eq(schema.shifts.userId, session.appUserId),
+          isNull(schema.shifts.punchedOutAt),
+        ),
       })
-      .returning()
+      if (!open) throw insertErr
+      return NextResponse.json({ ok: true, alreadyOpen: true, shift: serialise(open) })
+    }
 
-    void audit({
+    audit({
       action: 'shift.punch_in',
       orgId,
       actorUserId: session.appUserId,

@@ -40,7 +40,6 @@ async function sweep() {
   let failed = 0
   for (const shot of expired) {
     if (!shot.storageKey) {
-      // Nothing to delete in storage; just mark.
       await db
         .update(schema.screenshots)
         .set({ deletedAt: new Date() })
@@ -60,8 +59,53 @@ async function sweep() {
       log.error('cron.sweep.delete_failed', { id: shot.id, err: String(err) })
     }
   }
-  log.info('cron.sweep.done', { examined: expired.length, deleted, failed })
-  return NextResponse.json({ ok: true, examined: expired.length, deleted, failed })
+
+  // Purge other stale rows that would otherwise accumulate forever.
+  const magicCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const expiredMagic = await db
+    .delete(schema.magicLinks)
+    .where(lt(schema.magicLinks.expiresAt, magicCutoff))
+    .returning({ id: schema.magicLinks.id })
+
+  const pairCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const expiredPair = await db
+    .delete(schema.pairingCodes)
+    .where(lt(schema.pairingCodes.expiresAt, pairCutoff))
+    .returning({ id: schema.pairingCodes.id })
+
+  // Rate-limit events older than 24h
+  const rlCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const expiredRl = await db
+    .delete(schema.rateLimitEvents)
+    .where(lt(schema.rateLimitEvents.occurredAt, rlCutoff))
+    .returning({ id: schema.rateLimitEvents.id })
+
+  // Notifications older than 30 days — manager already saw them or didn't.
+  const notifCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const expiredNotif = await db
+    .delete(schema.notifications)
+    .where(lt(schema.notifications.createdAt, notifCutoff))
+    .returning({ id: schema.notifications.id })
+
+  log.info('cron.sweep.done', {
+    examined: expired.length,
+    deleted,
+    failed,
+    magic: expiredMagic.length,
+    pair: expiredPair.length,
+    rl: expiredRl.length,
+    notif: expiredNotif.length,
+  })
+  return NextResponse.json({
+    ok: true,
+    examined: expired.length,
+    deleted,
+    failed,
+    magicLinks: expiredMagic.length,
+    pairingCodes: expiredPair.length,
+    rateLimitEvents: expiredRl.length,
+    notifications: expiredNotif.length,
+  })
 }
 
 function eqId(id: number) {

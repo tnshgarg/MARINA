@@ -26,11 +26,28 @@ export async function syncUserActivity(
   userId: number,
   login: string,
   accessToken: string,
-  daysBack = 30
+  daysBack = 30,
+  /**
+   * Lowercased GitHub org/user logins to keep. Empty/undefined = track every
+   * repo (legacy behaviour). When set, events from any other org are filtered
+   * out before insert so an employee's open-source contributions don't leak
+   * into the workplace timeline.
+   */
+  trackedOrgs?: string[],
 ): Promise<SyncResult> {
   const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000)
   const sinceIso = since.toISOString().slice(0, 10)
   const octokit = octokitFor(accessToken)
+  const trackedSet = trackedOrgs && trackedOrgs.length > 0
+    ? new Set(trackedOrgs.map((o) => o.toLowerCase()))
+    : null
+
+  /** Returns true when the repo's owner is tracked (or filter is off). */
+  const repoAllowed = (repoFullName: string): boolean => {
+    if (!trackedSet) return true
+    const owner = repoFullName.split('/')[0]?.toLowerCase() ?? ''
+    return trackedSet.has(owner)
+  }
 
   const events: NewGithubEvent[] = []
   const byType: Record<string, number> = {}
@@ -42,19 +59,23 @@ export async function syncUserActivity(
       q: `is:pr author:${login} created:>=${sinceIso}`,
       per_page: 100,
     })
+    let prKept = 0
     for (const pr of prs) {
+      const repo = pr.repository_url.replace('https://api.github.com/repos/', '')
+      if (!repoAllowed(repo)) continue
       events.push({
         userId,
         type: 'pr_opened',
-        repo: pr.repository_url.replace('https://api.github.com/repos/', ''),
+        repo,
         title: pr.title,
         url: pr.html_url,
         externalId: String(pr.id),
         occurredAt: new Date(pr.created_at),
         raw: { number: pr.number, state: pr.state },
       })
+      prKept++
     }
-    byType.pr_opened = prs.length
+    byType.pr_opened = prKept
   } catch (err) {
     errors.push(`PRs opened: ${(err as Error).message}`)
   }
@@ -65,19 +86,23 @@ export async function syncUserActivity(
       q: `is:pr reviewed-by:${login} -author:${login} updated:>=${sinceIso}`,
       per_page: 100,
     })
+    let reviewKept = 0
     for (const pr of reviewed) {
+      const repo = pr.repository_url.replace('https://api.github.com/repos/', '')
+      if (!repoAllowed(repo)) continue
       events.push({
         userId,
         type: 'pr_reviewed',
-        repo: pr.repository_url.replace('https://api.github.com/repos/', ''),
+        repo,
         title: `Reviewed: ${pr.title}`,
         url: pr.html_url,
         externalId: `review-${pr.id}`,
         occurredAt: new Date(pr.updated_at),
         raw: { number: pr.number, prAuthor: pr.user?.login },
       })
+      reviewKept++
     }
-    byType.pr_reviewed = reviewed.length
+    byType.pr_reviewed = reviewKept
   } catch (err) {
     errors.push(`PRs reviewed: ${(err as Error).message}`)
   }
@@ -88,19 +113,23 @@ export async function syncUserActivity(
       q: `is:issue is:closed assignee:${login} closed:>=${sinceIso}`,
       per_page: 100,
     })
+    let issueKept = 0
     for (const issue of issues) {
+      const repo = issue.repository_url.replace('https://api.github.com/repos/', '')
+      if (!repoAllowed(repo)) continue
       events.push({
         userId,
         type: 'issue_closed',
-        repo: issue.repository_url.replace('https://api.github.com/repos/', ''),
+        repo,
         title: issue.title,
         url: issue.html_url,
         externalId: String(issue.id),
         occurredAt: new Date(issue.closed_at ?? issue.updated_at),
         raw: { number: issue.number },
       })
+      issueKept++
     }
-    byType.issue_closed = issues.length
+    byType.issue_closed = issueKept
   } catch (err) {
     errors.push(`Issues closed: ${(err as Error).message}`)
   }
@@ -119,6 +148,7 @@ export async function syncUserActivity(
         if (createdAt < since) break outer
         if (e.type !== 'PushEvent') continue
         const repo: string = e.repo?.name ?? 'unknown'
+        if (!repoAllowed(repo)) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const commits = ((e.payload as any)?.commits ?? []) as Array<{ sha: string; message?: string }>
         for (const c of commits) {

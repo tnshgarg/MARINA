@@ -44,10 +44,11 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   const userIds = rawMembers.map((r) => r.u.id)
   const isManager = roleAtLeast(viewer.membership.role, 'manager')
+  const isOwner = viewer.membership.role === 'owner'
 
   const [narratives, compact, settingsRows, pendingLeaves, recentBreaks, openShifts] = await Promise.all([
     userIds.length
@@ -300,6 +301,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       orgId={orgId}
       viewerUserId={session.appUserId}
       isManager={isManager}
+      isOwner={isOwner}
       greeting={greeting}
       snapshot={{
         followupCount,
