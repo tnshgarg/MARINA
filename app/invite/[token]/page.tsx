@@ -8,20 +8,22 @@ import InviteAuthOptions from './auth-options'
 
 export const dynamic = 'force-dynamic'
 
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params
-
-  // Always save the invite token in an HttpOnly cookie so it survives the
-  // sign-in detour (GitHub OAuth or magic link verify). Root path reads it
-  // after auth and redirects back here to accept.
-  const jar = await cookies()
-  jar.set('marina_pending_invite', token, {
+// Cookie config shared between the sign-in server actions below. The cookie
+// survives the OAuth detour so the root path can redirect the signed-in user
+// straight back into accepting this invite.
+const PENDING_INVITE_COOKIE = 'marina_pending_invite'
+function pendingInviteCookieOptions() {
+  return {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 30 * 60, // 30 minutes
-  })
+  }
+}
+
+export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params
 
   const row = await db
     .select({ invite: schema.invites, org: schema.orgs })
@@ -66,7 +68,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         .update(schema.invites)
         .set({ acceptedAt: new Date() })
         .where(and(eq(schema.invites.id, invite.id), isNull(schema.invites.acceptedAt)))
-      jar.delete('marina_pending_invite')
+      // The pending-invite cookie has a 30 min TTL — we can't delete it from
+      // a server component in Next 16, but it'll expire on its own and the
+      // root path checks for an active membership before honouring it.
       redirect(`/org/${org.id}`)
     } catch (err) {
       // NEXT_REDIRECT must bubble
@@ -82,10 +86,17 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   async function ghSignIn() {
     'use server'
+    // Server actions CAN write cookies — set the pending-invite cookie
+    // here so it survives the OAuth detour. The root path reads it after
+    // auth and redirects back to /invite/[token].
+    const jar = await cookies()
+    jar.set(PENDING_INVITE_COOKIE, token, pendingInviteCookieOptions())
     await signIn('github', { redirectTo: `/invite/${token}` })
   }
   async function gSignIn() {
     'use server'
+    const jar = await cookies()
+    jar.set(PENDING_INVITE_COOKIE, token, pendingInviteCookieOptions())
     await signIn('google', { redirectTo: `/invite/${token}` })
   }
 
