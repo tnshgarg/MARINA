@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { NavProgress } from "@/components/nav-progress";
 import { ToastProvider } from "@/components/toast";
@@ -7,6 +7,24 @@ export const metadata: Metadata = {
   title: "MARINA · AI Chief of Staff for engineering-led teams",
   description:
     "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for product startups.",
+  icons: {
+    // /logo.png is the brand mark (sage M with a gold triangle). Browsers
+    // pick the best-fitting size on their own; we keep one source of truth
+    // instead of generating multiple variants until we actually need them.
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png" }],
+  },
+};
+
+// Without this, mobile browsers fall back to a 980px virtual viewport — our
+// `max-width: 900px` media query never matches and the mobile-nav hamburger
+// never appears. Setting `width=device-width` is the single most important
+// line for mobile responsiveness across the product.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#3f6b54",
 };
 
 export default function RootLayout({

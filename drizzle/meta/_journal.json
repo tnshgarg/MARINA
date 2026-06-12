@@ -8,6 +8,48 @@
       "when": 1780910837613,
       "tag": "0000_talented_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781164379344,
+      "tag": "0001_perfect_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781179476067,
+      "tag": "0002_absent_captain_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781183395030,
+      "tag": "0003_solid_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781251559430,
+      "tag": "0004_spicy_joshua_kane",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781251957561,
+      "tag": "0005_young_harpoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781260928044,
+      "tag": "0006_blushing_zuras",
+      "breakpoints": true
     }
   ]
 }

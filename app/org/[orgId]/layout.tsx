@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
+import { hasCap } from '@/lib/auth/capabilities'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
 
@@ -61,9 +62,16 @@ export default async function OrgLayout({
       <OrgSidebar
         orgId={orgId}
         orgName={org.name}
+        orgLogoUrl={(org as { logoUrl?: string | null }).logoUrl ?? null}
         userLogin={session.login}
         characterKey={me.characterKey}
+        userAvatarUrl={me.image ?? me.avatarUrl ?? null}
         role={viewer.membership.role}
+        canManageWorkspace={hasCap(
+          viewer.membership.role,
+          (viewer.membership as { extraCaps?: string[] }).extraCaps ?? [],
+          'manage_workspace',
+        )}
         pendingLeaveCount={pendingLeaveCount}
         signOutAction={signOutAction}
       />

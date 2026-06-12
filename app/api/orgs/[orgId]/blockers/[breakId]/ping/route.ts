@@ -4,6 +4,7 @@ import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
+import { afterResponse } from '@/lib/after'
 
 export const runtime = 'nodejs'
 
@@ -60,13 +61,35 @@ export async function POST(
     void notify({
       kind: 'blocker.pinged',
       orgId,
+      actorUserId: row.userId,
       blockedName: blockedUser?.name ?? `@${blockedUser?.login ?? 'someone'}`,
       blockedLogin: blockedUser?.login ?? 'someone',
+      waitingOnUserId: waitingOnUser?.id ?? null,
       waitingOnName: waitingOnUser?.name ?? null,
       waitingOnLogin: waitingOnUser?.login ?? null,
       waitingOnExternal: row.waitingOnExternal,
       reason: row.reason,
     })
+
+    // In-app + desktop notification to the person being waited on. This is
+    // the critical channel: Slack pings can go unseen if the person isn't
+    // in that channel; the agent always fires a native OS notification.
+    if (waitingOnUser) {
+      const blockedName = blockedUser?.name ?? `@${blockedUser?.login ?? 'a teammate'}`
+      afterResponse(
+        async () => {
+          await db.insert(schema.notifications).values({
+            userId: waitingOnUser.id,
+            orgId,
+            kind: 'blocker.pinged',
+            title: `${blockedName} is waiting on you`,
+            body: (row.reason ?? '').slice(0, 200) || 'A teammate needs your input to keep going.',
+            href: null,
+          })
+        },
+        'notify waitingOn user',
+      )
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

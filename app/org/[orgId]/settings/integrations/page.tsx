@@ -75,7 +75,7 @@ export default async function IntegrationsPage({
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Settings</h1>
+        <h1 className="app-h1">Settings</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">
           Connect the tools your team uses. Each integration adds context to the
           per-person view without forcing engineering-shaped data on everyone.
@@ -88,6 +88,13 @@ export default async function IntegrationsPage({
         initial={{
           trackedGithubOrgs: (org as { trackedGithubOrgs?: string[] }).trackedGithubOrgs ?? [],
           hasSlack: !!org.slackWebhookUrl,
+          slackInstall: org.slackBotToken
+            ? {
+                teamName: org.slackTeamName ?? 'Slack workspace',
+                installedAt: org.slackInstalledAt?.toISOString() ?? null,
+                defaultChannelId: org.slackDefaultChannelId,
+              }
+            : null,
           githubLinked,
           calendarLinked,
           teamSize,

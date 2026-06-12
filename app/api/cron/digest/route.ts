@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authorizeCron } from '@/lib/cron/auth'
 import { buildWeeklyDigest, renderDigestEmail } from '@/lib/digest/weekly'
-import { sendEmail } from '@/lib/email/send'
+import { sendDigestMail } from '@/lib/email/send'
 import { log } from '@/lib/log/log'
 
 export const runtime = 'nodejs'
@@ -53,7 +53,7 @@ async function run() {
         continue
       }
       const email = renderDigestEmail(digest)
-      const result = await sendEmail({
+      const result = await sendDigestMail({
         to: owner.email,
         subject: email.subject,
         html: email.html,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authenticateAgent } from '@/lib/agent/auth'
+import { notify } from '@/lib/notify/send'
 import type { BreakCategory } from '@/lib/db/schema'
 
 export const runtime = 'nodejs'
@@ -95,6 +96,22 @@ export async function POST(req: Request) {
       expectedEndAt,
     })
     .returning()
+
+  // Fire the standard `state.blocked` notification so managers see this on
+  // their dashboard / Slack / agent the same way they would when an
+  // employee marked themselves blocked from the web app. Previously the
+  // agent path silently inserted the row and the team only found out via
+  // the periodic poll — now it propagates immediately.
+  if (category === 'blocked' && orgId) {
+    notify({
+      kind: 'state.blocked',
+      orgId,
+      actorUserId: agent.user.id,
+      userName: agent.user.name ?? `@${agent.user.login}`,
+      userLogin: agent.user.login,
+      reason: row.reason,
+    })
+  }
 
   return NextResponse.json({
     ok: true,

@@ -107,3 +107,14 @@ export function shotKey(userId: number, capturedAt: Date, ext = 'jpg'): string {
   const safeIso = iso.replace(/[:.]/g, '-')
   return `shots/${y}/${m}/${d}/u${userId}/${safeIso}.${ext}`
 }
+
+/** Storage key for a user's profile avatar. Versioned with a timestamp so
+ * browser caches don't pin the old image after a re-upload. */
+export function avatarKey(userId: number, ext: string): string {
+  return `avatars/u${userId}/${Date.now()}.${ext}`
+}
+
+/** Storage key for an org's logo. Versioned for the same reason. */
+export function orgLogoKey(orgId: number, ext: string): string {
+  return `org-logos/o${orgId}/${Date.now()}.${ext}`
+}

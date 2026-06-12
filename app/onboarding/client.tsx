@@ -36,7 +36,10 @@ export default function OnboardingClient({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || data?.error || 'failed')
-      router.push(`/org/${data.org.id}`)
+      // First-run onboarding sends the brand-new owner to the invite-
+      // teammates page rather than dumping them on an empty dashboard.
+      // They can skip from there if they want to go solo.
+      router.push(`/org/${data.org.id}/setup/invite`)
     } catch (e) {
       setError(String(e))
       setBusy(null)

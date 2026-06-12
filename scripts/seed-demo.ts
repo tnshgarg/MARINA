@@ -29,68 +29,182 @@ type Seed = {
   extraCaps?: string[]
   /** Working days bitmap, Sun..Sat. Defaults to Mon–Fri if omitted. */
   workingDays?: boolean[]
+  /**
+   * Who this person reports to (by `login`). Drives the org chart layout
+   * AND the auto-routing of leave-approval notifications. Omit for owners
+   * and root-level founders.
+   */
+  reportsTo?: string
 }
 
-// Spread across ALL disciplines so every role-aware surface has live data.
-// Today's date when this file ships: 2026-06-11. Birthdays are skewed so
-// at least three fall inside the next 30 days, giving the celebrations
-// widget something to render right out of the box.
+// Rich roster spanning every role × capability × discipline so testers
+// can exercise EVERY RBAC code path:
+//
+//   * 2 owners (cofounders) — Tanish + Maya
+//   * 6 managers, each with a different extraCaps mix so we can verify
+//     gates like "manage_billing but NOT manage_members" actually deny
+//   * 16 individual contributors across 8 disciplines
+//   * A 3-level reports-to chain (founder → manager → IC → IC)
+//
+// Today's date when this file ships: 2026-06-11. Birthdays + joining
+// dates are skewed so the celebrations widget, anniversaries pill,
+// blockers strip and reports KPIs all have content immediately.
 const SEED_HEROES: Seed[] = [
+  // ─── Founders / Owners (multiple — tests "multi-root" org chart) ────────
   {
-    login: 'tanish', name: 'Tanish Garg', characterKey: 'iron_man', email: 'tanish@acmedemo.in',
-    role: 'owner', discipline: 'exec', jobTitle: 'Founder & CEO',
+    login: 'tanish', name: 'Tanish Garg', characterKey: 'iron_knight', email: 'tanish@acmedemo.in',
+    role: 'owner', discipline: 'exec', jobTitle: 'Co-founder & CEO',
     birthdayMmDd: '07-15', joinedOn: '2024-01-15',
   },
   {
-    login: 'priya', name: 'Priya Nair', characterKey: 'spider_man', email: 'priya@acmedemo.in',
-    role: 'manager', discipline: 'product', jobTitle: 'Head of Product',
-    birthdayMmDd: '06-20', joinedOn: '2024-02-01',
-    // People-shaped manager: can edit celebrations + workspace settings.
-    extraCaps: ['manage_celebrations', 'manage_workspace'],
+    login: 'maya', name: 'Maya Iyengar', characterKey: 'amazon', email: 'maya@acmedemo.in',
+    role: 'owner', discipline: 'exec', jobTitle: 'Co-founder & CTO',
+    birthdayMmDd: '06-19', joinedOn: '2024-01-15',
+  },
+
+  // ─── Department heads / Managers (varied extraCaps) ────────────────────
+  {
+    // People-care manager: full HR cap loadout
+    login: 'aisha', name: 'Aisha Khan', characterKey: 'brightest', email: 'aisha@acmedemo.in',
+    role: 'manager', discipline: 'hr', jobTitle: 'Head of People',
+    birthdayMmDd: '06-21', joinedOn: '2024-02-05',
+    extraCaps: ['manage_celebrations', 'manage_workspace', 'view_all_data'],
+    reportsTo: 'tanish',
   },
   {
-    login: 'rahul', name: 'Rahul Sharma', characterKey: 'captain', email: 'rahul@acmedemo.in',
+    // Engineering manager — reports to CTO. No billing access (tested).
+    login: 'rahul', name: 'Rahul Sharma', characterKey: 'star_captain', email: 'rahul@acmedemo.in',
     role: 'manager', discipline: 'engineering', jobTitle: 'Engineering Manager',
     birthdayMmDd: '11-08', joinedOn: '2024-03-10',
-    // Engineering manager: integrations + export_data so they can manage GH allowlist
     extraCaps: ['manage_integrations', 'export_data'],
+    reportsTo: 'maya',
   },
   {
-    login: 'sneha', name: 'Sneha Patil', characterKey: 'thor', email: 'sneha@acmedemo.in',
+    // Product manager — limited caps (no integrations or billing).
+    login: 'priya', name: 'Priya Nair', characterKey: 'web_crawler', email: 'priya@acmedemo.in',
+    role: 'manager', discipline: 'product', jobTitle: 'Head of Product',
+    birthdayMmDd: '06-20', joinedOn: '2024-02-01',
+    extraCaps: [],
+    reportsTo: 'tanish',
+  },
+  {
+    // Sales manager — tests `decide_leaves` (manager-default).
+    login: 'rohan', name: 'Rohan Bhatia', characterKey: 'outlaw', email: 'rohan@acmedemo.in',
+    role: 'manager', discipline: 'sales', jobTitle: 'Head of Sales',
+    birthdayMmDd: '08-30', joinedOn: '2024-04-12',
+    extraCaps: [],
+    reportsTo: 'tanish',
+  },
+  {
+    // Finance head — owner-shaped billing cap, nothing else.
+    login: 'vikram', name: 'Vikram Joshi', characterKey: 'mogul', email: 'vikram@acmedemo.in',
+    role: 'manager', discipline: 'finance', jobTitle: 'Head of Finance',
+    birthdayMmDd: '04-09', joinedOn: '2024-02-20',
+    extraCaps: ['manage_billing', 'export_data'],
+    reportsTo: 'tanish',
+  },
+  {
+    // Marketing lead — reports-only view, no manage_members.
+    login: 'kavya', name: 'Kavya Krishnamurthy', characterKey: 'panther_king', email: 'kavya@acmedemo.in',
+    role: 'manager', discipline: 'marketing', jobTitle: 'Growth Marketing Lead',
+    birthdayMmDd: '06-14', joinedOn: '2024-10-01',
+    extraCaps: ['view_reports_only'],
+    reportsTo: 'priya',
+  },
+
+  // ─── Engineering ICs (chain under Rahul) ───────────────────────────────
+  {
+    login: 'arjun', name: 'Arjun Mehta', characterKey: 'behemoth', email: 'arjun@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Backend Engineer',
+    birthdayMmDd: '02-14', joinedOn: '2024-06-12',
+    reportsTo: 'rahul',
+  },
+  {
+    login: 'logan', name: 'Logan Iyer', characterKey: 'berserker', email: 'logan@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Senior Frontend Engineer',
+    birthdayMmDd: '12-01', joinedOn: '2023-06-11',  // 3-year anniversary TODAY
+    reportsTo: 'rahul',
+  },
+  {
+    login: 'dev', name: 'Devendra Pillai', characterKey: 'mercenary', email: 'dev@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Platform Engineer',
+    birthdayMmDd: '03-22', joinedOn: '2024-11-15',
+    reportsTo: 'rahul',
+  },
+  {
+    login: 'ira', name: 'Ira Sehgal', characterKey: 'fox_ninja', email: 'ira@acmedemo.in',
+    role: 'member', discipline: 'engineering', jobTitle: 'Mobile Engineer',
+    birthdayMmDd: '01-25', joinedOn: '2025-05-02',
+    reportsTo: 'rahul',
+  },
+
+  // ─── Design + Product ICs ─────────────────────────────────────────────
+  {
+    login: 'sneha', name: 'Sneha Patil', characterKey: 'thunder_lord', email: 'sneha@acmedemo.in',
     role: 'member', discipline: 'design', jobTitle: 'Senior Designer',
     birthdayMmDd: '06-25', joinedOn: '2024-05-22',
+    reportsTo: 'priya',
   },
   {
-    login: 'arjun', name: 'Arjun Mehta', characterKey: 'hulk', email: 'arjun@acmedemo.in',
-    role: 'member', discipline: 'engineering', jobTitle: 'Backend Engineer',
-    birthdayMmDd: '02-14', joinedOn: '2024-06-12',  // one-year anniversary in two days
+    login: 'noah', name: 'Noah Tan', characterKey: 'bandit', email: 'noah@acmedemo.in',
+    role: 'member', discipline: 'design', jobTitle: 'Brand Designer',
+    birthdayMmDd: '10-04', joinedOn: '2025-02-08',
+    reportsTo: 'priya',
   },
   {
-    login: 'natasha', name: 'Natasha Bose', characterKey: 'widow', email: 'natasha@acmedemo.in',
+    login: 'tara', name: 'Tara Menon', characterKey: 'chosen', email: 'tara@acmedemo.in',
+    role: 'member', discipline: 'product', jobTitle: 'Product Manager',
+    birthdayMmDd: '03-12', joinedOn: '2024-09-10',
+    reportsTo: 'priya',
+  },
+
+  // ─── Sales + Support ICs ──────────────────────────────────────────────
+  {
+    login: 'natasha', name: 'Natasha Bose', characterKey: 'spy', email: 'natasha@acmedemo.in',
     role: 'member', discipline: 'sales', jobTitle: 'Account Executive',
     birthdayMmDd: '06-30', joinedOn: '2025-01-15',
+    reportsTo: 'rohan',
   },
   {
-    login: 'sid', name: 'Siddharth Kapoor', characterKey: 'strange', email: 'sid@acmedemo.in',
+    login: 'omar', name: 'Omar Sheikh', characterKey: 'speedster', email: 'omar@acmedemo.in',
+    role: 'member', discipline: 'sales', jobTitle: 'SDR',
+    birthdayMmDd: '06-18', joinedOn: '2025-03-20',
+    reportsTo: 'rohan',
+  },
+  {
+    login: 'sid', name: 'Siddharth Kapoor', characterKey: 'sorcerer', email: 'sid@acmedemo.in',
     role: 'member', discipline: 'support', jobTitle: 'Customer Support Lead',
     birthdayMmDd: '09-03', joinedOn: '2024-08-01',
-    // 6-day work week — Sun off, Mon–Sat on.
     workingDays: [false, true, true, true, true, true, true],
+    reportsTo: 'aisha',
   },
   {
-    login: 'logan', name: 'Logan Iyer', characterKey: 'wolverine', email: 'logan@acmedemo.in',
-    role: 'member', discipline: 'engineering', jobTitle: 'Senior Frontend Engineer',
-    birthdayMmDd: '12-01', joinedOn: '2023-06-11',  // 3-year anniversary TODAY (2026-06-11)
+    login: 'mei', name: 'Mei Lin', characterKey: 'copy_ninja', email: 'mei@acmedemo.in',
+    role: 'member', discipline: 'support', jobTitle: 'Customer Success',
+    birthdayMmDd: '07-02', joinedOn: '2025-04-01',
+    reportsTo: 'sid',  // 3-level chain: tanish → aisha → sid → mei
+  },
+
+  // ─── Ops + HR ICs ─────────────────────────────────────────────────────
+  {
+    login: 'farah', name: 'Farah Khan', characterKey: 'scarlet_hex', email: 'farah@acmedemo.in',
+    role: 'member', discipline: 'ops', jobTitle: 'Ops Coordinator',
+    birthdayMmDd: '05-15', joinedOn: '2024-12-01',
+    reportsTo: 'aisha',
   },
   {
-    login: 'kavya', name: 'Kavya Krishnamurthy', characterKey: 'panther', email: 'kavya@acmedemo.in',
-    role: 'member', discipline: 'marketing', jobTitle: 'Growth Marketing Lead',
-    birthdayMmDd: '06-14', joinedOn: '2024-10-01',
+    login: 'ravi', name: 'Ravi Subramanian', characterKey: 'detective', email: 'ravi@acmedemo.in',
+    role: 'member', discipline: 'hr', jobTitle: 'People Partner',
+    birthdayMmDd: '02-28', joinedOn: '2025-06-15',  // joined yesterday — new hire
+    reportsTo: 'aisha',
   },
+
+  // ─── Marketing ICs ────────────────────────────────────────────────────
   {
-    login: 'dev', name: 'Devendra Pillai', characterKey: 'deadpool', email: 'dev@acmedemo.in',
-    role: 'member', discipline: 'ops', jobTitle: 'Operations Manager',
-    birthdayMmDd: '03-22', joinedOn: '2024-11-15',
+    login: 'zara', name: 'Zara Patel', characterKey: 'wild_card', email: 'zara@acmedemo.in',
+    role: 'member', discipline: 'marketing', jobTitle: 'Content Lead',
+    birthdayMmDd: '06-28', joinedOn: '2024-07-15',
+    reportsTo: 'kavya',
   },
 ]
 
@@ -153,18 +267,38 @@ async function main(): Promise<void> {
       trackedGithubOrgs: ['acme'],
     })
     .returning()
+  // Two-pass membership insert: first pass writes everyone WITHOUT
+  // `reportsToMembershipId`, then a second pass back-fills the chain now
+  // that we know each row's membership id.
+  const membershipByLogin = new Map<string, number>()
   for (const u of userRows) {
-    await db.insert(schema.memberships).values({
-      orgId: org.id,
-      userId: u.id,
-      role: u.seed.role,
-      discipline: u.seed.discipline,
-      jobTitle: u.seed.jobTitle,
-      extraCaps: u.seed.extraCaps ?? [],
-      workingDays: u.seed.workingDays ?? [false, true, true, true, true, true, false],
-    })
+    const [m] = await db
+      .insert(schema.memberships)
+      .values({
+        orgId: org.id,
+        userId: u.id,
+        role: u.seed.role,
+        discipline: u.seed.discipline,
+        jobTitle: u.seed.jobTitle,
+        extraCaps: u.seed.extraCaps ?? [],
+        workingDays: u.seed.workingDays ?? [false, true, true, true, true, true, false],
+      })
+      .returning()
+    membershipByLogin.set(u.seed.login, m.id)
   }
-  console.log(`[seed-demo] created org id=${org.id} with disciplines + caps`)
+  // Back-fill reports-to chain.
+  for (const u of userRows) {
+    if (!u.seed.reportsTo) continue
+    const childId = membershipByLogin.get(u.seed.login)
+    const parentId = membershipByLogin.get(u.seed.reportsTo)
+    if (childId && parentId) {
+      await db
+        .update(schema.memberships)
+        .set({ reportsToMembershipId: parentId })
+        .where(eq(schema.memberships.id, childId))
+    }
+  }
+  console.log(`[seed-demo] created org id=${org.id} with disciplines, caps, and reports-to chain`)
 
   const byLogin = new Map(userRows.map((u) => [u.seed.login, u.id]))
 
@@ -217,19 +351,67 @@ async function main(): Promise<void> {
   }
 
   // ─── Breaks ────────────────────────────────────────────────────────────────
-  const ongoingBreaks: Array<{ login: string; reason: string; minutesAgo: number }> = [
-    { login: 'arjun', reason: 'Waiting on deployment approval from DevOps', minutesAgo: 22 },
-    { login: 'priya', reason: 'Quick coffee — back in 10', minutesAgo: 7 },
-    { login: 'kavya', reason: 'Stepped out for a design sync', minutesAgo: 14 },
+  // Mix of categories so the dashboard shows a healthy variety:
+  //   - 'blocked'  → opens the Blocker Resolver
+  //   - 'focus'    → heads-down, do not disturb
+  //   - 'lunch'    → out for food
+  //   - 'other'    → generic pause
+  const ongoingBreaks: Array<{
+    login: string
+    reason: string
+    minutesAgo: number
+    category: 'blocked' | 'focus' | 'lunch' | 'meeting' | 'other'
+    waitingOnLogin?: string
+    waitingOnExternal?: string
+  }> = [
+    // Real blockers — these power the Blocker Resolver demo
+    {
+      login: 'arjun',
+      reason: "Waiting on Rahul to approve the deployment for the Stripe webhook PR. Can't merge without sign-off.",
+      minutesAgo: 47,
+      category: 'blocked',
+      waitingOnLogin: 'rahul',
+    },
+    {
+      login: 'sneha',
+      reason: 'Need final brand colors from marketing to ship the onboarding screens.',
+      minutesAgo: 125,
+      category: 'blocked',
+      waitingOnLogin: 'kavya',
+    },
+    {
+      login: 'natasha',
+      reason: 'Customer asked for SSO pricing. Need engineering sign-off on quote.',
+      minutesAgo: 22,
+      category: 'blocked',
+      waitingOnExternal: 'TechFlow procurement',
+    },
+    // Non-blockers — should NOT open the resolver, just appear as "Paused"
+    {
+      login: 'priya',
+      reason: 'Quick coffee — back in 10',
+      minutesAgo: 7,
+      category: 'other',
+    },
+    {
+      login: 'kavya',
+      reason: 'Design sync with the team',
+      minutesAgo: 14,
+      category: 'meeting',
+    },
   ]
   for (const b of ongoingBreaks) {
     const uid = byLogin.get(b.login)
     if (!uid) continue
+    const waitingOnUserId = b.waitingOnLogin ? byLogin.get(b.waitingOnLogin) ?? null : null
     await db.insert(schema.breaks).values({
       userId: uid,
       orgId: org.id,
       startedAt: new Date(now.getTime() - b.minutesAgo * 60_000),
       reason: b.reason,
+      category: b.category,
+      waitingOnUserId,
+      waitingOnExternal: b.waitingOnExternal ?? null,
     })
   }
 
@@ -506,11 +688,83 @@ async function main(): Promise<void> {
     console.log(`[seed-demo] scheduled a sample 1:1 with @sneha`)
   }
 
+  // ─── Teams ────────────────────────────────────────────────────────────────
+  // Map login → membershipId so we can wire team leads + members cleanly.
+  const SEED_TEAMS: Array<{
+    name: string
+    description: string
+    color: string
+    leadLogin: string
+    memberLogins: string[]
+  }> = [
+    {
+      name: 'Engineering',
+      description: 'Backend, frontend, mobile, platform — everything that ships code.',
+      color: '#3f6b54',
+      leadLogin: 'rahul',
+      memberLogins: ['rahul', 'arjun', 'logan', 'dev', 'ira', 'maya'],
+    },
+    {
+      name: 'Design + Product',
+      description: 'Crafts the surface and decides what we build next.',
+      color: '#c47b56',
+      leadLogin: 'priya',
+      memberLogins: ['priya', 'sneha', 'noah', 'tara'],
+    },
+    {
+      name: 'Go-to-market',
+      description: 'Sales, marketing, and customer success.',
+      color: '#c19a4d',
+      leadLogin: 'rohan',
+      memberLogins: ['rohan', 'natasha', 'omar', 'kavya', 'zara'],
+    },
+    {
+      name: 'People + Ops',
+      description: 'Hiring, payroll, operations, finance.',
+      color: '#7c2d12',
+      leadLogin: 'aisha',
+      memberLogins: ['aisha', 'ravi', 'farah', 'vikram', 'sid', 'mei'],
+    },
+    {
+      name: 'Founders',
+      description: 'Tanish + Maya. Shared accountability for the whole company.',
+      color: '#1f3d2c',
+      leadLogin: 'tanish',
+      memberLogins: ['tanish', 'maya'],
+    },
+  ]
+
+  for (const t of SEED_TEAMS) {
+    const leadId = membershipByLogin.get(t.leadLogin) ?? null
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        orgId: org.id,
+        name: t.name,
+        description: t.description,
+        color: t.color,
+        managerMembershipId: leadId,
+      })
+      .returning()
+    for (const login of t.memberLogins) {
+      const mid = membershipByLogin.get(login)
+      if (!mid) continue
+      await db
+        .insert(schema.teamMembers)
+        .values({ teamId: team.id, membershipId: mid })
+        .onConflictDoNothing()
+    }
+  }
+  console.log(`[seed-demo] created ${SEED_TEAMS.length} teams with leads + members`)
+
   void and
   console.log(`[seed-demo] ✓ done. Sign in at /dev/login to test any user.`)
-  console.log(`[seed-demo]   • Owner:    @${SEED_HEROES[0].login}`)
-  console.log(`[seed-demo]   • Manager:  @${SEED_HEROES[1].login}, @${SEED_HEROES[2].login}`)
-  console.log(`[seed-demo]   • Members:  ${SEED_HEROES.filter((s) => s.role === 'member').map((s) => '@' + s.login).join(', ')}`)
+  console.log(`[seed-demo]   • Owners:    @tanish, @maya`)
+  console.log(`[seed-demo]   • HR head:   @aisha   (full HR caps + view_all_data)`)
+  console.log(`[seed-demo]   • Eng mgr:   @rahul   (manage_integrations + export_data)`)
+  console.log(`[seed-demo]   • Finance:   @vikram  (manage_billing — owner-shaped)`)
+  console.log(`[seed-demo]   • Member:    @arjun, @sneha, … (no extra caps)`)
+  console.log(`[seed-demo] 3-level chain to test reports-to: tanish → aisha → sid → mei`)
 }
 
 main()

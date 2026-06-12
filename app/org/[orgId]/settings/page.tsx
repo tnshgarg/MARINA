@@ -34,7 +34,7 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Settings</h1>
+        <h1 className="app-h1">Settings</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">
           Workspace-wide configuration on the left, your personal preferences in Profile.
         </p>
@@ -50,6 +50,9 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
           avatarMode: org.avatarMode,
           workdayStartHour: org.workdayStartHour,
           workdayEndHour: org.workdayEndHour,
+          plan: org.plan,
+          trialEndsAt: org.trialEndsAt?.toISOString() ?? null,
+          logoUrl: (org as { logoUrl?: string | null }).logoUrl ?? null,
         }}
         regions={INDIA_REGIONS}
       />

@@ -35,7 +35,7 @@ export default async function MyShotsPage() {
             <p className="app-eyebrow">My captures</p>
             <h1 className="app-h2 mt-1">Last 48 hours of screenshots</h1>
           </div>
-          <Link href="/settings" className="text-[13px] text-slate-600 hover:text-indigo-600">
+          <Link href="/settings" className="text-[13px] text-slate-600 hover:text-[var(--m-accent)]">
             ← Settings
           </Link>
         </div>

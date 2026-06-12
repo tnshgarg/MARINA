@@ -39,6 +39,35 @@ const NAV: NavEntry[] = [
     href: (o) => `/org/${o}/activity`,
     icon: <FeedIcon />,
   },
+  // Blockers — dedicated workflow page for managing every blocker in the
+  // org. The dashboard right-rail still shows live blockers, but this is
+  // where a manager goes to triage at the start of the day.
+  {
+    key: "blockers",
+    label: "Blockers",
+    matches: /^\/org\/\d+\/blockers(\/|$)/,
+    href: (o) => `/org/${o}/blockers`,
+    icon: <BlockerIcon />,
+  },
+  // Reports — weekly performance review for HR, plus per-employee PDF
+  // export. Lives at /org/{id}/reports/weekly with a route into the
+  // per-person performance report from the People page.
+  {
+    key: "reports",
+    label: "Reports",
+    matches: /^\/org\/\d+\/reports(\/|$)/,
+    href: (o) => `/org/${o}/reports/weekly`,
+    icon: <ReportIcon />,
+  },
+  // Teams — sub-groups inside the org. Managers see only their own teams;
+  // owners + HR see all of them, plus the interactive org chart.
+  {
+    key: "teams",
+    label: "Teams",
+    matches: /^\/org\/\d+\/teams(\/|$)/,
+    href: (o) => `/org/${o}/teams`,
+    icon: <TeamsIcon />,
+  },
   {
     key: "leaves",
     label: "Leave Requests",
@@ -62,12 +91,15 @@ const NAV: NavEntry[] = [
     icon: <ScrumIcon />,
     openInNewTab: true,
   },
-  // Settings combines Org Settings (workspace) + My Settings (profile) via tabs
+  // Settings — link target depends on whether the viewer can manage the
+  // workspace. Plain members + managers without workspace caps land on
+  // their PERSONAL /settings (agent pairing, profile) so they don't bounce.
+  // Owners + managers with manage_workspace land on org settings.
   {
     key: "settings",
     label: "Settings",
     matches: /^(?:\/settings|\/org\/\d+\/settings)(\/|$)/,
-    href: (o) => `/org/${o}/settings`,
+    href: (o) => `/org/${o}/settings`,  // overridden per-viewer below
     icon: <CogIcon />,
   },
 ];
@@ -75,16 +107,22 @@ const NAV: NavEntry[] = [
 export function OrgSidebar({
   orgId,
   orgName,
+  orgLogoUrl,
   userLogin,
   characterKey,
+  userAvatarUrl,
   role,
+  canManageWorkspace = false,
   pendingLeaveCount = 0,
   signOutAction,
 }: {
   orgId: number;
+  canManageWorkspace?: boolean;
   orgName: string;
+  orgLogoUrl?: string | null;
   userLogin: string;
   characterKey: string | null;
+  userAvatarUrl?: string | null;
   role: string;
   pendingLeaveCount?: number;
   signOutAction: () => Promise<void> | void;
@@ -104,7 +142,7 @@ export function OrgSidebar({
           >
             <LogoMark />
             <div>
-              <p className="font-semibold text-[15px] tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
+              <p className="font-semibold text-[15px] tracking-tight text-slate-900 group-hover:text-[var(--m-accent)] transition-colors">
                 MARINA
               </p>
               <p className="text-[11px] text-slate-400">Your team, your way.</p>
@@ -113,9 +151,22 @@ export function OrgSidebar({
         </div>
 
         <div className="mx-4 my-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 flex items-center gap-2">
-          <span className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-[11px] font-semibold inline-flex items-center justify-center">
-            {orgName.charAt(0).toUpperCase()}
-          </span>
+          {/* Workspace logo. Uploaded org logo wins; otherwise we fall
+              back to a gradient with the first letter. */}
+          {orgLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={orgLogoUrl}
+              alt=""
+              width={24}
+              height={24}
+              className="w-6 h-6 rounded-md object-cover border border-slate-200 bg-white"
+            />
+          ) : (
+            <span className="w-6 h-6 rounded-md bg-gradient-to-br from-[var(--m-accent)] to-[var(--m-clay)] text-white text-[11px] font-semibold inline-flex items-center justify-center">
+              {orgName.charAt(0).toUpperCase()}
+            </span>
+          )}
           <div className="min-w-0">
             <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
               Workspace
@@ -136,10 +187,16 @@ export function OrgSidebar({
               ? pendingLeaveCount
               : null;
           const isExternal = n.openInNewTab === true;
+          // Settings: send members + non-workspace managers to their personal
+          // /settings page so they don't hit the redirect bounce.
+          const href =
+            n.key === "settings" && !canManageWorkspace
+              ? "/settings"
+              : n.href(orgId);
           return (
             <NavLink
               key={n.key}
-              href={n.href(orgId)}
+              href={href}
               prefetch={!isExternal}
               target={isExternal ? "_blank" : undefined}
               rel={isExternal ? "noopener noreferrer" : undefined}
@@ -149,7 +206,7 @@ export function OrgSidebar({
               <span className="flex-1">{n.label}</span>
               {isExternal && <ExternalLinkIcon />}
               {badge !== null && (
-                <span className="text-[11px] font-medium px-1.5 rounded bg-indigo-100 text-indigo-700 tabular">
+                <span className="text-[11px] font-medium px-1.5 rounded bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] tabular">
                   {badge}
                 </span>
               )}
@@ -161,7 +218,11 @@ export function OrgSidebar({
       {/* Pinned footer — always visible regardless of scroll */}
       <div className="shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
         <div className="flex items-center gap-2">
-          <CharacterAvatar characterKey={characterKey} size={32} />
+          <CharacterAvatar
+            characterKey={characterKey}
+            imageUrl={userAvatarUrl}
+            size={32}
+          />
           <div className="min-w-0 flex-1">
             <p className="text-[12.5px] font-medium text-slate-900 truncate">
               {me?.name ?? `@${userLogin}`}
@@ -188,11 +249,18 @@ export function OrgSidebar({
 /* ---------- Icons (inline) ---------- */
 
 function LogoMark() {
+  // Use the canonical /logo.png so the sidebar mark always matches the
+  // landing page nav, the favicon and the email letterhead. Sized at 32×32
+  // because the sidebar header gives this slot room to breathe.
   return (
-    <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden>
-      <path d="M14 3 L24 24 H4 Z" fill="#6366f1" />
-      <circle cx={14} cy={18} r={3} fill="#fff" />
-    </svg>
+    <img
+      src="/logo.png"
+      width={32}
+      height={32}
+      alt=""
+      aria-hidden
+      className="block object-contain"
+    />
   );
 }
 function PulseIcon() {
@@ -220,6 +288,33 @@ function FeedIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M4 6h12M4 12h16M4 18h10" strokeLinecap="round" />
+    </svg>
+  );
+}
+function BlockerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx={12} cy={12} r={9} />
+      <path d="M5 5l14 14" strokeLinecap="round" />
+    </svg>
+  );
+}
+function TeamsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx={9} cy={8} r={3} />
+      <circle cx={17} cy={10} r={2.5} />
+      <path d="M3 19c0-3 2.5-5 6-5s6 2 6 5" strokeLinecap="round" />
+      <path d="M15 18c.4-2 2-3.5 4-3.5s3 1.5 3 3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function ReportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M4 20V6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M14 4v6h6" strokeLinejoin="round" />
+      <path d="M8 14l2.5 2.5L15 12" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

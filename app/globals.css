@@ -92,12 +92,33 @@ html, body {
   letter-spacing: -0.005em;
 }
 
-/* ---------- Typography ---------- */
+/* ---------- Typography ----------
+ * Two opt-in display utilities, used sparingly:
+ *
+ *   .app-h1    — top-of-page title (single instance per page). Stays on
+ *                Inter (high readability) but a touch heavier than the
+ *                body so it reads as a heading without going serif.
+ *
+ *   .app-hero  — opt-in editorial serif (Instrument Serif) for hero
+ *                greetings / quotes / empty-state callouts. Don't use for
+ *                data tables, KPI numbers, or anything dense — serif at
+ *                small sizes loses readability fast.
+ *
+ * Body, sub-headers, eyebrows, table headers, button labels all stay on
+ * Inter so the serif reads as deliberate accent, not a theme.
+ */
 .app-h1 {
-  font-size: 28px;
-  line-height: 1.25;
+  font-family: var(--font-sans);
+  font-size: 24px;
+  line-height: 1.2;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
+  color: var(--m-ink);
+}
+.app-hero {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.005em;
   color: var(--m-ink);
 }
 .app-h2 {
@@ -510,7 +531,7 @@ html, body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 280px;
+    width: min(86vw, 320px);
     height: 100vh;
     z-index: 60;
     transform: translateX(-100%);
@@ -525,6 +546,24 @@ html, body {
   }
   /* Add padding so content isn't hidden under the fixed top bar. */
   .app-shell > main { padding-top: 52px; }
+
+  /* Tables wider than the viewport scroll horizontally instead of
+     pushing the page wider than the screen. */
+  .app-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .app-table thead th { white-space: nowrap; }
+
+  /* Default page padding is generous on desktop — tighten on mobile so
+     the content has breathing room without horizontal scroll. */
+  .app-shell > main > div { padding-left: 14px; padding-right: 14px; }
+}
+
+/* Prevent horizontal page overflow at very small viewports. Individual
+   scroll containers (org chart canvas, .app-table) still scroll on their
+   own — this is only a safety net against rogue fixed-width children.
+   We use `clip` (not `hidden`) so it doesn't disable `position: sticky`
+   on the desktop sidebar, and we scope it to mobile only. */
+@media (max-width: 900px) {
+  body { overflow-x: clip; }
 }
 
 /* Top bar only renders on mobile via component, but ensure desktop hides it. */
@@ -690,8 +729,9 @@ html, body {
 .nav-progress span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #ec4899);
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+  background: linear-gradient(90deg, var(--m-accent), var(--m-clay));
+  /* 0.55 opacity of the sage accent — same character as the gradient. */
+  box-shadow: 0 0 8px rgba(63, 107, 84, 0.55);
   transition: width 240ms ease-out, opacity 200ms ease;
 }
 
@@ -731,7 +771,7 @@ html, body {
 .select:focus-visible,
 .textarea:focus-visible,
 button:focus-visible {
-  outline: 2px solid rgba(99,102,241,0.45);
+  outline: 2px solid rgba(63, 107, 84, 0.45);
   outline-offset: 2px;
 }
 
@@ -776,7 +816,7 @@ button:focus-visible {
   transition: background 160ms ease;
 }
 .app-table tbody tr:hover::before {
-  background: linear-gradient(180deg, #6366f1, #ec4899);
+  background: linear-gradient(180deg, var(--m-accent), var(--m-clay));
 }
 
 /* Pill animation when state changes */
@@ -798,18 +838,41 @@ button:focus-visible {
   top: 25%;
   bottom: 25%;
   width: 3px;
-  background: linear-gradient(180deg, #6366f1, #ec4899);
+  background: linear-gradient(180deg, var(--m-accent), var(--m-clay));
   border-radius: 0 3px 3px 0;
 }
 
-/* Refined typography */
-.app-h1 {
-  letter-spacing: -0.02em;
+/* (intentionally empty — .app-h1 is fully defined above) */
+
+/* ---------- Print mode ----------
+ * When the user prints a page from inside the app (org chart, weekly
+ * report, performance review, setup guide), we want JUST the content —
+ * not the sidebar / nav / toolbars. Pages that already opt in via their
+ * own `.no-print` class get hidden too.
+ */
+@media print {
+  .app-sidebar,
+  .mobile-nav,
+  .nav-progress,
+  .no-print {
+    display: none !important;
+  }
+  .app-shell {
+    display: block !important;
+  }
+  body, .app-shell, main {
+    background: white !important;
+  }
+  /* Force a clean canvas around printed content. */
+  .app-main, main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
 
 /* Smooth gradient text */
 .gradient-text {
-  background-image: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  background-image: linear-gradient(90deg, var(--m-accent), var(--m-gold), var(--m-clay));
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -824,8 +887,8 @@ button:focus-visible {
 
 /* Better selection */
 ::selection {
-  background: rgba(99, 102, 241, 0.2);
-  color: #1e1b4b;
+  background: rgba(63, 107, 84, 0.18);
+  color: var(--m-ink);
 }
 
 /* Hide scrollbar but allow scrolling */

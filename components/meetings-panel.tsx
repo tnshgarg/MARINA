@@ -120,20 +120,37 @@ export function MeetingsPanel() {
     <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between gap-3 flex-wrap">
         <h3 className="text-[13px] font-semibold text-slate-900">
-          Today's meetings
+          Today&apos;s meetings
           <span className="ml-1.5 text-slate-400 tabular-nums">{meetings.length}</span>
         </h3>
-        {typeof window !== 'undefined' &&
-          'Notification' in window &&
-          Notification.permission === 'default' && (
-            <button
-              type="button"
-              onClick={askPermission}
-              className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
-            >
-              Enable notifications
-            </button>
-          )}
+        <div className="flex items-center gap-3">
+          {typeof window !== 'undefined' &&
+            'Notification' in window &&
+            Notification.permission === 'default' && (
+              <button
+                type="button"
+                onClick={askPermission}
+                className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
+              >
+                Enable notifications
+              </button>
+            )}
+          {/* Quick escape hatch to the user's real Google Calendar. We pass
+              the "r" param so Google lands on the day view rather than the
+              default week — easier to scan in a new tab. */}
+          <a
+            href="https://calendar.google.com/calendar/r/day"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-[var(--m-accent)] font-medium transition-colors"
+            title="Open Google Calendar in a new tab"
+          >
+            View calendar
+            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M7 17L17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </div>
       </div>
 
       {meetings.length === 0 ? (

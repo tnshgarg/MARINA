@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireCapability, requireMembership } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 
 export const runtime = 'nodejs'
@@ -192,7 +192,8 @@ export async function DELETE(
   }
 
   try {
-    const { session, membership: actor } = await requireMembership(orgId, 'owner')
+    // Anyone with `manage_members` can remove. Owner always has it implicitly.
+    const { session, membership: actor } = await requireCapability(orgId, 'manage_members')
 
     const target = await db.query.memberships.findFirst({
       where: and(

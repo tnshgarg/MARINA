@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { Modal } from '@/components/modal'
+import { TutorialHint } from '@/components/tutorial-hint'
 import { useToast } from '@/components/toast'
+import { ScheduleMeetingDialog as SharedScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 
 type StorySceneKind =
   | 'shift_start' | 'shift_end' | 'meeting' | 'coding' | 'design' | 'comms'
@@ -206,14 +208,17 @@ const DISCIPLINE_BADGE_LABEL: Record<Discipline, string> = {
   other: 'Team',
 }
 
+// Brand-aligned timeline colours. We keep the palette inside the sage / clay
+// / gold / olive family so the scene timeline reads as part of MARINA, not
+// a Tailwind preset dump.
 const SCENE_COLOR: Record<StorySceneKind, string> = {
   shift_start: '#cbd5e1',
   shift_end: '#cbd5e1',
-  meeting: '#6366f1',
+  meeting: '#3f6b54',        // sage
   coding: '#10b981',
-  design: '#ec4899',
+  design: '#c47b56',         // clay
   comms: '#0ea5e9',
-  reading: '#a855f7',
+  reading: '#c19a4d',        // gold
   browsing: '#94a3b8',
   media: '#f97316',
   break: '#f59e0b',
@@ -267,7 +272,12 @@ export function MemberDetailModal({
   const [oneOnOneLoading, setOneOnOneLoading] = useState(false)
   // Tabbed navigation — serves both manager + HR personas without forcing them
   // to scroll past sections that aren't relevant to them.
-  const [tab, setTab] = useState<'overview' | 'attendance' | 'shifts' | 'activity' | 'profile'>('overview')
+  // Restructured tabs (was Overview/Attendance/Shifts/Activity/Profile):
+  //   - Today   : what's happening RIGHT NOW — story, scenes, latest shift, today's meetings.
+  //   - Output  : what they're producing — deliverables, GitHub events, 7-day trend.
+  //   - Time    : time tracking — attendance strip, shift list, breaks day picker.
+  //   - About   : identity + admin — profile, discipline/title, capabilities, dates.
+  const [tab, setTab] = useState<'today' | 'output' | 'time' | 'about'>('today')
   const [scheduleOpen, setScheduleOpen] = useState(false)
 
   useEffect(() => {
@@ -413,40 +423,42 @@ export function MemberDetailModal({
           </div>
 
           {/* Sticky tab strip */}
-          <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-white/90 backdrop-blur-sm border-b border-[var(--m-border)] flex items-center gap-1 mb-5">
-            <TabBtn label="Overview"   active={tab === 'overview'}   onClick={() => setTab('overview')} />
-            <TabBtn label="Attendance" active={tab === 'attendance'} onClick={() => setTab('attendance')} />
-            <TabBtn label="Shifts"     active={tab === 'shifts'}     onClick={() => setTab('shifts')} />
-            <TabBtn label="Activity"   active={tab === 'activity'}   onClick={() => setTab('activity')} />
-            <TabBtn label="Profile"    active={tab === 'profile'}    onClick={() => setTab('profile')} />
+          <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-white border-b border-[var(--m-border)] flex items-center gap-1 mb-5">
+            <TabBtn label="Today"  active={tab === 'today'}  onClick={() => setTab('today')} />
+            <TabBtn label="Output" active={tab === 'output'} onClick={() => setTab('output')} />
+            <TabBtn label="Time"   active={tab === 'time'}   onClick={() => setTab('time')} />
+            <TabBtn label="About"  active={tab === 'about'}  onClick={() => setTab('about')} />
           </div>
 
-          {tab === 'overview' && (
+          {/* ── TODAY tab ── what's happening RIGHT NOW + the 1:1 prep tool */}
+          {tab === 'today' && (
             <div className="space-y-5">
               {detail.risks.length > 0 && <RisksStrip risks={detail.risks} />}
               <OneOnOneSection brief={oneOnOne} loading={oneOnOneLoading} onLoad={loadOneOnOne} />
-              <UniversalSignal detail={detail} />
-              {detail.last7DaysOutput.length > 0 && (
-                <Section title="7-day trend" hint="output + focus time">
-                  <SevenDayTrendStrip days={detail.last7DaysOutput} discipline={detail.discipline} hasGithub={detail.user.hasGithub} />
+
+              {/* Today's AI story — the headline signal */}
+              {detail.story && (
+                <Section title="Today's story" hint={`Generated ${timeAgo(detail.story.generatedAt)}`}>
+                  <p className="text-[13px] text-[var(--m-ink-2)] leading-relaxed whitespace-pre-line">
+                    {detail.story.narrative}
+                  </p>
+                  {detail.story.scenes && detail.story.scenes.length > 0 && (
+                    <div className="mt-3">
+                      <InteractiveRibbon scenes={detail.story.scenes} />
+                      <SceneList scenes={detail.story.scenes} />
+                    </div>
+                  )}
                 </Section>
               )}
+
+              {/* Today's calendar */}
               {detail.todayMeetings.length > 0 && (
                 <Section title="Today's meetings" hint={`${detail.todayMeetings.length} on the calendar`}>
                   <TodayMeetings meetings={detail.todayMeetings} />
                 </Section>
               )}
-              {detail.topRepos.length > 0 && (
-                <Section title="Where they're working" hint="last 7 days, by repo">
-                  <TopReposStrip repos={detail.topRepos} />
-                </Section>
-              )}
-              {detail.story?.scenes && detail.story.scenes.length > 0 && (
-                <Section title="Today" hint={`Story ${timeAgo(detail.story.generatedAt)}`}>
-                  <InteractiveRibbon scenes={detail.story.scenes} />
-                  <SceneList scenes={detail.story.scenes} />
-                </Section>
-              )}
+
+              {/* Latest narrative — manager brief */}
               {detail.narrative && (
                 <Section
                   title="Latest brief"
@@ -459,40 +471,17 @@ export function MemberDetailModal({
             </div>
           )}
 
-          {tab === 'attendance' && (
-            <AttendanceTab
-              orgId={orgId}
-              userId={detail.user.id}
-              recentLeaves={detail.recentLeaves}
-              attendance28d={detail.attendance28d}
-            />
-          )}
-
-          {tab === 'shifts' && (
-            <ShiftsTab
-              orgId={orgId}
-              userId={detail.user.id}
-              latestShift={detail.latestShift}
-              segments={detail.shiftSegments}
-              totals={detail.shiftTotals}
-              recentShifts={detail.last7Shifts}
-            />
-          )}
-
-          {tab === 'activity' && (
+          {/* ── OUTPUT tab ── what they're producing */}
+          {tab === 'output' && (
             <div className="space-y-5">
-              {/* UNIVERSAL — render regardless of discipline / integrations */}
-
-              {/* 1. Today's story — what the AI made of the screen evidence */}
-              {detail.story && (
-                <Section title="Today's story" hint={`Generated ${timeAgo(detail.story.generatedAt)}`}>
-                  <p className="text-[13px] text-[var(--m-ink-2)] leading-relaxed whitespace-pre-line">
-                    {detail.story.narrative}
-                  </p>
+              <UniversalSignal detail={detail} />
+              {detail.last7DaysOutput.length > 0 && (
+                <Section title="7-day trend" hint="output + focus time">
+                  <SevenDayTrendStrip days={detail.last7DaysOutput} discipline={detail.discipline} hasGithub={detail.user.hasGithub} />
                 </Section>
               )}
 
-              {/* 2. Self-reported deliverables — works for any role */}
+              {/* Universal: self-reported deliverables */}
               <Section
                 title="Self-reported work"
                 hint={
@@ -505,76 +494,65 @@ export function MemberDetailModal({
                   <DeliverableList items={detail.recentDeliverables} />
                 ) : (
                   <p className="text-[12px] text-[var(--m-ink-3)] italic">
-                    {(detail.user.name ?? `@${detail.user.login}`)} hasn't logged any deliverables
-                    yet. They can mark work as done from their personal dashboard.
+                    {(detail.user.name ?? `@${detail.user.login}`)} hasn't logged any deliverables yet.
                   </p>
                 )}
               </Section>
 
-              {/* 3. Screen content mix — what kind of work they did today */}
+              {/* Screen content mix */}
               {detail.screenMix.total > 0 && (
                 <Section title="What the screen showed today" hint={`${detail.screenMix.total} samples`}>
                   <ScreenMix mix={detail.screenMix} />
                 </Section>
               )}
 
-              {/* 4. App usage — universal context */}
+              {/* App usage */}
               {detail.appUsage.length > 0 && (
                 <Section title="Where time went today" hint={`top ${detail.appUsage.length}`}>
                   <AppUsageBars usage={detail.appUsage} />
                 </Section>
               )}
 
-              {/* 5. Breaks day picker — universal */}
-              <BreaksDayPicker breaks28d={detail.breaks28d} />
-
-              {/* ENGINEERING-ONLY — pushed below the universal block so the
-                  page reads useful to designers/sales/support first */}
+              {/* Engineering-only — at the bottom so it doesn't dominate */}
               {detail.user.hasGithub && detail.discipline === 'engineering' && detail.githubEvents.length > 0 && (
                 <Section title="What shipped on GitHub (last 7 days)">
                   <WhatShipped events={detail.githubEvents} />
                 </Section>
               )}
-              {detail.user.hasGithub && detail.discipline === 'engineering' && (
-                <Section
-                  title="GitHub activity"
-                  hint={
-                    detail.user.lastSyncedAt
-                      ? `Last sync ${timeAgo(detail.user.lastSyncedAt)}`
-                      : 'Never synced'
-                  }
-                >
-                  <GitHubStats events={detail.githubEvents} hasGithub={detail.user.hasGithub} />
-                  {detail.githubEvents.length > 0 && (
-                    <ul className="mt-3 space-y-1.5 max-h-72 overflow-y-auto pr-1">
-                      {detail.githubEvents.slice(0, 15).map((e) => (
-                        <li key={e.id} className="flex items-baseline gap-2 text-[12px]">
-                          <EventTypeBadge type={e.type} />
-                          <a
-                            href={e.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[var(--m-ink)] hover:text-[var(--m-accent)] truncate"
-                          >
-                            {e.title}
-                          </a>
-                          <span className="ml-auto shrink-0 text-[11px] text-[var(--m-ink-4)]">{timeAgo(e.occurredAt)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              {detail.user.hasGithub && detail.discipline === 'engineering' && detail.topRepos.length > 0 && (
+                <Section title="Where they're working" hint="last 7 days, by repo">
+                  <TopReposStrip repos={detail.topRepos} />
                 </Section>
               )}
-
-              {/* Integration teaser ONLY for engineers without GitHub —
-                  pestering a salesperson about GitHub is the bug we're killing */}
               {detail.discipline === 'engineering' && !detail.user.hasGithub && (
                 <IntegrationTeaser discipline={detail.discipline} />
               )}
             </div>
           )}
 
-          {tab === 'profile' && (
+          {/* ── TIME tab ── attendance, shifts, breaks */}
+          {tab === 'time' && (
+            <div className="space-y-5">
+              <AttendanceTab
+                orgId={orgId}
+                userId={detail.user.id}
+                recentLeaves={detail.recentLeaves}
+                attendance28d={detail.attendance28d}
+              />
+              <ShiftsTab
+                orgId={orgId}
+                userId={detail.user.id}
+                latestShift={detail.latestShift}
+                segments={detail.shiftSegments}
+                totals={detail.shiftTotals}
+                recentShifts={detail.last7Shifts}
+              />
+              <BreaksDayPicker breaks28d={detail.breaks28d} />
+            </div>
+          )}
+
+          {/* ── ABOUT tab ── identity + admin */}
+          {tab === 'about' && (
             <ProfileTab
               detail={detail}
               orgId={orgId}
@@ -602,7 +580,24 @@ export function MemberDetailModal({
   )
 }
 
-function ScheduleMeetingDialog({
+// Local wrapper kept as a thin alias of the shared dialog so the modal's
+// existing call-site stays unchanged. The shared component lives in
+// components/schedule-meeting-dialog.tsx so the team-card quick-action
+// can reuse it without round-tripping through this modal.
+function ScheduleMeetingDialog(props: {
+  open: boolean
+  onClose: () => void
+  orgId: number
+  membershipId: number
+  attendeeName: string
+}) {
+  return <SharedScheduleMeetingDialog {...props} />
+}
+
+// Old in-file implementation, kept for reference. Bypassed by the wrapper
+// above — Dead Code Sweep can remove this block when we hit the next pass.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _LegacyScheduleMeetingDialog({
   open,
   onClose,
   orgId,
@@ -659,7 +654,7 @@ function ScheduleMeetingDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-slate-900/30 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-slate-900/40" onClick={onClose}>
       <div
         className="w-full max-w-md bg-white rounded-2xl shadow-xl p-5"
         onClick={(e) => e.stopPropagation()}
@@ -1419,6 +1414,14 @@ function ProfileTab({
 
       {isOwner && detail.role !== 'owner' && (
         <Section title="Extra capabilities" hint="owner-only — grant manager rights to specific people">
+          <div className="mb-3">
+            <TutorialHint id="extra-caps-explainer" tone="gold" title="When to grant extras">
+              Roles set the default; capabilities are the per-person exceptions. Grant{' '}
+              <b>Manage billing</b> to your finance lead, <b>Edit birthdays</b> to whoever runs
+              People, and <b>View all data</b> only to people you trust with everything. The
+              member needs to be at least a <i>manager</i> for these to take effect.
+            </TutorialHint>
+          </div>
           <p className="text-[12px] text-[var(--m-ink-3)] mb-2.5 leading-snug">
             By default, managers can manage members, decide leaves, schedule meetings and
             export reports. Tick anything below to grant extra owner-shaped powers to this
@@ -1954,7 +1957,7 @@ function StatTile({
   const colorClass = dim
     ? 'text-slate-300'
     : tone === 'emerald' ? 'text-emerald-700'
-    : tone === 'violet' ? 'text-violet-700'
+    : tone === 'violet' ? 'text-[var(--m-clay-deep)]'
     : tone === 'sky' ? 'text-sky-700'
     : 'text-amber-700'
   return (
@@ -2090,7 +2093,7 @@ const LEAVE_TYPE_COLOR: Record<string, { bg: string; fg: string }> = {
   maternity:  { bg: 'bg-pink-50',    fg: 'text-pink-700' },
   paternity:  { bg: 'bg-pink-50',    fg: 'text-pink-700' },
   bereavement:{ bg: 'bg-slate-100',  fg: 'text-slate-700' },
-  compoff:    { bg: 'bg-violet-50',  fg: 'text-violet-700' },
+  compoff:    { bg: 'bg-[var(--m-clay-soft)]',  fg: 'text-[var(--m-clay-deep)]' },
   unpaid:     { bg: 'bg-amber-50',   fg: 'text-amber-700' },
   other:      { bg: 'bg-slate-100',  fg: 'text-slate-700' },
 }

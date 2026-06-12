@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { LEAVE_TYPE_LABELS, type LeaveType } from '@/lib/db/schema'
 import { HttpError, requireMembership, requireSession } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
+import { afterResponse } from '@/lib/after'
 
 const VALID_LEAVE_TYPES: ReadonlyArray<LeaveType> = [
   'sick', 'casual', 'earned', 'maternity', 'paternity', 'bereavement', 'compoff', 'unpaid', 'other',
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
     void notify({
       kind: 'leave.requested',
       orgId: body.orgId,
+      actorUserId: session.appUserId,
       userName: me?.name ?? `@${session.login}`,
       userLogin: session.login,
       startDate: body.startDate,
@@ -98,6 +100,41 @@ export async function POST(req: Request) {
       leaveType: LEAVE_TYPE_LABELS[leaveType],
       reason,
     })
+
+    // In-app + desktop notification to every active manager/owner in the org
+    // so they actually see it land. Slack might not be configured; the bell
+    // and agent definitely are.
+    const requesterName = me?.name ?? `@${session.login}`
+    const orgIdForNotify = body.orgId
+    const leaveTitle = `${requesterName} requested ${LEAVE_TYPE_LABELS[leaveType]}`
+    const leaveBody = `${body.startDate}${body.startDate !== body.endDate ? ` → ${body.endDate}` : ''}${reason ? ` · ${reason.slice(0, 120)}` : ''}`
+    afterResponse(
+      async () => {
+        const managers = await db
+          .select({ userId: schema.memberships.userId, role: schema.memberships.role })
+          .from(schema.memberships)
+          .where(
+            and(
+              eq(schema.memberships.orgId, orgIdForNotify),
+              isNull(schema.memberships.endedAt),
+              inArray(schema.memberships.role, ['owner', 'manager']),
+              ne(schema.memberships.userId, session.appUserId),
+            ),
+          )
+        if (managers.length === 0) return
+        await db.insert(schema.notifications).values(
+          managers.map((m) => ({
+            userId: m.userId,
+            orgId: orgIdForNotify,
+            kind: 'leave.requested',
+            title: leaveTitle,
+            body: leaveBody.slice(0, 200),
+            href: `/org/${orgIdForNotify}/leaves`,
+          })),
+        )
+      },
+      'notify managers of leave',
+    )
 
     return NextResponse.json({ ok: true, leave: serialise(row) })
   } catch (err) {

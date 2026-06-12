@@ -9,6 +9,8 @@ import { useToast } from '@/components/toast'
 import { MemberDetailModal } from './member-detail-modal'
 import { MeetingsPanel } from '@/components/meetings-panel'
 import { CelebrationsWidget } from '@/components/celebrations-widget'
+import { BlockerResolver } from '@/components/blocker-resolver'
+import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
 type DailyState = 'High' | 'Steady' | 'Blocked' | 'Disengaged' | 'PossiblyDummying' | 'NoData'
@@ -110,6 +112,9 @@ type Snapshot = {
   totalMembers: number
   blockerCount: number
   blockedOnYouCount: number
+  /** Org-wide productivity 0–100, computed server-side. Shown as a KPI tile
+   * at the top of the dashboard so HR has a one-glance health number. */
+  orgProductivity: number
 }
 
 /**
@@ -175,26 +180,42 @@ export default function TeamDashboardClient({
   pendingLeaves: PendingLeave[]
   recentBreaks: RecentBreak[]
 }) {
-  void viewerUserId
   const router = useRouter()
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [detailMember, setDetailMember] = useState<{ membershipId: number; name: string } | null>(null)
+  /** Member currently in the Schedule-meeting flow (opened from the team card). */
+  const [meetingFor, setMeetingFor] = useState<MemberCard | null>(null)
+  const [resolverBreakId, setResolverBreakId] = useState<number | null>(null)
+  // Status filter — managers often want to see only blocked or only off
+  // teammates. `null` means "all". Combines with the search box.
+  const [statusFilter, setStatusFilter] = useState<SimpleStatus | null>(null)
 
   function openDetail(m: { membershipId: number; name: string | null; login: string }) {
     setDetailMember({ membershipId: m.membershipId, name: m.name ?? `@${m.login}` })
   }
 
+  // Per-status counts for the filter chips. Computed once so chips show
+  // live numbers ("Blocked · 3") and we don't recount on every render.
+  const statusCounts = useMemo(() => {
+    const c: Record<SimpleStatus, number> = { working: 0, paused: 0, blocked: 0, off: 0 }
+    for (const m of members) c[deriveStatus(m)]++
+    return c
+  }, [members])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return members
-    return members.filter((m) =>
-      (m.name ?? '').toLowerCase().includes(q) ||
-      m.login.toLowerCase().includes(q) ||
-      (m.activity.topApp ?? '').toLowerCase().includes(q)
-    )
-  }, [members, query])
+    return members.filter((m) => {
+      if (statusFilter && deriveStatus(m) !== statusFilter) return false
+      if (!q) return true
+      return (
+        (m.name ?? '').toLowerCase().includes(q) ||
+        m.login.toLowerCase().includes(q) ||
+        (m.activity.topApp ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [members, query, statusFilter])
 
   async function decideLeave(leaveId: number, decision: 'approve' | 'deny') {
     setBusy(`leave-${leaveId}-${decision}`)
@@ -386,7 +407,7 @@ export default function TeamDashboardClient({
       {/* Page header */}
       <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">{greeting}</h1>
+          <h1 className="app-h1">{greeting}</h1>
           <p className="mt-1.5 text-[13px] text-slate-600">
             {snapshot.blockedOnYouCount > 0
               ? `${snapshot.blockedOnYouCount} teammate${snapshot.blockedOnYouCount === 1 ? '' : 's'} waiting on you · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
@@ -397,8 +418,15 @@ export default function TeamDashboardClient({
         </div>
       </div>
 
-      {/* Inline stats — typography-led, no boxes */}
+      {/* Inline stats — typography-led, no boxes. Org productivity is the
+          headline KPI: HR can glance and tell whether the org as a whole is
+          firing today. Anything below 45% deserves a manager's attention. */}
       <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-slate-200">
+        <InlineStat
+          n={`${snapshot.orgProductivity}%`}
+          label="org productivity today"
+          tone={snapshot.orgProductivity >= 65 ? 'emerald' : snapshot.orgProductivity >= 45 ? 'amber' : 'rose'}
+        />
         <InlineStat
           n={snapshot.blockerCount}
           label={snapshot.blockedOnYouCount > 0 ? `blocked (${snapshot.blockedOnYouCount} on you)` : 'blocked'}
@@ -428,13 +456,7 @@ export default function TeamDashboardClient({
               blockers={blockers}
               busy={busy}
               onPing={(b) => pingBlocker(b)}
-              onOpenBlocked={(b) =>
-                openDetail({
-                  membershipId: b.blockedUser.membershipId,
-                  name: b.blockedUser.name,
-                  login: b.blockedUser.login,
-                })
-              }
+              onOpenBlocked={(b) => setResolverBreakId(b.breakId)}
             />
           )}
 
@@ -467,6 +489,7 @@ export default function TeamDashboardClient({
                     busy={busy}
                     onDecide={decideLeave}
                     onOpen={openDetail}
+                    onResolveBlocker={(breakId) => setResolverBreakId(breakId)}
                   />
                 ))}
               </div>
@@ -477,7 +500,9 @@ export default function TeamDashboardClient({
           <section>
             <div className="flex items-baseline gap-3 mb-3 flex-wrap">
               <h2 className="text-[15px] font-semibold text-slate-900">Team Members</h2>
-              <span className="text-[12px] text-slate-500">{members.length}</span>
+              <span className="text-[12px] text-slate-500">
+                {statusFilter || query ? `${filtered.length} of ${members.length}` : members.length}
+              </span>
               <div className="ml-auto relative">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -490,9 +515,53 @@ export default function TeamDashboardClient({
               </div>
             </div>
 
+            {/* Status filter chips — managers can scope to "only blocked",
+                "only off" etc. with one click. Counts are live. */}
+            <div className="flex items-center gap-1.5 flex-wrap mb-3">
+              <StatusChip
+                label="All"
+                count={members.length}
+                active={statusFilter === null}
+                onClick={() => setStatusFilter(null)}
+                tone="ink"
+              />
+              <StatusChip
+                label="Working"
+                count={statusCounts.working}
+                active={statusFilter === 'working'}
+                onClick={() => setStatusFilter('working')}
+                tone="good"
+              />
+              <StatusChip
+                label="Paused"
+                count={statusCounts.paused}
+                active={statusFilter === 'paused'}
+                onClick={() => setStatusFilter('paused')}
+                tone="warn"
+              />
+              <StatusChip
+                label="Blocked"
+                count={statusCounts.blocked}
+                active={statusFilter === 'blocked'}
+                onClick={() => setStatusFilter('blocked')}
+                tone="bad"
+              />
+              <StatusChip
+                label="Off"
+                count={statusCounts.off}
+                active={statusFilter === 'off'}
+                onClick={() => setStatusFilter('off')}
+                tone="mute"
+              />
+            </div>
+
             {filtered.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-[13px] text-slate-500">
-                {query ? 'No matching members.' : 'No members yet — invite teammates from the Members page.'}
+                {statusFilter
+                  ? `No one is currently ${statusFilter}.`
+                  : query
+                  ? 'No matching members.'
+                  : 'No members yet — invite teammates from the Members page.'}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -501,8 +570,9 @@ export default function TeamDashboardClient({
                     key={m.membershipId}
                     member={m}
                     isManager={isManager}
+                    isSelf={m.userId === viewerUserId}
                     busy={busy}
-                    onSync={() => syncMember(m.membershipId, m.name ?? `@${m.login}`)}
+                    onSchedule={() => setMeetingFor(m)}
                     onBrief={() => briefMember(m.membershipId, m.name ?? `@${m.login}`)}
                     onOpen={() => openDetail(m)}
                   />
@@ -545,6 +615,24 @@ export default function TeamDashboardClient({
         isManager={isManager}
         isOwner={isOwner}
       />
+
+      <BlockerResolver
+        orgId={orgId}
+        breakId={resolverBreakId}
+        open={resolverBreakId !== null}
+        onClose={() => setResolverBreakId(null)}
+        onResolved={() => router.refresh()}
+      />
+
+      {meetingFor && (
+        <ScheduleMeetingDialog
+          open
+          orgId={orgId}
+          membershipId={meetingFor.membershipId}
+          attendeeName={meetingFor.name ?? `@${meetingFor.login}`}
+          onClose={() => setMeetingFor(null)}
+        />
+      )}
     </>
   )
 }
@@ -731,11 +819,13 @@ function InlineStat({
   label,
   tone,
 }: {
-  n: number
+  // Accepts string so callers can pass "78%" without forcing a number-only
+  // contract; the dim-on-zero shortcut still works for numeric inputs.
+  n: number | string
   label: string
   tone: 'rose' | 'emerald' | 'amber' | 'muted'
 }) {
-  const dim = n === 0
+  const dim = typeof n === 'number' && n === 0
   const colorClass = dim
     ? 'text-slate-400'
     : tone === 'rose'
@@ -759,6 +849,7 @@ function ReviewCard({
   busy,
   onDecide,
   onOpen,
+  onResolveBlocker,
 }: {
   pick: {
     kind: 'leave' | 'block' | 'inactive' | 'long-day'
@@ -771,6 +862,7 @@ function ReviewCard({
   busy: string | null
   onDecide: (id: number, decision: 'approve' | 'deny') => void
   onOpen?: (m: MemberCard) => void
+  onResolveBlocker?: (breakId: number) => void
 }) {
   const m = pick.member
   const lv = pick.leave
@@ -851,9 +943,23 @@ function ReviewCard({
             </button>
           </>
         ) : pick.kind === 'block' ? (
-          <span className="text-[11.5px] text-rose-600 inline-flex items-center gap-1">
-            <DotRed /> Blocked {timeSinceLabel(m?.activity)}
-          </span>
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-[11.5px] text-rose-600 inline-flex items-center gap-1">
+              <DotRed /> Blocked {timeSinceLabel(m?.activity)}
+            </span>
+            {isManager && m?.ongoingBreak?.id && onResolveBlocker && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onResolveBlocker(m.ongoingBreak!.id)
+                }}
+                className="ml-auto px-2.5 py-1 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-[11.5px] font-medium transition"
+              >
+                Resolve →
+              </button>
+            )}
+          </div>
         ) : pick.kind === 'inactive' ? (
           <span className="text-[11.5px] text-slate-500">
             Last active {timeSinceLabel(m?.activity)}
@@ -871,15 +977,20 @@ function ReviewCard({
 function MemberCardView({
   member: m,
   isManager,
+  isSelf,
   busy,
-  onSync,
+  onSchedule,
   onBrief,
   onOpen,
 }: {
   member: MemberCard
   isManager: boolean
+  /** True when this card belongs to the logged-in user. Manager actions
+   * (schedule meeting, brief, nudge) are suppressed so the user doesn't
+   * end up trying to nudge themselves. */
+  isSelf: boolean
   busy: string | null
-  onSync: () => void
+  onSchedule: () => void
   onBrief: () => void
   onOpen: () => void
 }) {
@@ -965,6 +1076,13 @@ function MemberCardView({
         <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[var(--m-ink-3)]">
           <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
           <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
+          {/* Productivity % — focus over (focus + idle). Pinned to the right of
+              the focus/idle line so the manager gets a single number to read.
+              Only shown once the shift has 30+ minutes of signal, otherwise
+              it's noise. */}
+          {m.activeShift && totalShiftSec >= 30 * 60 && (
+            <ProductivityPill activeSec={m.activity.activeSeconds} totalSec={totalShiftSec} />
+          )}
           {totalShiftSec > 9 * 3600 && (
             <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] text-[var(--m-warn)] font-medium" title="Working over 9h — suggest a break">
               long day
@@ -1010,22 +1128,37 @@ function MemberCardView({
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onSync}
-              disabled={busy !== null || !m.hasGithub}
-              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {busy === `sync-${m.membershipId}` ? 'Syncing…' : 'Sync'}
-            </button>
-            <button
-              type="button"
-              onClick={onBrief}
-              disabled={busy !== null}
-              className="px-2.5 py-1 rounded-md bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {busy === `brief-${m.membershipId}` ? 'Briefing…' : 'Brief'}
-            </button>
+            {/* Schedule meeting replaces the old Sync button. Managers reach
+                for "book a 1:1" 10× more than they reach for "sync GitHub
+                events" — sync runs automatically anyway. The action is
+                manager-only AND hidden on the viewer's own card — you
+                can't schedule a 1:1 with yourself. */}
+            {isManager && !isSelf && (
+              <button
+                type="button"
+                onClick={onSchedule}
+                disabled={busy !== null}
+                className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                title={`Schedule a 1:1 with ${m.name ?? `@${m.login}`}`}
+              >
+                Schedule meeting
+              </button>
+            )}
+            {/* Brief is for managers reading a teammate — not for self-
+                reflection. Hide on own card. */}
+            {!isSelf && (
+              <button
+                type="button"
+                onClick={onBrief}
+                disabled={busy !== null}
+                className="px-2.5 py-1 rounded-md bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {busy === `brief-${m.membershipId}` ? 'Briefing…' : 'Brief'}
+              </button>
+            )}
+            {isSelf && (
+              <span className="text-[10.5px] text-slate-400 italic px-2">This is you</span>
+            )}
           </div>
         </div>
       )}
@@ -1042,6 +1175,84 @@ function MemberCardView({
  * - blocked: same proportions, right edge becomes a rose stripe
  * - off:     flat muted bar (no segments) — they're not working today
  */
+/**
+ * Status filter chip for the Team Members grid. Shows a label, a live
+ * count, and color-codes by tone so the strip reads like a legend at a
+ * glance — managers can spot "Blocked · 3" without thinking.
+ */
+function StatusChip({
+  label,
+  count,
+  active,
+  onClick,
+  tone,
+}: {
+  label: string
+  count: number
+  active: boolean
+  onClick: () => void
+  tone: 'ink' | 'good' | 'warn' | 'bad' | 'mute'
+}) {
+  // Active state uses the tone's full color for the background; inactive uses
+  // a soft variant so the strip doesn't fight for attention.
+  const activeStyles =
+    tone === 'good' ? 'bg-[var(--m-good)] text-white border-[var(--m-good)]' :
+    tone === 'warn' ? 'bg-[var(--m-warn)] text-white border-[var(--m-warn)]' :
+    tone === 'bad'  ? 'bg-[var(--m-bad)] text-white border-[var(--m-bad)]' :
+    tone === 'mute' ? 'bg-slate-700 text-white border-slate-700' :
+                      'bg-slate-900 text-white border-slate-900'
+  const inactiveStyles =
+    tone === 'good' ? 'bg-[var(--m-good-soft)] text-[var(--m-good)] border-[var(--m-good)]/15 hover:border-[var(--m-good)]/30' :
+    tone === 'warn' ? 'bg-[var(--m-warn-soft)] text-[var(--m-warn)] border-[var(--m-warn)]/15 hover:border-[var(--m-warn)]/30' :
+    tone === 'bad'  ? 'bg-[var(--m-bad-soft)] text-[var(--m-bad)] border-[var(--m-bad)]/15 hover:border-[var(--m-bad)]/30' :
+    tone === 'mute' ? 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300' :
+                      'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium border transition ${
+        active ? activeStyles : inactiveStyles
+      } ${count === 0 && !active ? 'opacity-50' : ''}`}
+    >
+      {label}
+      <span className={`tabular-nums text-[11px] ${active ? 'opacity-90' : 'opacity-70'}`}>
+        {count}
+      </span>
+    </button>
+  )
+}
+
+/**
+ * Productivity % pill — focused / (focused + idle) since shift start.
+ *
+ * Three buckets:
+ *   ≥ 65 % — green   "On a roll"
+ *   45-64 % — amber  "Steady"
+ *    < 45 % — rose   "Patchy"
+ *
+ * Updates live as the day progresses (the activity payload is polled by the
+ * parent), so HR sees the number trend up as the person hits their stride
+ * and back down if a long meeting eats the afternoon. Single number, scan
+ * across the team in a glance.
+ */
+function ProductivityPill({ activeSec, totalSec }: { activeSec: number; totalSec: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round((activeSec / Math.max(1, totalSec)) * 100)))
+  const tone =
+    pct >= 65 ? { bg: 'bg-[var(--m-good-soft)]', fg: 'text-[var(--m-good)]', label: 'On a roll' } :
+    pct >= 45 ? { bg: 'bg-[var(--m-warn-soft)]', fg: 'text-[var(--m-warn)]', label: 'Steady' } :
+                { bg: 'bg-[var(--m-bad-soft)]',  fg: 'text-[var(--m-bad)]',  label: 'Patchy' }
+  return (
+    <span
+      title={`${pct}% productive · ${tone.label}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10.5px] font-semibold tabular-nums ${tone.bg} ${tone.fg}`}
+    >
+      {pct}%
+    </span>
+  )
+}
+
 function TodayRibbon({
   member: m,
   statusKey,

@@ -44,7 +44,7 @@ const KIND_STYLE: Record<DayKind, { bg: string; fg: string; label: string }> = {
   present:     { bg: 'bg-emerald-50',  fg: 'text-emerald-700', label: 'Present'        },
   absent:      { bg: 'bg-rose-50',     fg: 'text-rose-700',    label: 'Absent'         },
   leave:       { bg: 'bg-amber-50',    fg: 'text-amber-700',   label: 'On leave'       },
-  holiday:     { bg: 'bg-violet-50',   fg: 'text-violet-700',  label: 'Holiday'        },
+  holiday:     { bg: 'bg-[var(--m-clay-soft)]',   fg: 'text-[var(--m-clay-deep)]',  label: 'Holiday'        },
   weekend:     { bg: 'bg-slate-50',    fg: 'text-slate-400',   label: 'Weekend'        },
   future:      { bg: 'bg-white',       fg: 'text-slate-300',   label: 'Upcoming'       },
   'today-empty': { bg: 'bg-white',     fg: 'text-slate-500',   label: 'Not yet logged' },
@@ -113,7 +113,7 @@ export default function AttendanceClient({
                       type="button"
                       onClick={() => selectMember(m.userId)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-left transition ${
-                        active ? 'bg-indigo-50/60 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'
+                        active ? 'bg-[var(--m-accent-soft)]/60 text-[var(--m-accent-2)]' : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     >
                       <CharacterAvatar characterKey={m.characterKey} size={24} />
@@ -187,12 +187,12 @@ export default function AttendanceClient({
                     key={c.date}
                     type="button"
                     onClick={() => setPickedDay(c)}
-                    className={`group relative h-16 rounded-lg border border-slate-100 ${style.bg} hover:border-slate-300 transition text-left p-1.5 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300`}
+                    className={`group relative h-16 rounded-lg border border-slate-100 ${style.bg} hover:border-slate-300 transition text-left p-1.5 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/30`}
                     title={style.label + (c.detail ? ` — ${c.detail}` : '')}
                   >
                     <span
                       className={`text-[11.5px] font-medium tabular-nums ${
-                        isToday ? 'text-indigo-700' : style.fg
+                        isToday ? 'text-[var(--m-accent-2)]' : style.fg
                       }`}
                     >
                       {day}
@@ -296,7 +296,7 @@ function Counter({
     tone === 'emerald' ? 'text-emerald-700'
     : tone === 'amber' ? 'text-amber-700'
     : tone === 'rose'  ? 'text-rose-700'
-    : 'text-violet-700'
+    : 'text-[var(--m-clay-deep)]'
   return (
     <span className="inline-flex items-baseline gap-1">
       <span className={`text-[13px] font-semibold tabular-nums ${fg}`}>{n}</span>
@@ -311,7 +311,7 @@ function Legend() {
       <Swatch className="bg-emerald-50" label="Present" />
       <Swatch className="bg-amber-50" label="On leave" />
       <Swatch className="bg-rose-50" label="Absent" />
-      <Swatch className="bg-violet-50" label="Holiday" />
+      <Swatch className="bg-[var(--m-clay-soft)]" label="Holiday" />
       <Swatch className="bg-slate-50" label="Weekend" />
     </div>
   )

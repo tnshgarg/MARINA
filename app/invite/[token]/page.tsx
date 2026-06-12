@@ -90,9 +90,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 flex items-start justify-center pt-20 px-6">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[var(--m-accent-soft)] flex items-start justify-center pt-20 px-6">
       <div className="w-full max-w-md">
-        <p className="text-[11px] uppercase tracking-widest text-indigo-600 font-semibold">
+        <p className="text-[11px] uppercase tracking-widest text-[var(--m-accent)] font-semibold">
           You&apos;re invited
         </p>
         <h1 className="text-[32px] font-semibold tracking-tight text-slate-900 mt-2">Join your squad</h1>
@@ -116,7 +116,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         {state === 'ready' && invite && org && (
           <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white font-semibold inline-flex items-center justify-center">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--m-accent)] to-[var(--m-clay)] text-white font-semibold inline-flex items-center justify-center">
                 {org.name.charAt(0).toUpperCase()}
               </span>
               <div>

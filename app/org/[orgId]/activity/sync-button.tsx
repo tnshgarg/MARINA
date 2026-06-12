@@ -36,7 +36,7 @@ export function SyncTeamButton({ orgId }: { orgId: number }) {
       <button
         onClick={run}
         disabled={busy}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-medium disabled:opacity-60 disabled:cursor-not-allowed transition"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[13px] font-medium disabled:opacity-60 disabled:cursor-not-allowed transition"
       >
         {busy ? (
           <>

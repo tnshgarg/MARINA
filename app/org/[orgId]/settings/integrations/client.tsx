@@ -12,6 +12,11 @@ import { useRouter } from 'next/navigation'
 type Initial = {
   trackedGithubOrgs: string[]
   hasSlack: boolean
+  slackInstall: {
+    teamName: string
+    installedAt: string | null
+    defaultChannelId: string | null
+  } | null
   githubLinked: number
   calendarLinked: number
   teamSize: number
@@ -156,36 +161,13 @@ export default function IntegrationsClient({
         }
       />
 
-      {/* Slack */}
-      <IntegrationCard
-        glyphLetter="S"
-        glyphBg="bg-purple-500"
-        name="Slack"
-        category="Notifications"
-        status={initial.hasSlack ? 'configured' : 'not_connected'}
-        headline={
-          initial.hasSlack
-            ? 'Webhook configured — channel pings active'
-            : 'Add a webhook to ping a Slack channel'
-        }
-        description={
-          <p>
-            One incoming webhook per org. Used for blocker pings, leave decisions, suspect
-            shift alerts and standup nudges. Configure under{' '}
-            <a href={`/org/${orgId}/settings`} className="text-slate-900 underline">
-              Workspace
-            </a>
-            .
-          </p>
-        }
-        actions={
-          <a
-            href={`/org/${orgId}/settings`}
-            className="inline-block px-3 py-1.5 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-[12px] font-medium transition"
-          >
-            {initial.hasSlack ? 'Manage Slack' : 'Set up Slack'}
-          </a>
-        }
+      {/* Slack — full bot install for DMs + slash commands. The legacy
+          webhook (`hasSlack` true / install null) keeps working but the
+          UI nudges you toward the install. */}
+      <SlackIntegrationCard
+        orgId={orgId}
+        install={initial.slackInstall}
+        legacyWebhookConfigured={initial.hasSlack}
       />
 
       {/* Request integration CTA — replaces the row of ghost cards */}
@@ -340,3 +322,118 @@ function GithubOrgsEditor({
     </div>
   )
 }
+
+function SlackIntegrationCard({
+  orgId,
+  install,
+  legacyWebhookConfigured,
+}: {
+  orgId: number
+  install: { teamName: string; installedAt: string | null; defaultChannelId: string | null } | null
+  legacyWebhookConfigured: boolean
+}) {
+  const router = useRouter()
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const justConnected = params?.get('slack') === 'connected'
+  const errorParam = params?.get('slack_error') ?? null
+  const [disconnecting, setDisconnecting] = useState(false)
+  const status = install ? 'configured' : legacyWebhookConfigured ? 'configured' : 'not_connected'
+
+  async function disconnect() {
+    if (!confirm('Disconnect Slack from this workspace? Notifications via DM and slash commands will stop until you reconnect.')) return
+    setDisconnecting(true)
+    try {
+      const res = await fetch('/api/connect/slack/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      router.refresh()
+    } catch (e) {
+      alert('Failed to disconnect: ' + e)
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  return (
+    <IntegrationCard
+      glyphLetter="S"
+      glyphBg="bg-[var(--m-clay)]"
+      name="Slack"
+      category="Notifications + commands"
+      status={status}
+      headline={
+        install
+          ? `Connected to ${install.teamName}`
+          : legacyWebhookConfigured
+          ? 'Legacy webhook configured — upgrade to install for DMs'
+          : 'Install the MARINA app on Slack'
+      }
+      description={
+        <div className="space-y-2.5">
+          <p>
+            Install the MARINA Slack app to get manager DMs (leave requests, blockers),
+            employee DMs (decision updates, nudges from teammates), and slash commands
+            (<code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina pulse</code>,
+            <code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina done</code>,
+            <code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina blocker</code>).
+          </p>
+          {install && (
+            <p className="text-emerald-700">
+              ✓ Workspace: <span className="font-medium">{install.teamName}</span>
+              {install.installedAt && (
+                <span className="text-slate-500 ml-1.5">
+                  · installed {new Date(install.installedAt).toLocaleDateString()}
+                </span>
+              )}
+            </p>
+          )}
+          {justConnected && (
+            <p className="text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2.5 py-1.5">
+              ✓ Slack connected. Slash commands and DMs are live.
+            </p>
+          )}
+          {errorParam && (
+            <p className="text-rose-700 bg-rose-50 border border-rose-200 rounded px-2.5 py-1.5">
+              Slack install failed: {errorParam}
+            </p>
+          )}
+        </div>
+      }
+      actions={
+        install ? (
+          <button
+            type="button"
+            onClick={disconnect}
+            disabled={disconnecting}
+            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-700 text-[12px] font-medium transition disabled:opacity-50"
+          >
+            {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+          </button>
+        ) : (
+          <a
+            href={`/api/connect/slack/install?orgId=${orgId}`}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#4A154B] hover:bg-[#611f63] text-white text-[12px] font-medium transition"
+          >
+            <SlackGlyph />
+            Add to Slack
+          </a>
+        )
+      }
+    />
+  )
+}
+
+function SlackGlyph() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 122.8 122.8" aria-hidden>
+      <path fill="#e01e5a" d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9z"/>
+      <path fill="#36c5f0" d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9z"/>
+      <path fill="#2eb67d" d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9z"/>
+      <path fill="#ecb22e" d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9z"/>
+    </svg>
+  )
+}
+

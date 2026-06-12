@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Settings = {
@@ -221,7 +221,7 @@ export default function SettingsClient({
               checked={settings.windowTitlesEnabled}
               disabled={busy === 'settings'}
               onChange={(e) => patchSettings({ windowTitlesEnabled: e.target.checked })}
-              className="w-4 h-4 accent-indigo-600"
+              className="w-4 h-4 accent-[var(--m-accent)]"
             />
             <span className="text-[12px] text-slate-600">
               {settings.windowTitlesEnabled ? 'On' : 'Off'}
@@ -244,12 +244,12 @@ export default function SettingsClient({
         }
       >
         {pairing && (
-          <div className="mt-4 rounded-lg bg-indigo-50/70 border border-indigo-100 p-3">
-            <p className="text-[11.5px] text-indigo-700 font-medium">
+          <div className="mt-4 rounded-lg bg-[var(--m-accent-soft)]/70 border border-[var(--m-accent)]/20 p-3">
+            <p className="text-[11.5px] text-[var(--m-accent-2)] font-medium">
               Pairing code · valid for {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
             </p>
             <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-              <code className="text-[20px] font-semibold tracking-[0.3em] text-indigo-900 font-mono">
+              <code className="text-[20px] font-semibold tracking-[0.3em] text-[var(--m-ink)] font-mono">
                 {pairing.code}
               </code>
               <button
@@ -308,6 +308,10 @@ export default function SettingsClient({
           </p>
         )}
       </SettingsRow>
+
+      {/* Custom avatar upload — uploaded photo overrides the pixel
+          character everywhere CharacterAvatar is used. */}
+      <AvatarSection />
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
@@ -446,6 +450,97 @@ function SettingsRow({
       </div>
       {footer && <p className="mt-2 text-[12px] text-amber-700">{footer}</p>}
       {children}
+    </section>
+  )
+}
+
+/**
+ * Avatar upload section. Lets the user replace their pixel character with a
+ * real photo (or anything else they want — JPEG / PNG / WebP / GIF). The
+ * upload is sent as multipart/form-data; on success we hard-refresh so the
+ * sidebar avatar updates immediately.
+ *
+ * Reset wipes the avatarUrl so the pixel character takes over again.
+ */
+function AvatarSection() {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/uploads/avatar', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'upload failed')
+      setSuccess('Avatar updated.')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function reset() {
+    if (!confirm('Reset to your pixel character?')) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/uploads/avatar', { method: 'DELETE' })
+      if (!res.ok) throw new Error('reset failed')
+      setSuccess('Reset to pixel character.')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 className="text-[13.5px] font-semibold text-slate-900">Profile photo</h2>
+      <p className="mt-1 text-[12.5px] text-slate-500">
+        Upload a real photo if you&apos;d rather skip the pixel character. JPEG, PNG, WebP or
+        GIF — up to 2 MB.
+      </p>
+      <div className="mt-3 flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+        >
+          {busy ? 'Uploading…' : 'Choose photo'}
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={busy}
+          className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[12.5px] font-medium text-slate-700 disabled:opacity-50 transition"
+        >
+          Use pixel character
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={upload}
+          className="hidden"
+        />
+      </div>
+      {success && <p className="mt-3 text-[12px] text-emerald-700">{success}</p>}
+      {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
+import { createDeliverable } from '@/lib/deliverables/create'
 
 export const runtime = 'nodejs'
 
@@ -58,72 +59,26 @@ export async function POST(req: Request) {
       completedAt?: string | null
       orgId?: number | null
     }
-    const title = (body.title ?? '').trim()
-    if (!title || title.length > 200) {
-      return NextResponse.json({ error: 'title required (max 200 chars)' }, { status: 400 })
-    }
-    const detail =
-      typeof body.detail === 'string' && body.detail.trim().length > 0
-        ? body.detail.trim().slice(0, 1000)
-        : null
-    const url =
-      typeof body.url === 'string' && body.url.trim().length > 0
-        ? body.url.trim().slice(0, 500)
-        : null
-    if (url && !/^https?:\/\//i.test(url)) {
-      return NextResponse.json({ error: 'url must start with http(s)://' }, { status: 400 })
-    }
-    const kind =
-      typeof body.kind === 'string' && body.kind.trim().length > 0
-        ? body.kind.trim().slice(0, 40)
-        : null
-    const completedAt =
-      typeof body.completedAt === 'string' && body.completedAt.length > 0
-        ? new Date(body.completedAt)
-        : new Date()
-    if (Number.isNaN(completedAt.getTime())) {
-      return NextResponse.json({ error: 'invalid completedAt' }, { status: 400 })
-    }
-    // Tie the deliverable to the user's primary org so it shows up in the
-    // manager's Activity tab. Falls back to nothing for orgless users.
-    let orgId: number | null = null
-    if (typeof body.orgId === 'number') {
-      orgId = body.orgId
-    } else {
-      const m = await db.query.memberships.findFirst({
-        where: eq(schema.memberships.userId, session.appUserId),
-      })
-      orgId = m?.orgId ?? null
-    }
-
-    const [row] = await db
-      .insert(schema.deliverables)
-      .values({
-        userId: session.appUserId,
-        orgId,
-        title,
-        detail,
-        url,
-        kind,
-        completedAt,
-        // Pin the screenshot at completion time so the verification job has
-        // a precise frame to inspect later.
-        pinnedShotAt: completedAt,
-      })
-      .returning()
-
-    return NextResponse.json({
-      ok: true,
-      deliverable: {
-        id: row.id,
-        title: row.title,
-        detail: row.detail,
-        url: row.url,
-        kind: row.kind,
-        completedAt: row.completedAt.toISOString(),
-        verificationStatus: row.verificationStatus,
-      },
+    const result = await createDeliverable({
+      userId: session.appUserId,
+      title: body.title ?? '',
+      detail: body.detail ?? null,
+      url: body.url ?? null,
+      kind: body.kind ?? null,
+      completedAt:
+        typeof body.completedAt === 'string' && body.completedAt.length > 0
+          ? new Date(body.completedAt)
+          : undefined,
+      orgId: body.orgId ?? null,
     })
+
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, duplicateOf: result.duplicateOf },
+        { status: result.status },
+      )
+    }
+    return NextResponse.json({ ok: true, deliverable: result.deliverable })
   } catch (err) {
     return errorResponse(err)
   }

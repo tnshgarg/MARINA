@@ -77,7 +77,7 @@ export default async function ShiftsPage({
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">People</h1>
+        <h1 className="app-h1">People</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">
           Punch-in / punch-out history with AI-verified work summaries.
         </p>
@@ -131,7 +131,7 @@ export default async function ShiftsPage({
             {range !== 'all' && (
               <Link
                 href={`/org/${orgId}/shifts?range=all`}
-                className="mt-3 inline-block text-[12.5px] text-indigo-600 hover:text-indigo-700"
+                className="mt-3 inline-block text-[12.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)]"
               >
                 See all time →
               </Link>

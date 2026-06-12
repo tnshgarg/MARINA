@@ -77,12 +77,14 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
-      {/* Backdrop */}
+      {/* Backdrop — simple alpha; `backdrop-blur-sm` was pushing weaker
+          GPUs into compositor stutter when used on every modal mount, so
+          we keep the dim but drop the blur. */}
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-slate-900/50"
         style={{ animation: 'modalFadeIn 140ms ease-out' }}
       />
 
@@ -115,7 +117,7 @@ export function Modal({
           </header>
         )}
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 min-w-0">{children}</div>
 
         {footer && (
           <footer className="shrink-0 px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2">

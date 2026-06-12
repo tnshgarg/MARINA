@@ -128,6 +128,7 @@ export async function POST(req: Request) {
       void notify({
         kind: 'break.started',
         orgId,
+        actorUserId: session.appUserId,
         userName: me?.name ?? `@${session.login}`,
         userLogin: session.login,
         reason: row.reason,

@@ -35,6 +35,11 @@ export async function POST(
     if (!row) {
       return NextResponse.json({ error: 'pause not found or already ended' }, { status: 404 })
     }
+    // Can't ping yourself — the in-app notification + Slack DM would just
+    // bounce back to the manager who pressed the button.
+    if (row.userId === session.appUserId) {
+      return NextResponse.json({ error: "You can't ping yourself." }, { status: 400 })
+    }
 
     const target = await db.query.users.findFirst({ where: eq(schema.users.id, row.userId) })
     const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
@@ -55,6 +60,8 @@ export async function POST(
     void notify({
       kind: 'break.checkin',
       orgId,
+      actorUserId: session.appUserId,
+      targetUserId: row.userId,
       userName: target?.name ?? `@${target?.login ?? 'someone'}`,
       userLogin: target?.login ?? 'someone',
       managerName: me?.name ?? `@${session.login}`,

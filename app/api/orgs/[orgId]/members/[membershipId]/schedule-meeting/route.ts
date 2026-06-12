@@ -38,6 +38,14 @@ export async function POST(
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    // Can't schedule a meeting with yourself — calendar APIs accept it but
+    // the resulting "1:1" event is nonsense and clutters the calendar.
+    if (target.userId === session.appUserId) {
+      return NextResponse.json(
+        { error: "You can't schedule a meeting with yourself." },
+        { status: 400 },
+      )
+    }
 
     const [attendee, organiser] = await Promise.all([
       db.query.users.findFirst({ where: eq(schema.users.id, target.userId) }),

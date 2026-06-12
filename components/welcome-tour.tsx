@@ -82,7 +82,7 @@ export function WelcomeTour({
   const completed = steps.filter((s) => s.done).length
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-pink-50 p-6 sm:p-8">
+    <section className="relative overflow-hidden rounded-3xl border border-[var(--m-accent)]/20 bg-gradient-to-br from-[var(--m-accent-soft)] via-white to-pink-50 p-6 sm:p-8">
       {/* Decorative blob */}
       <div
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none opacity-40 blur-3xl"
@@ -100,7 +100,7 @@ export function WelcomeTour({
 
       <div className="relative">
         <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-[12px] font-semibold uppercase tracking-widest text-indigo-600">
+          <span className="text-[12px] font-semibold uppercase tracking-widest text-[var(--m-accent)]">
             Welcome
           </span>
           <span className="text-[11px] text-slate-500 tabular">
@@ -118,7 +118,7 @@ export function WelcomeTour({
         {/* Progress bar */}
         <div className="mt-5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500 transition-all duration-700 ease-out"
+            className="h-full bg-gradient-to-r from-[var(--m-accent)] via-[var(--m-clay)] to-[var(--m-gold)] transition-all duration-700 ease-out"
             style={{ width: `${(completed / steps.length) * 100}%` }}
           />
         </div>
@@ -185,7 +185,7 @@ function CtaButton({ cta }: { cta: { label: string; href?: string; onClick?: () 
     return (
       <a
         href={cta.href}
-        className="text-[12px] font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 transition"
+        className="text-[12px] font-medium text-[var(--m-accent)] hover:text-[var(--m-accent-2)] inline-flex items-center gap-1 transition"
       >
         {cta.label}
       </a>
@@ -194,7 +194,7 @@ function CtaButton({ cta }: { cta: { label: string; href?: string; onClick?: () 
   return (
     <button
       onClick={cta.onClick}
-      className="text-[12px] font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 transition"
+      className="text-[12px] font-medium text-[var(--m-accent)] hover:text-[var(--m-accent-2)] inline-flex items-center gap-1 transition"
     >
       {cta.label}
     </button>
@@ -218,7 +218,7 @@ function QuickAction({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-indigo-300 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
     >
       <div className="text-[24px] mb-1.5">{emoji}</div>
       <p className="text-[13px] font-medium text-slate-900">{label}</p>

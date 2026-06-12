@@ -167,6 +167,31 @@ export const orgs = pgTable('orgs', {
    * Format: lowercased GitHub org/user logins, e.g. ["acme", "acme-labs"].
    */
   trackedGithubOrgs: jsonb('tracked_github_orgs').$type<string[]>().notNull().default([]),
+  /**
+   * Slack workspace install state. We support TWO modes side by side:
+   *   1. Legacy: `slackWebhookUrl` posts to one channel only (kept for orgs
+   *      who configured it before we shipped the OAuth app).
+   *   2. Bot install: storing `slackBotToken` unlocks DM-to-user (so a
+   *      manager gets pinged personally for a leave request, not just in
+   *      the team channel), slash commands, and `users.lookupByEmail` for
+   *      auto-resolving every employee's Slack ID with no per-user OAuth.
+   *
+   * `slackDefaultChannelId` is where org-wide announcements go ("@arjun
+   * is on leave today"); per-person events DM the actor directly.
+   */
+  /**
+   * Optional org logo. When set, replaces the brand mark in the sidebar
+   * header for this workspace only. Stored as a public URL — either a
+   * Vercel Blob URL in production or a /api/uploads/* path in local
+   * mode (served by the read-through API route below).
+   */
+  logoUrl: text('logo_url'),
+  slackTeamId: text('slack_team_id'),
+  slackTeamName: text('slack_team_name'),
+  slackBotToken: text('slack_bot_token'),
+  slackBotUserId: text('slack_bot_user_id'),
+  slackDefaultChannelId: text('slack_default_channel_id'),
+  slackInstalledAt: timestamp('slack_installed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -258,6 +283,16 @@ export const memberships = pgTable(
     workingDays: jsonb('working_days').$type<boolean[]>().notNull().default([
       false, true, true, true, true, true, false,
     ]),
+    /**
+     * Slack identity for this employee inside this org's Slack workspace.
+     * Resolved automatically via `users.lookupByEmail` after the org installs
+     * the bot — the employee never has to do a separate OAuth. Used to DM
+     * the actual person (not just the team channel) for events that affect
+     * them personally: leave decisions, blocker-help asks, work-anniversary
+     * call-outs.
+     */
+    slackUserId: text('slack_user_id'),
+    slackResolvedAt: timestamp('slack_resolved_at', { withTimezone: true }),
     /**
      * When the member was removed (soft-delete). Reads scoped to org should
      * filter events to `occurredAt BETWEEN createdAt AND COALESCE(endedAt, now())`
@@ -503,6 +538,16 @@ export const breaks = pgTable(
     waitingOnExternal: text('waiting_on_external'), // free-text: "Acme client", "Stripe support"
     // Optional: when the user thinks they'll be back ("Back in 30m")
     expectedEndAt: timestamp('expected_end_at', { withTimezone: true }),
+    /**
+     * Blocker-resolver fields. When a manager resolves a blocker on the
+     * employee's behalf (rather than the employee ending it themselves), we
+     * stamp who did it, when, with what note, and how. This powers the
+     * "average time to unblock" metric and the resolution history thread.
+     */
+    resolvedByUserId: integer('resolved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    resolutionNote: text('resolution_note'),
+    /** 'unblocked' | 'workaround' | 'cancelled' | 'self' (employee ended). */
+    resolutionType: text('resolution_type'),
   },
   (t) => ({
     userActiveIdx: index('breaks_user_active_idx').on(t.userId, t.endedAt),
@@ -510,6 +555,29 @@ export const breaks = pgTable(
     waitingOnIdx: index('breaks_waiting_on_idx').on(t.waitingOnUserId, t.endedAt),
   })
 )
+
+/**
+ * Discussion thread on a blocker — every nudge, suggestion or status update
+ * the manager sends gets logged here so the resolution is auditable and the
+ * blocked employee sees the full history when they come back.
+ */
+export const blockerThread = pgTable(
+  'blocker_thread',
+  {
+    id: serial('id').primaryKey(),
+    breakId: integer('break_id').notNull().references(() => breaks.id, { onDelete: 'cascade' }),
+    authorUserId: integer('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<'nudge' | 'suggestion' | 'note' | 'resolution'>().notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    breakIdx: index('blocker_thread_break_idx').on(t.breakId, t.createdAt),
+  }),
+)
+
+export type BlockerThreadEntry = typeof blockerThread.$inferSelect
+export type NewBlockerThreadEntry = typeof blockerThread.$inferInsert
 
 export type LeaveStatus = 'pending' | 'approved' | 'denied' | 'cancelled'
 export type LeaveType =
@@ -911,6 +979,137 @@ export const scheduledMeetings = pgTable(
 
 export type ScheduledMeeting = typeof scheduledMeetings.$inferSelect
 export type NewScheduledMeeting = typeof scheduledMeetings.$inferInsert
+
+/**
+ * Early-bird promotional codes. We seed these manually for design partners
+ * and the first ~50 organisations who sign up. A code is a short uppercased
+ * string ("MARINA50", "FOUNDERS24") and either
+ *   - upgrades the redeeming org to a paid plan for `durationDays` days, or
+ *   - waives all charges forever (`durationDays = null` = lifetime grant).
+ *
+ * Codes have a redemption cap (defaults to 1) and an optional hard expiry
+ * date after which they can't be redeemed even if seats remain. Each
+ * (codeId, orgId) pair is unique — an org can't double-spend the same code.
+ */
+export const earlyBirdCodes = pgTable(
+  'early_bird_codes',
+  {
+    id: serial('id').primaryKey(),
+    code: text('code').notNull().unique(),
+    plan: text('plan').$type<Plan>().notNull().default('team'),
+    /** Days the grant lasts after redemption. Null = lifetime / "forever". */
+    durationDays: integer('duration_days'),
+    maxRedemptions: integer('max_redemptions').notNull().default(1),
+    usedCount: integer('used_count').notNull().default(0),
+    /** Hard expiry — code can't be redeemed after this even if cap not hit. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    isActive: boolean('is_active').notNull().default(true),
+    notes: text('notes'),
+    createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    activeIdx: index('early_bird_codes_active_idx').on(t.isActive, t.expiresAt),
+  }),
+)
+
+export const earlyBirdRedemptions = pgTable(
+  'early_bird_redemptions',
+  {
+    id: serial('id').primaryKey(),
+    codeId: integer('code_id').notNull().references(() => earlyBirdCodes.id, { onDelete: 'cascade' }),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    redeemedByUserId: integer('redeemed_by_user_id').notNull().references(() => users.id, { onDelete: 'set null' }),
+    grantedPlan: text('granted_plan').$type<Plan>().notNull(),
+    /** Null = lifetime; otherwise the moment the grant lapses. */
+    grantExpiresAt: timestamp('grant_expires_at', { withTimezone: true }),
+    redeemedAt: timestamp('redeemed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqOrgPerCode: uniqueIndex('early_bird_redemptions_code_org_uniq').on(t.codeId, t.orgId),
+    orgIdx: index('early_bird_redemptions_org_idx').on(t.orgId),
+  }),
+)
+
+export type EarlyBirdCode = typeof earlyBirdCodes.$inferSelect
+export type NewEarlyBirdCode = typeof earlyBirdCodes.$inferInsert
+export type EarlyBirdRedemption = typeof earlyBirdRedemptions.$inferSelect
+export type NewEarlyBirdRedemption = typeof earlyBirdRedemptions.$inferInsert
+
+/**
+ * Teams — sub-groups inside an org. Optional structure for HR to organise
+ * the team chart without forcing every employee into a tree: a team has a
+ * manager (a single membership) and N members (m:n via team_members),
+ * and one person can be in multiple teams (eg. Design + Marketing).
+ *
+ * Membership-level uniqueness (org_id, team_id, membership_id) means we
+ * can attach team-scoped permissions in the future without backfilling.
+ */
+export const teams = pgTable(
+  'teams',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    /** Manager of this team — the lead. Optional (some teams are flat). */
+    managerMembershipId: integer('manager_membership_id'),
+    /** Hex color for visual differentiation in the chart. */
+    color: text('color'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('teams_org_idx').on(t.orgId, t.name),
+  }),
+)
+
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+    membershipId: integer('membership_id').notNull().references(() => memberships.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    teamMemberUniq: uniqueIndex('team_members_team_membership_uniq').on(t.teamId, t.membershipId),
+    membershipIdx: index('team_members_membership_idx').on(t.membershipId),
+  }),
+)
+
+export type Team = typeof teams.$inferSelect
+export type NewTeam = typeof teams.$inferInsert
+export type TeamMember = typeof teamMembers.$inferSelect
+export type NewTeamMember = typeof teamMembers.$inferInsert
+
+/**
+ * Many-to-many manager assignments. A person can have multiple managers —
+ * common in matrixed orgs (e.g. an engineer who reports to both an EM and
+ * a TPM, or a product manager who reports to both Product and the
+ * business owner of their area).
+ *
+ * `memberships.reportsToMembershipId` is kept around as a "primary" manager
+ * hint (used for things like "who decides my leave" routing), but the chart
+ * + reports-to chain UI walks THIS table for the full picture.
+ */
+export const membershipManagers = pgTable(
+  'membership_managers',
+  {
+    id: serial('id').primaryKey(),
+    /** The subordinate. */
+    membershipId: integer('membership_id').notNull().references(() => memberships.id, { onDelete: 'cascade' }),
+    /** A manager. There can be N rows per `membershipId`. */
+    managerMembershipId: integer('manager_membership_id').notNull().references(() => memberships.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pairUniq: uniqueIndex('membership_managers_pair_uniq').on(t.membershipId, t.managerMembershipId),
+    managerIdx: index('membership_managers_manager_idx').on(t.managerMembershipId),
+  }),
+)
+
+export type MembershipManager = typeof membershipManagers.$inferSelect
+export type NewMembershipManager = typeof membershipManagers.$inferInsert
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect

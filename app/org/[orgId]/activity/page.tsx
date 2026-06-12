@@ -4,7 +4,8 @@ import { db, schema } from '@/lib/db/client'
 import { withMembershipWindow } from '@/lib/auth/tenant-scope'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { ActivityTabs } from '@/components/org-tabs'
-import { SyncTeamButton } from './sync-button'
+import { afterResponse } from '@/lib/after'
+import { syncUserActivity } from '@/lib/github/sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,11 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
     .from(schema.memberships)
     .where(and(eq(schema.memberships.orgId, orgId), sql`${schema.memberships.endedAt} IS NULL`))
   const userIds = memberRows.map((m) => m.userId)
+
+  // We read the org separately so we can pass `trackedGithubOrgs` to the
+  // auto-sync below (it filters out repos owned by orgs the workspace
+  // hasn't allowlisted).
+  const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
 
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
@@ -130,25 +136,48 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
     .filter((d): d is Date => d !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0]
 
+  // Fire-and-forget background sync. Anyone whose last sync is more than
+  // 10 minutes stale gets a quiet refresh — no UI button, no waiting. The
+  // refreshed events show up on the next visit (or after `router.refresh`).
+  const STALE_MS = 10 * 60 * 1000
+  const stale = membersWithGitHub.filter(
+    (m) => !m.lastSyncedAt || Date.now() - m.lastSyncedAt.getTime() > STALE_MS,
+  )
+  if (stale.length > 0) {
+    const tracked = (org as { trackedGithubOrgs?: string[] }).trackedGithubOrgs ?? []
+    afterResponse(async () => {
+      for (const m of stale) {
+        if (!m.accessToken) continue
+        try {
+          await syncUserActivity(m.id, m.login, m.accessToken, 30, tracked)
+        } catch (err) {
+          console.warn(`[activity/auto-sync] user ${m.id} failed`, err)
+        }
+      }
+    }, `activity auto-sync (${stale.length} stale)`)
+  }
+
   return (
     <>
       <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Activity</h1>
+          <h1 className="app-h1">Activity</h1>
           <p className="mt-1.5 text-[13px] text-slate-600">
             Recent activity across the team — GitHub events plus self-reported deliverables.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <SyncTeamButton orgId={orgId} />
-          <p className="text-[11px] text-slate-500">
-            {mostRecentSync ? (
-              <>Last sync · {timeAgo(mostRecentSync.toISOString())}</>
-            ) : (
-              <>Never synced</>
-            )}
-          </p>
-        </div>
+        {/* Auto-sync chip — replaces the noisy "Sync now" button. We refresh
+            GitHub events in the background after every Activity page load,
+            and just show when the most recent member sync completed. The
+            actual sync is fire-and-forget via `afterResponse()` so it never
+            blocks the page render. */}
+        <p className="text-[11.5px] text-slate-500 inline-flex items-center gap-1.5">
+          <span className="relative inline-flex">
+            <span className="absolute inset-0 rounded-full bg-[var(--m-accent)]/40 animate-ping" />
+            <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-accent)]" />
+          </span>
+          {mostRecentSync ? <>Auto-sync · {timeAgo(mostRecentSync.toISOString())}</> : <>Syncing…</>}
+        </p>
       </div>
       <ActivityTabs orgId={orgId} />
 
@@ -208,7 +237,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
                         href={e.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[13px] text-slate-900 hover:text-indigo-600 truncate"
+                        className="text-[13px] text-slate-900 hover:text-[var(--m-accent)] truncate"
                       >
                         {e.title}
                       </a>

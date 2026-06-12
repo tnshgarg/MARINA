@@ -5,8 +5,16 @@ import { auth, signIn } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { CHARACTERS } from '@/lib/characters/data'
+import { CharacterAvatar } from '@/components/character-avatar'
 import { CountUp, Reveal } from '@/components/reveal'
 import LandingClient from './landing-client'
+import {
+  BlockerResolverMockup,
+  ScrumModeMockup,
+  MemberDetailMockup,
+  ActivityFeedMockup,
+  TeamsMockup,
+} from '@/components/landing-showcase'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +43,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     await signIn('github', { redirectTo: '/' })
   }
 
+  async function googleSignIn() {
+    'use server'
+    await signIn('google', { redirectTo: '/' })
+  }
+
+  const googleEnabled = !!(process.env.GOOGLE_SSO_CLIENT_ID && process.env.GOOGLE_SSO_CLIENT_SECRET)
+
   return (
     <main className="relative isolate min-h-screen paper text-[var(--m-ink)] overflow-x-hidden">
       {/* Subtle ambient blobs — sage + clay, very low opacity. Placed inside
@@ -58,18 +73,21 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
       <Hero
         sp={sp}
         githubSignIn={githubSignIn}
+        googleSignIn={googleEnabled ? googleSignIn : null}
         characters={CHARACTERS.slice(0, 8).map((c) => ({ key: c.key, name: c.name, color: c.color }))}
       />
 
       <LogosStrip />
       <ValueProps />
       <ProductSection />
+      <ShowcaseSection />
       <Workflows />
+      <RosterShowcase />
       <Testimonials />
       <Integrations />
       <Pricing />
       <ResourceCards />
-      <FinalCTA githubSignIn={githubSignIn} />
+      <FinalCTA githubSignIn={githubSignIn} googleSignIn={googleEnabled ? googleSignIn : null} />
       <Footer />
     </main>
   )
@@ -91,6 +109,7 @@ function Nav() {
           <a href="#product" className="hover:text-[var(--m-ink)] transition-colors">Product</a>
           <a href="#workflows" className="hover:text-[var(--m-ink)] transition-colors">Workflows</a>
           <a href="#pricing" className="hover:text-[var(--m-ink)] transition-colors">Pricing</a>
+          <a href="/download" className="hover:text-[var(--m-ink)] transition-colors">Download</a>
           <a href="/security" className="hover:text-[var(--m-ink)] transition-colors">Security</a>
         </nav>
         <div className="flex items-center gap-2">
@@ -112,10 +131,12 @@ function Nav() {
 function Hero({
   sp,
   githubSignIn,
+  googleSignIn,
   characters,
 }: {
   sp: { auth_error?: string }
   githubSignIn: () => Promise<void>
+  googleSignIn: (() => Promise<void>) | null
   characters: Array<{ key: string; name: string; color: string }>
 }) {
   return (
@@ -153,6 +174,7 @@ function Hero({
               <LandingClient
                 authError={sp.auth_error ?? null}
                 githubSignIn={githubSignIn}
+                googleSignIn={googleSignIn}
                 characters={characters}
               />
             </div>
@@ -592,6 +614,153 @@ function Bullet({ children }: { children: React.ReactNode }) {
   )
 }
 
+/* ============================ SHOWCASE ============================ */
+
+/**
+ * Four feature mockups in alternating layout. The visual cadence is
+ * deliberate: each block leads with a verb-driven headline ("Unstick",
+ * "Lead", "Understand", "See") so visitors can tell at a glance what the
+ * feature actually does in their hands.
+ */
+function ShowcaseSection() {
+  const blocks: Array<{
+    eyebrow: string
+    title: React.ReactNode
+    body: string
+    bullets: string[]
+    mockup: React.ReactNode
+    flip?: boolean
+  }> = [
+    {
+      eyebrow: 'Blocker Resolver',
+      title: (
+        <>
+          Unstick teammates <span className="italic brand-gradient-text">in one click</span>
+        </>
+      ),
+      body:
+        'When someone marks themselves blocked, you see who they\'re waiting on, how long it\'s been, and whether the blocker is even online. Then you nudge, route to a backup, or jump in directly — no Slack archaeology required.',
+      bullets: [
+        'Live context: last activity, call status, Slack presence',
+        'Route to a different teammate with a one-line reason',
+        'Multi-channel ping: in-app, Slack, email, desktop',
+      ],
+      mockup: <BlockerResolverMockup />,
+    },
+    {
+      eyebrow: 'Scrum Mode',
+      title: (
+        <>
+          Run a <span className="italic">25-minute standup in 9</span>
+        </>
+      ),
+      body:
+        'Projection-friendly view shows each teammate\'s "yesterday, today, blocker" pre-populated from real activity. Arrow keys to advance, Space to mark covered. Skip the questions you already have answers to.',
+      bullets: [
+        'Auto-drafted answers from GitHub, calendar, deliverables',
+        'Per-person coverage saved per org per day',
+        'Keyboard-driven so the room stays focused on the call',
+      ],
+      mockup: <ScrumModeMockup />,
+      flip: true,
+    },
+    {
+      eyebrow: 'Member Detail',
+      title: (
+        <>
+          Understand each teammate, <span className="italic brand-gradient-text">no graphs to read</span>
+        </>
+      ),
+      body:
+        'Open any teammate to see what they\'re doing right now, what they shipped this week, and how their attendance, shifts and activity stack up. Same modal works whether they\'re an engineer, a designer, or a sales rep.',
+      bullets: [
+        'Five tabs: Overview, Attendance, Shifts, Activity, Profile',
+        'Story-driven Today timeline — not just numbers',
+        'Discipline-aware — non-engineers don\'t see PR counts',
+      ],
+      mockup: <MemberDetailMockup />,
+    },
+    {
+      eyebrow: 'Activity Feed',
+      title: (
+        <>
+          See the team move <span className="italic">in real time</span>
+        </>
+      ),
+      body:
+        'A live timeline of what your team is shipping, blocking, closing, and finishing. Everyone\'s in the same room, even when nobody is in the same room. Tap any event to jump straight to the source.',
+      bullets: [
+        'Ships, blockers, deals, deliverables — all in one stream',
+        'Per-discipline icons so engineering doesn\'t drown out sales',
+        'Quiet hours respected — no notifications, just the feed',
+      ],
+      mockup: <ActivityFeedMockup />,
+      flip: true,
+    },
+    {
+      eyebrow: 'Teams + Org chart',
+      title: (
+        <>
+          Map your workspace, <span className="italic brand-gradient-text">visually</span>
+        </>
+      ),
+      body:
+        'Group people into teams for projects or pods. Drag-and-drop reports-to to build a living org chart — multiple founders, multiple managers, real chains. HR builds it once; everyone sees who they report to and which teams they\'re on.',
+      bullets: [
+        'Teams are loose buckets; one person can be on many',
+        'Drag any node onto another to set reports-to — no diagrams to maintain',
+        'Print, export SVG, or hand off as a one-page onboarding page',
+      ],
+      mockup: <TeamsMockup />,
+    },
+  ]
+
+  return (
+    <section className="bg-[var(--m-bg)]">
+      <div className="max-w-7xl mx-auto px-6 py-20 md:py-28">
+        <Reveal>
+          <div className="max-w-2xl mb-14">
+            <p className="text-[11px] tracking-[0.18em] uppercase text-[var(--m-clay)] font-medium mb-4">
+              See it in action
+            </p>
+            <h2 className="font-display text-[36px] md:text-[48px] leading-[1.05] tracking-tight">
+              Four moments that make remote teams <span className="italic brand-gradient-text">finally feel like a team</span>
+            </h2>
+          </div>
+        </Reveal>
+
+        <div className="space-y-20 md:space-y-28">
+          {blocks.map((b, i) => (
+            <Reveal key={i} delay={i * 80}>
+              <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+                <div className={`lg:col-span-5 ${b.flip ? 'lg:order-2' : ''}`}>
+                  <p className="text-[10.5px] tracking-[0.18em] uppercase text-[var(--m-accent)] font-semibold mb-3">
+                    {b.eyebrow}
+                  </p>
+                  <h3 className="font-display text-[28px] md:text-[36px] leading-[1.08] tracking-tight text-[var(--m-ink)]">
+                    {b.title}
+                  </h3>
+                  <p className="mt-4 text-[15px] text-[var(--m-ink-2)] leading-relaxed">
+                    {b.body}
+                  </p>
+                  <ul className="mt-5 space-y-2.5 text-[13.5px] text-[var(--m-ink-2)]">
+                    {b.bullets.map((bullet) => (
+                      <Bullet key={bullet}>{bullet}</Bullet>
+                    ))}
+                  </ul>
+                </div>
+                <div className={`lg:col-span-7 ${b.flip ? 'lg:order-1' : ''}`}>
+                  {b.mockup}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /* ============================ WORKFLOWS ============================ */
 
 function Workflows() {
@@ -641,6 +810,64 @@ function Workflows() {
             </div>
           </Reveal>
         ))}
+      </div>
+    </section>
+  )
+}
+
+/* ============================ ROSTER SHOWCASE ============================ */
+
+/**
+ * 50-character avatar wall. Renders every character in the roster as a
+ * pixel-art bust — visitors see them all and can pick a vibe before
+ * signing up. Names are intentionally generic ("The Iron Knight", "The
+ * Web Crawler") — the silhouette tells you exactly who it&apos;s evoking
+ * without us using a trademarked name in the marketing copy.
+ *
+ * Layout is a tight grid that flexes 4→6→8 columns across breakpoints so
+ * the wall feels dense at desktop and stays readable on phones.
+ */
+function RosterShowcase() {
+  return (
+    <section className="bg-[var(--m-bg)] border-y border-[var(--m-border)]/60">
+      <div className="max-w-7xl mx-auto px-6 py-20 md:py-28">
+        <Reveal>
+          <div className="max-w-3xl mx-auto text-center mb-12">
+            <p className="text-[11px] tracking-[0.18em] uppercase text-[var(--m-clay)] font-medium mb-3">
+              Pick your character
+            </p>
+            <h2 className="font-display text-[36px] md:text-[48px] leading-[1.05] tracking-tight">
+              Fifty heroes,{' '}
+              <span className="italic brand-gradient-text">one for every personality</span>
+            </h2>
+            <p className="mt-5 text-[15px] md:text-[16px] text-[var(--m-ink-2)] leading-relaxed">
+              Marvel hero, anime legend, fantasy wizard, masked vigilante — there&apos;s a pixel
+              bust that fits how you see yourself at work. Pick one when you join, and your team
+              spots you across every dashboard at a glance.
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal delay={120}>
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 md:gap-4">
+            {CHARACTERS.map((c) => (
+              <div
+                key={c.key}
+                className="group flex items-center justify-center rounded-xl bg-white border border-[var(--m-border)] aspect-square p-2 hover:shadow-[var(--m-shadow)] hover:-translate-y-0.5 transition-all"
+                title={c.name}
+              >
+                <CharacterAvatar characterKey={c.key} size={64} />
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal delay={240}>
+          <p className="mt-10 text-center text-[12.5px] text-[var(--m-ink-3)]">
+            One character per workspace — once a teammate claims The Last Son, they&apos;re the
+            only Last Son on the dashboard.
+          </p>
+        </Reveal>
       </div>
     </section>
   )
@@ -936,7 +1163,13 @@ function ResourceCards() {
 
 /* ============================ FINAL CTA ============================ */
 
-function FinalCTA({ githubSignIn }: { githubSignIn: () => Promise<void> }) {
+function FinalCTA({
+  githubSignIn,
+  googleSignIn,
+}: {
+  githubSignIn: () => Promise<void>
+  googleSignIn: (() => Promise<void>) | null
+}) {
   return (
     <section id="cta" className="relative isolate overflow-hidden">
       {/* `isolate` creates a local stacking context so the gradient sits
@@ -972,21 +1205,34 @@ function FinalCTA({ githubSignIn }: { githubSignIn: () => Promise<void> }) {
           ₹0 trial for 30 days on every paid plan. No credit card needed.
         </p>
 
-        <form action={githubSignIn} className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 bg-white text-[var(--m-ink)] hover:bg-white/95 px-5 py-2.5 rounded-lg text-[14px] font-medium shadow-lg transition"
-          >
-            <GhIcon />
-            Continue with GitHub
-          </button>
+        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+          <form action={githubSignIn}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 bg-white text-[var(--m-ink)] hover:bg-white/95 px-5 py-2.5 rounded-lg text-[14px] font-medium shadow-lg transition"
+            >
+              <GhIcon />
+              Continue with GitHub
+            </button>
+          </form>
+          {googleSignIn && (
+            <form action={googleSignIn}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 bg-white text-[var(--m-ink)] hover:bg-white/95 px-5 py-2.5 rounded-lg text-[14px] font-medium shadow-lg transition"
+              >
+                <CtaGoogleIcon />
+                Continue with Google
+              </button>
+            </form>
+          )}
           <a
             href="mailto:hello@marina.in?subject=MARINA%20demo%20request"
             className="text-[14px] text-white/90 hover:text-white border border-white/30 hover:border-white/60 rounded-lg px-5 py-2.5 transition"
           >
             Request a demo
           </a>
-        </form>
+        </div>
       </div>
     </section>
   )
@@ -1009,7 +1255,7 @@ function Footer() {
               Built in India 🇮🇳 for the world.
             </p>
           </div>
-          <FooterCol title="Product" items={[['Features', '#product'], ['Workflows', '#workflows'], ['Pricing', '#pricing'], ['Changelog', '/changelog']]} />
+          <FooterCol title="Product" items={[['Features', '#product'], ['Workflows', '#workflows'], ['Pricing', '#pricing'], ['Download app', '/download'], ['Changelog', '/changelog']]} />
           <FooterCol title="Legal" items={[['Privacy', '/privacy'], ['Terms', '/terms'], ['DPA', '/dpa'], ['Security', '/security']]} />
           <FooterCol title="Contact" items={[['hello@marina.in', 'mailto:hello@marina.in'], ['security@marina.in', 'mailto:security@marina.in'], ['dpo@marina.in', 'mailto:dpo@marina.in']]} />
         </div>
@@ -1040,17 +1286,17 @@ function FooterCol({ title, items }: { title: string; items: Array<[string, stri
 /* ============================ INLINE ICONS ============================ */
 
 function Logo() {
+  // Canonical brand mark. We render via <img> rather than inline SVG so the
+  // landing page, sidebar, favicon, and email letterhead are all guaranteed
+  // to look identical — a single asset, one source of truth.
   return (
-    <svg width={28} height={28} viewBox="0 0 28 28" fill="none">
-      <defs>
-        <linearGradient id="mlogo" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#3f6b54" />
-          <stop offset="100%" stopColor="#c19a4d" />
-        </linearGradient>
-      </defs>
-      <path d="M14 3 L24 24 H4 Z" fill="url(#mlogo)" />
-      <circle cx={14} cy={18} r={3} fill="#f8f6f1" />
-    </svg>
+    <img
+      src="/logo.png"
+      width={32}
+      height={32}
+      alt="MARINA"
+      className="block object-contain"
+    />
   )
 }
 function BookIcon() {
@@ -1087,6 +1333,17 @@ function SparkIcon() {
     </svg>
   )
 }
+function CtaGoogleIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.7 4.7-6.2 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 18.9 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.1 0-9.5-3.3-11.2-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.1 5.6l6.2 5.2C41.4 35.3 44 30.1 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  )
+}
+
 function GhIcon() {
   return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">

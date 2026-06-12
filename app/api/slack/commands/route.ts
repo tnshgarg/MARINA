@@ -2,20 +2,28 @@ import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { verifySlackRequest } from '@/lib/slack/verify'
+import { afterResponse } from '@/lib/after'
+import { createDeliverable } from '@/lib/deliverables/create'
+import { notify } from '@/lib/notify/send'
+import { getSlackInstall, sendSlackDm } from '@/lib/slack/client'
 
 export const runtime = 'nodejs'
 
 /**
- * Slack slash command endpoint. Supports:
- *   /marina pulse           — post a snapshot of who's blocked + shipping today
- *   /marina nudge @user msg — send a check-in to a teammate (audit-logged)
+ * Slack slash-command endpoint. Supports:
  *
- * Slack expects an HTTP 200 within 3 seconds. We respond immediately with an
- * acknowledgement and do the work in the background.
+ *   /marina pulse            — today's team snapshot
+ *   /marina blockers         — list active blockers
+ *   /marina nudge @user msg  — DM the teammate; logged on both sides
+ *   /marina blocker <reason> — mark *yourself* blocked
+ *   /marina done <title>     — log a deliverable for today
+ *   /marina off [reason]     — start a personal break
+ *   /marina help             — list these
  *
- * The org binding is resolved by matching the Slack team_id to an org's
- * `billing_customer_id` field (we'll repurpose this for now; in the longer
- * term we'd add a dedicated `slack_team_id` column).
+ * Slack expects HTTP 200 within 3s — we ack synchronously and finish the
+ * actual work in `afterResponse(...)`. Every action that mutates state
+ * audits and emits a `notify(...)` so it shows up in MARINA's own activity
+ * feed too, not just in Slack.
  */
 export async function POST(req: Request) {
   const raw = await req.text()
@@ -26,75 +34,205 @@ export async function POST(req: Request) {
 
   const params = new URLSearchParams(raw)
   const teamId = params.get('team_id') ?? ''
-  const userId = params.get('user_id') ?? ''
-  const userName = params.get('user_name') ?? 'someone'
+  const slackUserId = params.get('user_id') ?? ''
+  const slackUserName = params.get('user_name') ?? 'someone'
   const channelId = params.get('channel_id') ?? ''
   const text = (params.get('text') ?? '').trim()
   const responseUrl = params.get('response_url') ?? ''
 
-  void userId
-  void channelId
-
-  // Routing inside text: first word is the subcommand
   const [sub, ...rest] = text.split(/\s+/)
   const remainder = rest.join(' ').trim()
 
   const ack = (msg: string) =>
     NextResponse.json({ response_type: 'ephemeral', text: msg })
 
-  // Look up the org bound to this Slack team.
+  // The bot install is stored on the org row; bind it by slack team id.
   const org = await db.query.orgs.findFirst({
-    where: eq(schema.orgs.billingCustomerId, `slack:${teamId}`),
+    where: eq(schema.orgs.slackTeamId, teamId),
   })
   if (!org) {
     return ack(
-      `MARINA isn't connected to this Slack workspace yet. An owner can connect at ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.in'}/settings.`,
+      `MARINA isn't connected to this Slack workspace yet. An owner can connect at ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.in'}/org/<id>/settings/integrations.`,
     )
+  }
+
+  // Map Slack user → MARINA membership for self-actions. Not every Slack
+  // user has a MARINA membership (Slack workspace can include guests etc.),
+  // so we lazily try to resolve and tell them to link if it fails.
+  async function findCallerMembership() {
+    const m = await db.query.memberships.findFirst({
+      where: and(
+        eq(schema.memberships.orgId, org!.id),
+        eq(schema.memberships.slackUserId, slackUserId),
+        isNull(schema.memberships.endedAt),
+      ),
+    })
+    return m ?? null
   }
 
   switch (sub) {
     case '':
     case 'help':
       return ack(
-        '*MARINA · slash commands*\n' +
+        '*MARINA commands*\n' +
           '`/marina pulse` — today\'s team snapshot\n' +
-          '`/marina nudge @user message` — send a check-in (audit-logged)\n' +
-          '`/marina blockers` — list active blockers',
+          '`/marina blockers` — list active blockers\n' +
+          '`/marina nudge @user message` — DM a teammate (logged)\n' +
+          '`/marina blocker <reason>` — mark yourself blocked\n' +
+          '`/marina done <title>` — log a deliverable\n' +
+          '`/marina off [reason]` — start a quick break',
       )
 
     case 'pulse':
     case 'blockers': {
-      const text = await buildPulseText(org.id, sub === 'blockers')
-      // We respond ephemerally for now to avoid spamming the channel.
-      return NextResponse.json({ response_type: 'ephemeral', text })
+      const out = await buildPulseText(org.id, sub === 'blockers')
+      return NextResponse.json({ response_type: 'ephemeral', text: out })
     }
 
     case 'nudge': {
-      // Defer the actual nudge to a fire-and-forget so we ack within 3s.
-      ;(async () => {
-        try {
-          if (!responseUrl) return
-          await fetch(responseUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              response_type: 'ephemeral',
-              text: `Nudge logged — we'll handle the rest. ${remainder ? `Message: ${remainder}` : ''}`,
-            }),
+      // Parse "<@U12345|username> rest of message" or "@handle rest"
+      const targetSlackId = remainder.match(/^<@([A-Z0-9]+)/)?.[1] ?? null
+      const message = targetSlackId
+        ? remainder.replace(/^<@[A-Z0-9]+(\|[^>]+)?>\s*/, '')
+        : remainder
+
+      if (!targetSlackId) {
+        return ack(
+          'Usage: `/marina nudge @user your message`. Slack will auto-expand the @handle.',
+        )
+      }
+
+      // Find both sides as memberships.
+      const [me, them] = await Promise.all([
+        findCallerMembership(),
+        db.query.memberships.findFirst({
+          where: and(
+            eq(schema.memberships.orgId, org.id),
+            eq(schema.memberships.slackUserId, targetSlackId),
+            isNull(schema.memberships.endedAt),
+          ),
+        }),
+      ])
+
+      if (!them) {
+        return ack(
+          'That person isn\'t in MARINA yet — ask them to accept their invite first.',
+        )
+      }
+
+      afterResponse(async () => {
+        const install = await getSlackInstall(org.id)
+        if (!install) return
+        const fromName = slackUserName
+        await sendSlackDm(install, targetSlackId, {
+          text: `${fromName} on MARINA: ${message || 'just checking in'}`,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `👋 *${fromName}* sent you a nudge via MARINA`,
+              },
+            },
+            ...(message
+              ? [{ type: 'section', text: { type: 'mrkdwn', text: message } } as const]
+              : []),
+          ],
+        })
+
+        if (me) {
+          await db.insert(schema.notifications).values({
+            userId: them.userId,
+            orgId: org.id,
+            kind: 'manager_message',
+            title: `Nudge from ${fromName}`,
+            body: message || 'Just checking in via Slack.',
           })
-          // TODO: parse @user from `remainder`, resolve to org membership,
-          // call notify({ kind: 'blocker.pinged', ... }). Skeleton only.
-          console.log(`[slack] nudge from ${userName} in org ${org.id}: ${remainder}`)
-        } catch (err) {
-          console.error('[slack/nudge] background failed', err)
         }
-      })()
-      return ack('Got it — sending the nudge in the background.')
+      }, 'slack nudge dm')
+
+      return ack(`Nudge sent to <@${targetSlackId}>.`)
+    }
+
+    case 'blocker': {
+      if (!remainder) {
+        return ack('Add a reason: `/marina blocker waiting on @arjun for staging creds`')
+      }
+      const me = await findCallerMembership()
+      if (!me) return ack('I don\'t see you in MARINA yet. Sign in once at the dashboard and try again.')
+
+      afterResponse(async () => {
+        const [row] = await db
+          .insert(schema.breaks)
+          .values({
+            userId: me.userId,
+            orgId: org.id,
+            startedAt: new Date(),
+            reason: remainder,
+            category: 'blocked',
+          })
+          .returning()
+
+        const user = await db.query.users.findFirst({ where: eq(schema.users.id, me.userId) })
+        notify({
+          kind: 'state.blocked',
+          orgId: org.id,
+          actorUserId: me.userId,
+          userName: user?.name ?? `@${user?.login ?? 'someone'}`,
+          userLogin: user?.login ?? 'someone',
+          reason: remainder,
+        })
+        void row
+      }, 'slack blocker register')
+
+      return ack(`Marked you blocked: _"${remainder}"_. Managers notified.`)
+    }
+
+    case 'done': {
+      if (!remainder || remainder.length < 4) {
+        return ack('Usage: `/marina done <what you finished>` — at least 4 characters.')
+      }
+      const me = await findCallerMembership()
+      if (!me) return ack('I don\'t see you in MARINA yet. Sign in once at the dashboard and try again.')
+
+      afterResponse(async () => {
+        try {
+          await createDeliverable({
+            userId: me.userId,
+            orgId: org.id,
+            title: remainder.slice(0, 200),
+            detail: 'logged via /marina done in Slack',
+          })
+        } catch (e) {
+          console.warn('[slack done] failed to log deliverable', (e as Error).message)
+        }
+      }, 'slack done deliverable')
+
+      return ack(`✅ Logged: _"${remainder.slice(0, 200)}"_`)
+    }
+
+    case 'off': {
+      const me = await findCallerMembership()
+      if (!me) return ack('I don\'t see you in MARINA yet. Sign in once at the dashboard.')
+      const reason = remainder || 'Quick break'
+      afterResponse(async () => {
+        await db.insert(schema.breaks).values({
+          userId: me.userId,
+          orgId: org.id,
+          startedAt: new Date(),
+          reason,
+          category: 'personal',
+        })
+      }, 'slack off break')
+      return ack(`☕ Break started — _"${reason}"_. Use \`/marina back\` (coming soon) or end it from the dashboard.`)
     }
 
     default:
       return ack(`Unknown subcommand \`${sub}\`. Try \`/marina help\`.`)
   }
+  // Suppress unused-channel warning if we end up not using these.
+  void channelId
+  void responseUrl
 }
 
 async function buildPulseText(orgId: number, blockersOnly: boolean): Promise<string> {
@@ -106,7 +244,7 @@ async function buildPulseText(orgId: number, blockersOnly: boolean): Promise<str
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-    .where(eq(schema.memberships.orgId, orgId))
+    .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   if (memberRows.length === 0) return 'No members in this org yet.'
 

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
 import { isCharacterKey } from '@/lib/characters/data'
+import { primaryOrgIdFor, takenCharacterKeysForOrg } from '@/lib/characters/availability'
 
 export const runtime = 'nodejs'
 
@@ -13,6 +14,20 @@ export async function POST(req: Request) {
     const characterKey = body.characterKey
     if (!characterKey || !isCharacterKey(characterKey)) {
       return NextResponse.json({ error: 'unknown character' }, { status: 400 })
+    }
+
+    // Per-org uniqueness — reject if another active teammate in the user's
+    // primary org already holds this key. 409 maps to the "just claimed by
+    // a teammate" toast in the pick UI.
+    const orgId = await primaryOrgIdFor(session.appUserId)
+    if (orgId) {
+      const taken = await takenCharacterKeysForOrg(orgId, session.appUserId)
+      if (taken.has(characterKey)) {
+        return NextResponse.json(
+          { error: 'A teammate already picked that character.' },
+          { status: 409 },
+        )
+      }
     }
 
     // Use returning() so we can confirm a row was actually updated. If the user

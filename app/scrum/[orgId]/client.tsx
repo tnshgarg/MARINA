@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CharacterAvatar } from '@/components/character-avatar'
+import { TutorialHint } from '@/components/tutorial-hint'
 
 type Member = {
   membershipId: number
@@ -390,6 +391,20 @@ function BriefPane({
 }) {
   return (
     <div className="px-8 lg:px-10 py-7 max-w-6xl mx-auto">
+      {/* First-time keyboard cheatsheet. Auto-hides after the user dismisses
+          it on this browser; we don't want it cluttering returning sessions. */}
+      <div className="mb-5">
+        <TutorialHint id="scrum-mode-keyboard" title="Drive this with your keyboard">
+          Press <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">←</kbd>{' '}
+          <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">→</kbd>{' '}
+          to move between teammates,{' '}
+          <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">Space</kbd>{' '}
+          to mark covered, and{' '}
+          <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">R</kbd>{' '}
+          to refresh the brief. Your coverage state is saved per-day so you can pause and resume.
+        </TutorialHint>
+      </div>
+
       {/* Person header */}
       <div className="flex items-center gap-5 mb-6">
         <CharacterAvatar characterKey={member.characterKey} size={68} ring />

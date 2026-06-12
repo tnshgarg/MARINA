@@ -42,7 +42,7 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Breaks</h1>
+        <h1 className="app-h1">Breaks</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">
           Real-time view of who&apos;s paused right now, plus the last 72 hours of breaks.
         </p>

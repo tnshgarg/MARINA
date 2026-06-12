@@ -116,6 +116,105 @@ function stripTags(html: string): string {
 }
 
 /**
+ * SMTP-based digest mailer (Nodemailer). Used for high-trust deliverability
+ * paths — founder weekly digests, manager daily digests — where we want to
+ * route via the customer's own SMTP relay if they have one, rather than
+ * Resend's shared infra.
+ *
+ * Configuration via env (any of these is enough):
+ *   - SMTP_URL="smtps://user:pass@smtp.example.com:465"
+ *   - SMTP_HOST + SMTP_PORT + SMTP_USER + SMTP_PASS + [SMTP_SECURE=true|false]
+ *
+ * Falls back to Resend (`sendEmail` above) when no SMTP envelope is
+ * configured, so a fresh install still gets digests even before SMTP is
+ * set up. The transport is constructed once per process and cached.
+ */
+let smtpTransporter: import('nodemailer').Transporter | null = null
+let smtpAttempted = false
+
+function getSmtpTransporter(): import('nodemailer').Transporter | null {
+  if (smtpAttempted) return smtpTransporter
+  smtpAttempted = true
+  try {
+    // Lazy require so dev builds without nodemailer installed don't crash.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodemailer = require('nodemailer') as typeof import('nodemailer')
+    if (process.env.SMTP_URL) {
+      smtpTransporter = nodemailer.createTransport(process.env.SMTP_URL)
+      return smtpTransporter
+    }
+    const host = process.env.SMTP_HOST
+    if (!host) return null
+    smtpTransporter = nodemailer.createTransport({
+      host,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS ?? '' }
+        : undefined,
+    })
+    return smtpTransporter
+  } catch (err) {
+    console.warn('[email] nodemailer unavailable:', (err as Error).message)
+    return null
+  }
+}
+
+export async function sendDigestMail({
+  to,
+  subject,
+  text,
+  html,
+  from,
+}: {
+  to: string | string[]
+  subject: string
+  text: string
+  html?: string
+  from?: string
+}): Promise<{ ok: boolean; via: 'smtp' | 'resend' | 'none'; error?: string }> {
+  const fromAddr =
+    from ??
+    process.env.SMTP_FROM ??
+    process.env.RESEND_FROM ??
+    'MARINA <hello@marina.in>'
+
+  const transporter = getSmtpTransporter()
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: fromAddr,
+        to: Array.isArray(to) ? to.join(', ') : to,
+        subject,
+        text,
+        html: html ?? `<pre style="font-family: ui-sans-serif, system-ui; white-space: pre-wrap;">${escapeHtmlBasic(text)}</pre>`,
+      })
+      return { ok: true, via: 'smtp' }
+    } catch (err) {
+      // Fall through to Resend on SMTP failure so the digest still ships.
+      console.warn('[email] SMTP send failed, trying Resend', (err as Error).message)
+    }
+  }
+
+  // Resend fallback (or sole path if SMTP not configured).
+  const r = await sendEmail({
+    to: Array.isArray(to) ? to[0]! : to,  // Resend uses singular per call
+    subject,
+    text,
+    html,
+  })
+  if (r.ok) return { ok: true, via: 'resend' }
+  return { ok: false, via: 'none', error: r.error }
+}
+
+function escapeHtmlBasic(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/**
  * Generic plain-text email to an employee. Fire-and-forget; runs in
  * background. Use for leave decisions, calendar reminders, etc.
  */

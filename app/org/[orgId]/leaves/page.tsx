@@ -39,7 +39,7 @@ export default async function LeavesPage({ params }: { params: Promise<{ orgId: 
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Leave Requests</h1>
+        <h1 className="app-h1">Leave Requests</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">
           Approve, deny, and review all leave requests across your team.
         </p>

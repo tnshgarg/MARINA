@@ -216,7 +216,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Activity</h1>
+        <h1 className="app-h1">Activity</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">What to act on this week.</p>
       </div>
       <ActivityTabs orgId={orgId} />
@@ -286,7 +286,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               return (
                 <li key={pr.id} className="flex items-center gap-2.5 text-[12.5px]">
                   <CharacterAvatar characterKey={author?.characterKey ?? null} size={22} />
-                  <a href={pr.url} target="_blank" rel="noreferrer" className="text-slate-900 hover:text-indigo-600 truncate">
+                  <a href={pr.url} target="_blank" rel="noreferrer" className="text-slate-900 hover:text-[var(--m-accent)] truncate">
                     {pr.title}
                   </a>
                   <span className="ml-auto text-[11px] text-amber-700 font-medium">{dur}</span>
@@ -316,7 +316,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                     <strong>{u?.name ?? `@${u?.login ?? 'unknown'}`}</strong>{' '}
                     <span className="text-slate-500">should consider stopping</span>
                   </span>
-                  <span className="ml-auto text-[11.5px] font-semibold text-violet-700">{dur}</span>
+                  <span className="ml-auto text-[11.5px] font-semibold text-[var(--m-clay-deep)]">{dur}</span>
                 </li>
               )
             })}
@@ -386,7 +386,7 @@ const TONE: Record<string, { ring: string; bg: string; chip: string }> = {
   rose: { ring: 'border-rose-200', bg: 'from-rose-50', chip: 'text-rose-700' },
   emerald: { ring: 'border-emerald-200', bg: 'from-emerald-50', chip: 'text-emerald-700' },
   amber: { ring: 'border-amber-200', bg: 'from-amber-50', chip: 'text-amber-700' },
-  violet: { ring: 'border-violet-200', bg: 'from-violet-50', chip: 'text-violet-700' },
+  violet: { ring: 'border-[var(--m-clay)]/30', bg: 'from-[var(--m-clay-soft)]', chip: 'text-[var(--m-clay-deep)]' },
   sky: { ring: 'border-sky-200', bg: 'from-sky-50', chip: 'text-sky-700' },
   slate: { ring: 'border-slate-200', bg: 'from-slate-50', chip: 'text-slate-700' },
 }

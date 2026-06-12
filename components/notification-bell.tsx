@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 
 type Notification = {
@@ -115,12 +116,15 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && anchor && (
+      {open && anchor && typeof document !== 'undefined' && createPortal(
         <div
           id="notif-popover"
-          className="fixed w-[320px] rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-[300]"
+          // z-[1000] + portal to <body> guarantees the panel always wins
+          // the stacking battle, regardless of any parent's transform /
+          // backdrop-filter / overflow-hidden stacking context.
+          className="fixed w-[320px] rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden z-[1000]"
           style={{
-            left: Math.min(Math.max(8, anchor.left - 160), (typeof window !== 'undefined' ? window.innerWidth : 1024) - 328),
+            left: Math.min(Math.max(8, anchor.left - 160), window.innerWidth - 328),
             bottom: anchor.bottom + 8,
             maxHeight: '60vh',
             display: 'flex',
@@ -169,7 +173,8 @@ export function NotificationBell() {
               })}
             </ul>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

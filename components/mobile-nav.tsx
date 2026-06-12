@@ -67,10 +67,8 @@ export function MobileNav({ orgName }: { orgName: string }) {
           )}
         </button>
         <div className="flex-1 flex items-center justify-center gap-2">
-          <svg width={18} height={18} viewBox="0 0 28 28" fill="none" aria-hidden>
-            <path d="M14 3 L24 24 H4 Z" fill="#6366f1" />
-            <circle cx={14} cy={18} r={3} fill="#fff" />
-          </svg>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" width={22} height={22} alt="" aria-hidden className="block object-contain" />
           <span className="text-[13.5px] font-semibold text-slate-900 truncate">
             {orgName}
           </span>

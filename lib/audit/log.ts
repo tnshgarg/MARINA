@@ -9,6 +9,7 @@ export type AuditAction =
   | 'break.ended'
   | 'break.checked_in'
   | 'blocker.pinged'
+  | 'blocker.resolved'
   | 'shift.punch_in'
   | 'shift.punch_out'
   | 'shift.verified'
@@ -23,7 +24,7 @@ export type AuditAction =
   | 'data.exported'
   | 'account.deleted'
 
-export type AuditTargetType = 'user' | 'membership' | 'leave' | 'break' | 'shift' | 'device' | 'org' | 'invite'
+export type AuditTargetType = 'user' | 'membership' | 'leave' | 'break' | 'shift' | 'device' | 'org' | 'invite' | 'team'
 
 export type AuditPayload = {
   orgId?: number | null

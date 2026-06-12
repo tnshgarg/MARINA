@@ -99,7 +99,7 @@ export function StoryCard({ endpoint }: { endpoint: string }) {
     <section className="app-card app-card-lg hover-lift">
       <div className="section-title-row flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-[14px]">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--m-accent)] to-[var(--m-clay)] text-white text-[14px]">
             ✦
           </span>
           <div>
@@ -203,8 +203,8 @@ function Timeline({ scenes }: { scenes: Scene[] }) {
 function NarrativeBlock({ narrative }: { narrative: string }) {
   if (!narrative.trim()) return null
   return (
-    <div className="rounded-xl bg-gradient-to-br from-indigo-50 via-violet-50 to-pink-50 border border-indigo-100 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-700 mb-1.5">
+    <div className="rounded-xl bg-gradient-to-br from-[var(--m-accent-soft)] via-[var(--m-clay-soft)] to-[var(--m-gold-soft)] border border-[var(--m-accent)]/20 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--m-accent-2)] mb-1.5">
         ✦ Narrative
       </p>
       <p className="text-[14px] leading-relaxed text-slate-800 whitespace-pre-line">{narrative}</p>

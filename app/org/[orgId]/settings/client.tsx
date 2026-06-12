@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Initial = {
@@ -10,6 +10,9 @@ type Initial = {
   avatarMode: 'hero' | 'photo'
   workdayStartHour: number
   workdayEndHour: number
+  plan: 'free' | 'team' | 'scale'
+  trialEndsAt: string | null
+  logoUrl: string | null
 }
 
 export default function OrgSettingsClient({
@@ -79,6 +82,9 @@ export default function OrgSettingsClient({
           className="input mt-4"
         />
       </section>
+
+      {/* Workspace logo */}
+      <OrgLogoSection orgId={orgId} initialLogoUrl={initial.logoUrl} />
 
       {/* Slack notifications */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -170,7 +176,7 @@ export default function OrgSettingsClient({
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mt-4 max-w-md">
-          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'hero' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
+          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'hero' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}>
             <input
               type="radio"
               name="avatar"
@@ -182,7 +188,7 @@ export default function OrgSettingsClient({
             <p className="text-[14px] font-medium text-slate-900">Pixel hero</p>
             <p className="text-[12px] text-slate-500 mt-1">Iron Man, Spider-Man, etc. Fun for Gen-Z teams.</p>
           </label>
-          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'photo' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
+          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'photo' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}>
             <input
               type="radio"
               name="avatar"
@@ -232,10 +238,231 @@ export default function OrgSettingsClient({
         </div>
       </section>
 
+      {/* Plan & Billing — currently just the early-bird redemption surface.
+          A fuller billing UI (invoices, change plan) will land alongside the
+          Razorpay subscription flow; for now the most-asked-for piece is the
+          promo code box for founding-customer free access. */}
+      <PlanAndBilling orgId={orgId} plan={initial.plan} trialEndsAt={initial.trialEndsAt} />
+
       {savedAt && !error && (
         <p className="text-[12px] text-emerald-600">Saved at {savedAt.toLocaleTimeString()}</p>
       )}
       {error && <p className="text-[12px] text-rose-600">{error}</p>}
     </div>
+  )
+}
+
+function PlanAndBilling({
+  orgId,
+  plan,
+  trialEndsAt,
+}: {
+  orgId: number
+  plan: 'free' | 'team' | 'scale'
+  trialEndsAt: string | null
+}) {
+  const router = useRouter()
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const planLabel = plan === 'free' ? 'Free' : plan === 'team' ? 'Team' : 'Scale'
+  const expiry = trialEndsAt ? new Date(trialEndsAt) : null
+  const lifetime = plan !== 'free' && trialEndsAt === null
+
+  async function redeem(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/billing/redeem-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'failed')
+      if (data.ok) {
+        setSuccess(data.message)
+        setCode('')
+        router.refresh()
+      } else {
+        setError(data.message || 'Could not redeem code.')
+      }
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-[13.5px] font-semibold text-slate-900">Plan &amp; billing</h2>
+          <p className="mt-1 text-[12.5px] text-slate-500">
+            You&rsquo;re currently on{' '}
+            <span className="font-medium text-slate-800">{planLabel}</span>
+            {lifetime
+              ? ' — free forever (founding-customer grant).'
+              : expiry
+                ? ` until ${expiry.toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}.`
+                : '.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Early-bird code redemption. Tucked inside a <details> so it doesn't
+          dominate the page — but discoverable for the customers we hand
+          codes to. */}
+      <details className="mt-4 group" open={plan === 'free'}>
+        <summary className="cursor-pointer text-[12.5px] text-slate-600 hover:text-slate-900 select-none list-none flex items-center gap-1.5">
+          <svg
+            width={12}
+            height={12}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            className="transition-transform group-open:rotate-90"
+          >
+            <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Have an early-bird code?
+        </summary>
+
+        <form onSubmit={redeem} className="mt-3 flex gap-2 max-w-md">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="MARINA50"
+            maxLength={64}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="input flex-1 tracking-widest font-mono uppercase"
+            disabled={busy}
+          />
+          <button
+            type="submit"
+            disabled={busy || code.trim().length < 3}
+            className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition whitespace-nowrap"
+          >
+            {busy ? 'Checking…' : 'Redeem'}
+          </button>
+        </form>
+        <p className="mt-2 text-[11.5px] text-slate-500">
+          We hand these to design partners and our first 50 organisations. If you&rsquo;ve been
+          promised one but lost it, email{' '}
+          <a href="mailto:hello@marina.in" className="text-slate-700 underline">
+            hello@marina.in
+          </a>
+          .
+        </p>
+
+        {success && (
+          <p className="mt-3 text-[12.5px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+            {success}
+          </p>
+        )}
+        {error && (
+          <p className="mt-3 text-[12.5px] text-rose-700 bg-rose-50 border border-rose-200 rounded-md px-3 py-2">
+            {error}
+          </p>
+        )}
+      </details>
+    </section>
+  )
+}
+
+/**
+ * Workspace logo upload — owner-only. Lives in its own section above the
+ * Slack / Holidays / Workday cards. The chosen file goes to the shared
+ * `/api/uploads/org-logo` endpoint; the URL is persisted on `orgs.logoUrl`
+ * and picked up by the sidebar on the next render.
+ */
+function OrgLogoSection({
+  orgId,
+  initialLogoUrl,
+}: {
+  orgId: number
+  initialLogoUrl: string | null
+}) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<string | null>(initialLogoUrl)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('orgId', String(orgId))
+      const res = await fetch('/api/uploads/org-logo', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'upload failed')
+      setPreview(data.url)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-[13.5px] font-semibold text-slate-900">Workspace logo</h2>
+          <p className="mt-1 text-[12.5px] text-slate-500">
+            Replaces the brand mark in the sidebar for everyone in this workspace. SVG, PNG,
+            WebP or JPEG up to 3 MB.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-4 flex-wrap">
+        <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="Logo preview" className="w-full h-full object-contain" />
+          ) : (
+            <span className="text-[10.5px] text-slate-400">No logo</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+        >
+          {busy ? 'Uploading…' : preview ? 'Replace logo' : 'Upload logo'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          onChange={upload}
+          className="hidden"
+        />
+      </div>
+
+      {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
+    </section>
   )
 }

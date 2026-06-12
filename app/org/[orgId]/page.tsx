@@ -271,6 +271,19 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     m.narrative && (m.narrative.signal === 'Blocked' || (m.narrative.body ?? '').toLowerCase().includes('review'))
   ).length
 
+  // Org-wide productivity rollup. We sum every teammate's active + idle
+  // seconds today and grade the org as a single number — this is the KPI
+  // HR can pin on a wall TV. Members who haven't been on shift today
+  // (zero seconds) are excluded from the denominator so a fully-asleep
+  // weekend doesn't show as "0% productive".
+  const totalActive = members.reduce((acc, m) => acc + (m.activity.activeSeconds ?? 0), 0)
+  const totalTracked = members.reduce(
+    (acc, m) => acc + (m.activity.activeSeconds ?? 0) + (m.activity.idleSeconds ?? 0),
+    0,
+  )
+  const orgProductivity =
+    totalTracked > 0 ? Math.round((totalActive / totalTracked) * 100) : 0
+
   const greeting = greetingFor(new Date(), me.name?.split(' ')[0] ?? session.login)
 
   // Active blockers — every member who's flagged "blocked" right now.
@@ -311,6 +324,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
         totalMembers: members.length,
         blockerCount: blockers.length,
         blockedOnYouCount: blockers.filter((b) => b.waitingOnYou).length,
+        orgProductivity,
       }}
       blockers={blockers}
       slackAlerts={slackAlerts.map((a) => {

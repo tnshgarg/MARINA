@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { StoryCard } from '@/components/story-card'
 import { WelcomeTour } from '@/components/welcome-tour'
+import { BlockerCoaching } from '@/components/blocker-coaching'
 import { MeetingsPanel } from '@/components/meetings-panel'
 import { LogDeliverableCard } from '@/components/log-deliverable-card'
+import { YourDayCard } from '@/components/your-day-card'
 
 type EventDto = {
   id: number
@@ -28,7 +29,14 @@ type NarrativeDto = {
   createdAt: string
 }
 
-type ActiveBreak = { id: number; startedAt: string; reason: string } | null
+type ActiveBreak = {
+  id: number
+  startedAt: string
+  reason: string
+  /** When the employee is in `blocked` we render a louder banner — they're
+   * stuck waiting on someone, not just stepped out for coffee. */
+  category: string
+} | null
 type RecentBreak = { id: number; startedAt: string; endedAt: string | null; reason: string }
 type LeaveDto = {
   id: number
@@ -52,6 +60,10 @@ type Props = {
   orgId: number | null
   userName: string
   hasAnyShift: boolean
+  /** True if this user has linked GitHub. Different from "events.length > 0"
+   * — an account can be linked but the sync hasn't run yet, or the linked
+   * GitHub user has zero public activity. */
+  githubLinked: boolean
   initialEvents: EventDto[]
   initialNarrative: NarrativeDto | null
   periodStart: string
@@ -94,6 +106,7 @@ export default function DashboardClient({
   orgId,
   userName,
   hasAnyShift,
+  githubLinked,
   initialEvents,
   initialNarrative,
   periodEnd,
@@ -258,16 +271,32 @@ export default function DashboardClient({
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 grid gap-5 sm:gap-6 grid-cols-12">
-      {/* Active break banner */}
+      {/* Active break banner. Blocked-category uses a louder red treatment
+          and the primary action becomes "Mark blocker resolved" so the
+          employee can clear their own state once unstuck — no need to wait
+          for a manager to do it for them. */}
+      {/* When the user is in a blocked break, surface any manager coaching
+          (suggestions, notes, route-to-teammate notes) RIGHT under the
+          break banner so it's the first thing they see. The card hides
+          itself when there's nothing new in the thread. */}
+      {activeBreak?.category === 'blocked' && <BlockerCoaching />}
+
       {activeBreak && (
         <div
           className="col-span-12 app-card app-card-lg"
-          style={{ background: '#fffbeb', borderColor: '#fde68a' }}
+          style={
+            activeBreak.category === 'blocked'
+              ? { background: 'rgba(179, 77, 77, 0.06)', borderColor: 'rgba(179, 77, 77, 0.3)' }
+              : { background: '#fffbeb', borderColor: '#fde68a' }
+          }
         >
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
-              <p className="app-eyebrow" style={{ color: '#b45309' }}>
-                You&apos;re on break
+              <p
+                className="app-eyebrow"
+                style={{ color: activeBreak.category === 'blocked' ? 'var(--m-bad)' : '#b45309' }}
+              >
+                {activeBreak.category === 'blocked' ? "You're blocked" : "You're on break"}
               </p>
               <p className="app-h2 mt-1 tabular-nums">{formatElapsed(breakElapsed)}</p>
               <p className="app-sub mt-1 truncate">Reason: {activeBreak.reason}</p>
@@ -277,8 +306,40 @@ export default function DashboardClient({
               disabled={busy === 'break-end'}
               className="btn-primary shrink-0 whitespace-nowrap"
             >
-              {busy === 'break-end' ? 'Ending…' : 'End break'}
+              {busy === 'break-end'
+                ? activeBreak.category === 'blocked' ? 'Resolving…' : 'Ending…'
+                : activeBreak.category === 'blocked' ? "I'm unblocked" : 'End break'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Connect-GitHub banner. Shown to users who signed up via Google or
+          magic-link and haven't linked GitHub yet — without this they
+          have no way to surface "Connect" beyond the welcome tour, which
+          they may dismiss before realising it's a one-click step. */}
+      {!githubLinked && (
+        <div className="col-span-12 app-card app-card-lg">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <p className="app-eyebrow">Linked accounts</p>
+              <p className="font-display text-[20px] leading-tight text-[var(--m-ink)] mt-1.5">
+                Connect GitHub to get credit for what you ship
+              </p>
+              <p className="app-sub mt-1.5 max-w-xl">
+                MARINA reads your commits, PRs, and reviews so the AI can verify your work
+                summaries. We never read code — only commit metadata and review actions.
+              </p>
+            </div>
+            <a
+              href="/api/auth/signin/github?callbackUrl=/dashboard"
+              className="btn-primary shrink-0 whitespace-nowrap inline-flex items-center gap-2"
+            >
+              <svg viewBox="0 0 24 24" width={14} height={14} fill="currentColor" aria-hidden>
+                <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.36-3.88-1.36-.52-1.31-1.28-1.66-1.28-1.66-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18A11 11 0 0 1 12 6.8c.98.01 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.07.78 2.15v3.19c0 .31.21.67.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z" />
+              </svg>
+              Connect GitHub
+            </a>
           </div>
         </div>
       )}
@@ -289,7 +350,7 @@ export default function DashboardClient({
         <WelcomeTour
           name={userName}
           orgId={orgId}
-          hasGitHub={initialEvents.length > 0}
+          hasGitHub={initialEvents.length > 0 || githubLinked}
           hasAgent={today.sampleCount > 0}
           hasActiveShift={hasAnyShift}
           hasLeavesOrBreaks={myLeaves.length > 0 || recentBreaks.length > 0}
@@ -299,170 +360,97 @@ export default function DashboardClient({
           onRunSync={() => void runSync()}
         />
 
-        {/* AI Story */}
-        <StoryCard endpoint="/api/me/story" />
+        {/* Real-time "Your day" card — replaces the static AI story which
+            was stale by mid-day. Shows live productivity %, shipped count,
+            meetings-remaining. Polls every 30s. */}
+        <YourDayCard />
 
-        {/* Universal-output banner — without this hint, designers/sales/etc.
-            who arrive on the dashboard never realise they can log work, and
-            the manager view stays blank. */}
-        <div className="rounded-xl border border-[var(--m-accent)]/30 bg-gradient-to-br from-[var(--m-accent-soft)]/40 to-white px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <p className="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-[var(--m-accent-2)]">
-              New
-            </p>
-            <p className="text-[13px] font-semibold text-[var(--m-ink)] mt-0.5">
-              You can now mark work as done
-            </p>
-            <p className="text-[12px] text-[var(--m-ink-3)] leading-snug">
-              Designs shipped, deals closed, tickets resolved — log them below. Your manager sees
-              them on the Activity tab regardless of your role.
-            </p>
-          </div>
-          <a
-            href="#log-deliverable"
-            className="shrink-0 text-[12px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
-          >
-            Try it ↓
-          </a>
-        </div>
-
-        {/* Mark work as done — universal output, works for every role */}
-        <div id="log-deliverable" />
+        {/* Mark work as done — universal output. Tip: ⌘⇧L in the desktop
+            agent does the same thing without leaving your workflow. */}
         <LogDeliverableCard />
 
-        {/* Today summary */}
-        <section className="app-card app-card-lg">
-          <div className="section-title-row">
+        {/* Deep dive — collapsed by default. Power-user details live below the
+            fold so the above-fold experience stays focused. */}
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="px-4 py-3 cursor-pointer text-[13px] font-medium text-slate-900 select-none">
+            Deep dive · narrative, telemetry, recent activity
+          </summary>
+          <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-4">
+            {/* Narrative + provider picker, compact */}
             <div>
-              <h2 className="app-h2">Today</h2>
-              <p className="app-sub mt-1">
-                Mac agent telemetry
-                {paused && <span className="pill pill-warn ml-2">Paused</span>}
-              </p>
-            </div>
-          </div>
-          {today.sampleCount === 0 ? (
-            <p className="app-sub mt-4">
-              No telemetry yet. Install & pair the Mac agent from Settings → Pair a Mac.
-            </p>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <Stat label="Online" value={fmt(onlineSeconds)} />
-                <Stat label="Active" value={fmt(today.activeSeconds)} />
-                <Stat label="Idle" value={`${fmt(today.idleSeconds)} · ${Math.round(idleRatio * 100)}%`} />
-              </div>
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-[12px] text-slate-600 mb-1">
-                  <span>Focus</span>
-                  <span className="font-medium text-slate-900">{workPct}%</span>
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <p className="app-eyebrow">7-day narrative</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={provider}
+                    onChange={(e) => setProvider(e.target.value as 'groq' | 'openai')}
+                    className="select max-w-[140px] text-[12px]"
+                    disabled={busy !== null}
+                  >
+                    <option value="groq">Groq · Llama 3.3</option>
+                    <option value="openai">OpenAI · 4o-mini</option>
+                  </select>
+                  <button
+                    onClick={runNarrative}
+                    disabled={busy !== null || isPending}
+                    className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
+                  >
+                    {busy === 'narrative' ? '…' : 'Generate'}
+                  </button>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              </div>
+              {narrative ? (
+                <div className="space-y-2">
+                  <span className={`pill ${SIGNAL_PILL[narrative.signal]}`}>Signal · {narrative.signal}</span>
+                  <p className="text-[13px] text-slate-800 leading-relaxed whitespace-pre-line">{narrative.body}</p>
+                </div>
+              ) : (
+                <p className="text-[12px] text-slate-500">Hit Generate to summarise this week.</p>
+              )}
+            </div>
+
+            {/* Today telemetry — single tight row */}
+            {today.sampleCount > 0 && (
+              <div>
+                <div className="flex items-baseline justify-between mb-1">
+                  <p className="app-eyebrow">Today's telemetry{paused && <span className="ml-2 text-[10px] text-amber-700 font-semibold">Paused</span>}</p>
+                  <span className="text-[11.5px] text-slate-500 tabular-nums">
+                    Online {fmt(onlineSeconds)} · Active {fmt(today.activeSeconds)} · Idle {Math.round(idleRatio * 100)}%
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${workPct}%`, background: 'linear-gradient(90deg, #38bdf8, #6366f1)' }}
                   />
                 </div>
               </div>
-            </>
-          )}
-          {today.topApps.length > 0 && (
-            <div className="mt-5">
-              <p className="app-eyebrow">Top apps</p>
-              <ul className="mt-2 space-y-1.5">
-                {today.topApps.map((a) => (
-                  <li key={a.app} className="flex items-center justify-between text-[13px]">
-                    <span className="text-slate-700 truncate">{a.app}</span>
-                    <span className="text-slate-500">{fmt(a.seconds)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+            )}
 
-        {/* Work narrative */}
-        <section className="app-card app-card-lg">
-          <div className="section-title-row flex-wrap gap-3">
-            <div className="min-w-0">
-              <h2 className="app-h2">Work Narrative</h2>
-              <p className="app-sub mt-1">
-                Last 7 days · ending {new Date(periodEnd).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as 'groq' | 'openai')}
-                className="select max-w-[160px]"
-                disabled={busy !== null}
-              >
-                <option value="groq">Groq · Llama 3.3</option>
-                <option value="openai">OpenAI · 4o-mini</option>
-              </select>
-              <button
-                onClick={runNarrative}
-                disabled={busy !== null || isPending}
-                className="btn-primary whitespace-nowrap"
-              >
-                {busy === 'narrative' ? 'Generating…' : 'Generate'}
-              </button>
-            </div>
+            {/* Recent GitHub activity (engineering only, collapsed visually) */}
+            {initialEvents.length > 0 && (
+              <div>
+                <p className="app-eyebrow mb-1.5">Recent GitHub · last 7 days</p>
+                <ul className="space-y-1">
+                  {initialEvents.slice(0, 8).map((e) => (
+                    <li key={e.id} className="flex items-baseline gap-2 text-[12px]">
+                      <span className={`pill ${TYPE_PILL[e.type]} text-[10px]`}>{TYPE_LABEL[e.type]}</span>
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-900 hover:text-[var(--m-accent)] truncate"
+                      >
+                        {e.title}
+                      </a>
+                      <span className="ml-auto shrink-0 text-[10.5px] text-slate-400">{e.repo}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          {narrative ? (
-            <div className="mt-4 space-y-3">
-              <span className={`pill ${SIGNAL_PILL[narrative.signal]}`}>Signal · {narrative.signal}</span>
-              <p className="text-[14px] text-slate-800 leading-relaxed whitespace-pre-line">{narrative.body}</p>
-              {narrative.blockers.length > 0 && (
-                <div>
-                  <p className="app-eyebrow">Possible blockers</p>
-                  <ul className="mt-1 list-disc pl-5 text-[13px] text-slate-700 space-y-0.5">
-                    {narrative.blockers.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <p className="text-[11px] text-slate-500">
-                {narrative.provider} · {narrative.model} · {new Date(narrative.createdAt).toLocaleString()}
-              </p>
-            </div>
-          ) : (
-            <p className="app-sub mt-4">No narrative yet. Sync GitHub then click Generate.</p>
-          )}
-        </section>
-
-        {/* Recent activity */}
-        <section className="app-card app-card-lg">
-          <div className="section-title-row">
-            <h2 className="app-h2">Recent activity</h2>
-            <span className="text-[12px] text-slate-500">{initialEvents.length} events · 7d</span>
-          </div>
-          {initialEvents.length === 0 ? (
-            <p className="app-sub mt-4">No events synced yet.</p>
-          ) : (
-            <ul className="mt-3 divide-y divide-slate-100">
-              {initialEvents.slice(0, 12).map((e) => (
-                <li key={e.id} className="py-2.5 flex items-start gap-3">
-                  <span className={`pill ${TYPE_PILL[e.type]}`}>{TYPE_LABEL[e.type]}</span>
-                  <div className="flex-1 min-w-0">
-                    <a
-                      href={e.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[14px] text-slate-900 hover:text-[var(--m-accent)] line-clamp-2"
-                    >
-                      {e.title}
-                    </a>
-                    <p className="text-[12px] text-slate-500">
-                      {e.repo} · {new Date(e.occurredAt).toLocaleString()}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        </details>
       </div>
 
       {/* Right rail */}
@@ -701,7 +689,7 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/30 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/40"
       onClick={onClose}
     >
       <div

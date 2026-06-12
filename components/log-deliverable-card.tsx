@@ -67,6 +67,10 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
         }),
       })
       const data = await res.json()
+      if (res.status === 409 && data?.duplicateOf) {
+        setErr("You already logged this in the last 4 hours. Edit the existing one if needed.")
+        return
+      }
       if (!res.ok) throw new Error(data?.error || 'failed')
       setItems((prev) => [data.deliverable, ...prev])
       setTitle('')

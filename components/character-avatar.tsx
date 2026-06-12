@@ -2,6 +2,9 @@ import { getCharacter } from '@/lib/characters/data'
 
 type Props = {
   characterKey: string | null | undefined
+  /** When set, render this image instead of the pixel character. Used by
+   * users who uploaded a real photo via /api/uploads/avatar. */
+  imageUrl?: string | null
   size?: number
   /** Show a circular ring in the character's brand color */
   ring?: boolean
@@ -10,11 +13,27 @@ type Props = {
 
 const SHEET_SIZE = 16
 
-export function CharacterAvatar({ characterKey, size = 36, ring = true, className }: Props) {
+export function CharacterAvatar({
+  characterKey,
+  imageUrl,
+  size = 36,
+  ring = true,
+  className,
+}: Props) {
   const character = getCharacter(characterKey)
   const ringColor = character?.color ?? '#cbd5e1'
 
-  const inner = character ? (
+  const inner = imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt=""
+      width={size}
+      height={size}
+      className="rounded-full object-cover"
+      style={{ width: size, height: size }}
+    />
+  ) : character ? (
     <CharacterSvg character={character} size={size} />
   ) : (
     <FallbackSvg size={size} />

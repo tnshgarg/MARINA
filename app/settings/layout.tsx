@@ -33,7 +33,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       <div className="min-h-screen bg-[var(--m-bg)]">
         <header className="bg-white border-b border-slate-200">
           <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
-            <a href="/dashboard" className="text-[13px] text-slate-600 hover:text-indigo-600">
+            <a href="/dashboard" className="text-[13px] text-slate-600 hover:text-[var(--m-accent)]">
               ← Back to console
             </a>
             <form action={signOutAction}>

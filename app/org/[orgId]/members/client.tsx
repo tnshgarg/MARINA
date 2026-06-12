@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { getCharacter } from '@/lib/characters/data'
 import { useToast } from '@/components/toast'
+import { Modal } from '@/components/modal'
 
 type Member = {
   membershipId: number
+  userId: number
   login: string
   name: string | null
   email: string | null
@@ -67,6 +69,8 @@ export default function MembersClient({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
+  /** Member currently in the report-date-picker modal. */
+  const [reportFor, setReportFor] = useState<Member | null>(null)
   const [linkSent, setLinkSent] = useState<boolean | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -334,6 +338,13 @@ export default function MembersClient({
         )}
       </section>
 
+      {/* All members — grid-based layout instead of a <table>. The table
+          version kept fighting `-mx`/colgroup tradeoffs and overflowing on
+          narrow screens; a simple `grid-cols-[…]` row gets us pixel-perfect
+          alignment between the header and each row without horizontal
+          scroll. The header is sticky-ish (just a top divider) and the row
+          truncates each cell so long emails never push the actions off
+          screen. */}
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-[13px] font-semibold text-slate-900">
@@ -348,68 +359,228 @@ export default function MembersClient({
             className="input max-w-xs"
           />
         </div>
-        <table className="app-table">
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Role</th>
-              <th>Email</th>
-              <th className="w-8"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredMembers.length === 0 && (
-              <tr>
-                <td colSpan={4} className="py-8 text-center text-slate-500">No matching members.</td>
-              </tr>
-            )}
+
+        {/* Header row — the grid template is shared with each <li> below
+            so columns align pixel-perfect. We use a `[44px]` first column
+            for the avatar slot inside the rows so the header `Member` label
+            sits visually on top of the NAME, not the avatar.
+            Hidden on mobile — the row layout below collapses to a stacked
+            card and column headers don't make sense there. */}
+        <div className="hidden md:grid grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-2.5 border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+          <span aria-hidden></span>
+          <span>Member</span>
+          <span>Role</span>
+          <span>Email</span>
+          <span className="text-right">Actions</span>
+        </div>
+
+        {filteredMembers.length === 0 ? (
+          <p className="px-4 py-10 text-center text-[13px] text-slate-500">No matching members.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
             {filteredMembers.map((m) => {
               const hero = getCharacter(m.characterKey)
+              const roleClass =
+                m.role === 'owner' ? 'pill-violet' :
+                m.role === 'manager' ? 'pill-info' :
+                'pill-slate'
               return (
-                <tr key={m.membershipId}>
-                  <td>
-                    <div className="flex items-center gap-2.5">
-                      <CharacterAvatar characterKey={m.characterKey} size={28} />
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-slate-900 truncate">
-                          {m.name ?? `@${m.login}`}
-                        </p>
-                        <p className="text-[11.5px] text-slate-500 truncate">
-                          {m.jobTitle ?? (hero ? hero.name : `@${m.login}`)}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`pill ${m.role === 'owner' ? 'pill-violet' : m.role === 'manager' ? 'pill-info' : 'pill-slate'}`}>
-                        {m.role}
-                      </span>
-                      {m.discipline !== 'other' && (
-                        <span className="text-[10.5px] uppercase tracking-wider text-slate-500">
-                          {DISCIPLINE_BADGE_LABEL[m.discipline] ?? m.discipline}
+                <li
+                  key={m.membershipId}
+                  className="grid grid-cols-[44px_minmax(0,1fr)_auto] md:grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-3 hover:bg-slate-50/60 transition-colors"
+                >
+                  {/* Avatar */}
+                  <CharacterAvatar
+                    characterKey={m.characterKey}
+                    imageUrl={(m as { avatarUrl?: string | null }).avatarUrl ?? null}
+                    size={32}
+                  />
+
+                  {/* Name + subtitle — on mobile we also fold role + email
+                      into this column so the row stays inside the viewport. */}
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-slate-900 truncate">
+                      {m.name ?? `@${m.login}`}
+                    </p>
+                    <p className="text-[11.5px] text-slate-500 truncate">
+                      {m.jobTitle ?? (hero ? hero.name : `@${m.login}`)}
+                    </p>
+                    {/* Mobile-only mini meta row */}
+                    <div className="md:hidden mt-1 flex items-center gap-1.5 min-w-0">
+                      <span className={`pill ${roleClass}`}>{m.role}</span>
+                      {m.email && (
+                        <span className="text-[10.5px] text-slate-500 truncate">
+                          {m.email}
                         </span>
                       )}
                     </div>
-                  </td>
-                  <td className="text-[12.5px] text-slate-600">{m.email ?? '—'}</td>
-                  <td>
+                  </div>
+
+                  {/* Role + discipline — desktop only column */}
+                  <div className="hidden md:block min-w-0">
+                    <span className={`pill ${roleClass}`}>{m.role}</span>
+                    {m.discipline !== 'other' && (
+                      <p className="mt-0.5 text-[10.5px] uppercase tracking-wider text-slate-500 truncate">
+                        {DISCIPLINE_BADGE_LABEL[m.discipline] ?? m.discipline}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Email — desktop only column */}
+                  <p className="hidden md:block text-[12.5px] text-slate-600 truncate min-w-0" title={m.email ?? undefined}>
+                    {m.email ?? '—'}
+                  </p>
+
+                  {/* Actions — sticks right, never wraps. */}
+                  <div className="flex items-center gap-1.5 justify-end shrink-0">
+                    <button
+                      onClick={() => setReportFor(m)}
+                      className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition whitespace-nowrap"
+                      title="Generate a performance review PDF for this employee"
+                    >
+                      Report
+                    </button>
                     {isOwner && m.role !== 'owner' && m.membershipId !== viewerMembershipId && (
                       <button
                         onClick={() => removeMember(m.membershipId)}
                         disabled={busy}
-                        className="px-2 py-1 rounded-md bg-white border border-rose-200 hover:bg-rose-50 text-[11.5px] font-medium text-rose-700 disabled:opacity-50 transition"
+                        className="px-2 py-1 rounded-md bg-white border border-rose-200 hover:bg-rose-50 text-[11.5px] font-medium text-rose-700 disabled:opacity-50 transition whitespace-nowrap"
                       >
-                        Remove
+                        <span className="hidden sm:inline">Remove</span>
+                        <span className="sm:hidden">×</span>
                       </button>
                     )}
-                  </td>
-                </tr>
+                  </div>
+                </li>
               )
             })}
-          </tbody>
-        </table>
+          </ul>
+        )}
       </section>
+
+      {reportFor && (
+        <ReportRangePicker
+          orgId={orgId}
+          member={reportFor}
+          onClose={() => setReportFor(null)}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * Date-range picker + "Open report" launcher. The report itself is its own
+ * route (/org/{orgId}/reports/performance) so the manager can leave it open
+ * in a tab and use the browser's print → save as PDF.
+ *
+ * We default to "last 30 days" because that's the cadence most teams review
+ * at; quick presets cover 7/30/90 day common cases without forcing
+ * fiddling.
+ */
+function ReportRangePicker({
+  orgId,
+  member,
+  onClose,
+}: {
+  orgId: number
+  member: Member
+  onClose: () => void
+}) {
+  const today = new Date()
+  const toIso = (d: Date) => d.toISOString().slice(0, 10)
+  const [from, setFrom] = useState(toIso(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)))
+  const [to, setTo] = useState(toIso(today))
+
+  function preset(days: number) {
+    setFrom(toIso(new Date(today.getTime() - days * 24 * 60 * 60 * 1000)))
+    setTo(toIso(today))
+  }
+
+  const url = `/org/${orgId}/reports/performance?userId=${member.userId}&from=${from}&to=${to}`
+  const valid = from && to && from <= to
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Performance report · ${member.name ?? `@${member.login}`}`}
+      subtitle="Pick the window. We'll grade their period and prep a PDF you can share."
+      size="md"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium transition"
+          >
+            Cancel
+          </button>
+          <a
+            href={valid ? url : undefined}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!valid}
+            className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition ${
+              valid
+                ? 'bg-slate-900 hover:bg-slate-700 text-white'
+                : 'bg-slate-200 text-slate-400 pointer-events-none'
+            }`}
+          >
+            Open report →
+          </a>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="app-eyebrow block mb-1.5">From</label>
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+              className="input w-full"
+            />
+          </div>
+          <div>
+            <label className="app-eyebrow block mb-1.5">To</label>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={toIso(today)}
+              onChange={(e) => setTo(e.target.value)}
+              className="input w-full"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="app-eyebrow">Quick range</span>
+          {[
+            { label: 'Last 7 days', days: 7 },
+            { label: 'Last 30 days', days: 30 },
+            { label: 'Last 90 days', days: 90 },
+          ].map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => preset(p.days)}
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-[12px] text-slate-500 leading-relaxed">
+          The PDF combines hours worked, focus %, deliverables shipped, blockers, meetings
+          and a short AI-written summary grounded on those numbers. Nothing else gets sent
+          to the model — your team's privacy stays intact.
+        </p>
+      </div>
+    </Modal>
   )
 }

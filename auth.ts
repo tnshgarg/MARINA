@@ -44,6 +44,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
       authorization: { params: { scope: 'read:user user:email repo' } },
+      // Trust GitHub's verified email so an existing email/Google user can
+      // click "Connect GitHub" from the dashboard and have the GitHub
+      // identity merged into their account in one step, instead of being
+      // bounced into a second account they have to consolidate later.
+      allowDangerousEmailAccountLinking: true,
     }),
 
     // Google Workspace SSO — only loaded when env vars are set. Requires a
@@ -56,10 +61,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             clientSecret: process.env.GOOGLE_SSO_CLIENT_SECRET,
             authorization: {
               params: {
-                prompt: 'select_account',
+                // `consent` (rather than `select_account`) forces Google to
+                // return a refresh_token on EVERY sign-in. Without this the
+                // token only arrives on the first consent and any
+                // subsequent re-auth silently loses calendar access for
+                // returning Google-SSO users.
+                prompt: 'consent',
                 access_type: 'offline',
-                // We only need profile + email for SSO. Calendar uses /api/connect/google.
-                scope: 'openid email profile',
+                include_granted_scopes: 'true',
+                // Bundle Calendar read scopes into the sign-in flow so a
+                // Google-SSO user has their calendar populated automatically
+                // — no second click on the integrations page. We never write
+                // to the calendar from here; everything is read-only.
+                scope: [
+                  'openid',
+                  'email',
+                  'profile',
+                  'https://www.googleapis.com/auth/calendar.readonly',
+                  'https://www.googleapis.com/auth/calendar.events.readonly',
+                ].join(' '),
               },
             },
             // Trust verified Google emails to merge accounts with existing
@@ -148,17 +168,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const t = token as typeof token & MarinaTokenFields
 
       try {
-        // GitHub sign-in path
+        // GitHub sign-in path. Order matters:
+        //
+        //   1. Try by `githubId` — the canonical key once a user has
+        //      ever signed in with GitHub.
+        //   2. Fall back to email match — covers the "I signed up via
+        //      Google, now I'm clicking Link my GitHub" case. Without
+        //      this branch we'd attempt to INSERT a duplicate email and
+        //      hit the unique constraint, which surfaces as the dreaded
+        //      `?error=Configuration` page.
+        //   3. Last resort: actually create a new user.
         if (account?.provider === 'github' && account?.access_token && profile) {
           const ghProfile = profile as unknown as GhProfile
-          const existing = await db.query.users.findFirst({
+          let existing = await db.query.users.findFirst({
             where: eq(schema.users.githubId, ghProfile.id),
           })
+          if (!existing && ghProfile.email) {
+            existing = await db.query.users.findFirst({
+              where: eq(schema.users.email, ghProfile.email),
+            })
+          }
           const row = existing
             ? (
                 await db
                   .update(schema.users)
                   .set({
+                    githubId: ghProfile.id,
                     login: ghProfile.login,
                     name: ghProfile.name ?? existing.name,
                     email: ghProfile.email ?? existing.email,
@@ -245,6 +280,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               t.appUserId = row.id
               t.login = row.login
               t.accessToken = undefined
+            }
+
+            // If we got calendar scope, persist the tokens onto the existing
+            // `accounts` row for this user — and kick off a calendar sync so
+            // the dashboard already shows today's meetings on first load.
+            // The accounts row is what the calendar fetcher uses; without
+            // backfilling here, our auth-merge-by-email path can leave a
+            // freshly-merged Google account without tokens.
+            if (row && account.access_token) {
+              const gotCalendar =
+                typeof account.scope === 'string' &&
+                account.scope.includes('calendar')
+              const existing = await db.query.accounts.findFirst({
+                where: (t, { and, eq: e }) =>
+                  and(e(t.userId, row!.id), e(t.provider, 'google')),
+              })
+              if (existing) {
+                await db
+                  .update(schema.accounts)
+                  .set({
+                    access_token: account.access_token ?? existing.access_token,
+                    refresh_token: account.refresh_token ?? existing.refresh_token,
+                    expires_at: account.expires_at ?? existing.expires_at,
+                    scope: account.scope ?? existing.scope,
+                    token_type: account.token_type ?? existing.token_type,
+                    id_token: account.id_token ?? existing.id_token,
+                  })
+                  .where(eq(schema.accounts.userId, row.id))
+              }
+              if (gotCalendar) {
+                // Background sync — never block the auth flow on a slow
+                // Google API. The dashboard polls meetings on open anyway.
+                import('@/lib/google/calendar')
+                  .then((m) => m.syncCalendar(row!.id))
+                  .catch((e) => console.warn('[auth] post-sign-in calendar sync failed', e))
+              }
             }
           }
         }

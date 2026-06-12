@@ -54,20 +54,34 @@ export async function PATCH(_req: Request, ctx: { params: Promise<{ id: string }
     if (!Number.isInteger(id)) {
       return NextResponse.json({ error: 'invalid id' }, { status: 400 })
     }
-    const [row] = await db
-      .update(schema.breaks)
-      .set({ endedAt: new Date() })
-      .where(
-        and(
-          eq(schema.breaks.id, id),
-          eq(schema.breaks.userId, session.appUserId),
-          isNull(schema.breaks.endedAt)
-        )
-      )
-      .returning()
-    if (!row) {
+    // Load first so we can branch on category. For blocked breaks we also
+    // stamp `resolvedByUserId` + `resolutionType='self_resolved'` so the
+    // manager view distinguishes "employee figured it out themselves" from
+    // "manager unblocked them".
+    const existing = await db.query.breaks.findFirst({
+      where: and(
+        eq(schema.breaks.id, id),
+        eq(schema.breaks.userId, session.appUserId),
+        isNull(schema.breaks.endedAt),
+      ),
+    })
+    if (!existing) {
       return NextResponse.json({ error: 'break not found or already ended' }, { status: 404 })
     }
+
+    const now = new Date()
+    const patch: Record<string, unknown> = { endedAt: now }
+    if (existing.category === 'blocked') {
+      patch.resolvedByUserId = session.appUserId
+      patch.resolutionType = 'self_resolved'
+    }
+
+    const [row] = await db
+      .update(schema.breaks)
+      .set(patch)
+      .where(eq(schema.breaks.id, id))
+      .returning()
+
     return NextResponse.json({
       ok: true,
       break: {

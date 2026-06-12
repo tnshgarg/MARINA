@@ -88,6 +88,7 @@ export async function POST(req: Request) {
     void notify({
       kind: 'shift.punched_out',
       orgId: verified.orgId,
+      actorUserId: user.id,
       userName: user.name ?? `@${user.login}`,
       userLogin: user.login,
       durationMins: Math.max(0, Math.round((punchedOutAt.getTime() - verified.punchedInAt.getTime()) / 60000)),
@@ -100,6 +101,7 @@ export async function POST(req: Request) {
       void notify({
         kind: 'shift.suspicious',
         orgId: verified.orgId,
+        actorUserId: user.id,
         userName: user.name ?? `@${user.login}`,
         userLogin: user.login,
         reason: `Summary score ${verdict.score}/100 — ${verdict.notes}`,

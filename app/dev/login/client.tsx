@@ -52,7 +52,7 @@ export default function DevLoginClient({
             <input type="hidden" name="userId" value={u.id} />
             <button
               type="submit"
-              className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
               <div className="flex items-center gap-3 mb-2">
                 <CharacterAvatar characterKey={u.characterKey} size={42} />
@@ -77,9 +77,9 @@ export default function DevLoginClient({
                       key={`${o.orgName}-${o.role}`}
                       className={`text-[10px] px-2 py-0.5 rounded-full ${
                         o.role === 'owner'
-                          ? 'bg-violet-50 text-violet-700'
+                          ? 'bg-[var(--m-clay-soft)] text-[var(--m-clay-deep)]'
                           : o.role === 'manager'
-                            ? 'bg-indigo-50 text-indigo-700'
+                            ? 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]'
                             : 'bg-slate-100 text-slate-600'
                       }`}
                     >

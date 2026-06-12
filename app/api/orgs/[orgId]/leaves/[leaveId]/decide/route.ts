@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
 import { inbox } from '@/lib/notify/inbox'
@@ -23,7 +23,8 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    // Anyone with decide_leaves can act. Managers have it by default.
+    const { session } = await requireCapability(orgId, 'decide_leaves')
     const body = (await req.json().catch(() => ({}))) as {
       decision?: 'approve' | 'deny' | 'reopen'
       note?: string
@@ -106,6 +107,7 @@ export async function POST(
       notify({
         kind: 'leave.decided',
         orgId,
+        actorUserId: row.userId,
         userName: requester?.name ?? `@${requester?.login ?? 'unknown'}`,
         userLogin: requester?.login ?? 'unknown',
         decision: newStatus === 'approved' ? 'approved' : 'denied',

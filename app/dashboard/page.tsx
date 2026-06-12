@@ -82,33 +82,33 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <CharacterAvatar characterKey={me.characterKey} size={40} />
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <CharacterAvatar characterKey={me.characterKey} size={36} />
             <div className="min-w-0">
-              <p className="app-eyebrow">My console</p>
-              <h1 className="app-h2 truncate flex items-baseline gap-2">
+              <p className="app-eyebrow hidden sm:block">My console</p>
+              <h1 className="app-h2 truncate flex items-baseline gap-2 text-[15px] sm:text-[20px]">
                 <span className="truncate">
                   {character?.name ?? me.name ?? `@${session.login}`}
                 </span>
-                <span className="text-[12px] font-normal text-slate-500 truncate">
+                <span className="text-[11px] sm:text-[12px] font-normal text-slate-500 truncate hidden xs:inline">
                   @{session.login}
                 </span>
               </h1>
             </div>
           </div>
-          <nav className="flex items-center gap-4 text-[13px] shrink-0">
+          <nav className="flex items-center gap-2 sm:gap-4 text-[12px] sm:text-[13px] shrink-0">
             {canSeeTeam && primaryOrgId && (
               <Link
                 href={`/org/${primaryOrgId}`}
-                className="text-slate-600 hover:text-[var(--m-accent)] transition-colors"
+                className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1"
               >
                 Team
               </Link>
             )}
             <Link
               href="/settings"
-              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors"
+              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1"
             >
               Settings
             </Link>
@@ -118,8 +118,14 @@ export default async function DashboardPage() {
                 await signOut({ redirectTo: '/' })
               }}
             >
-              <button type="submit" className="text-slate-600 hover:text-rose-600">
-                Sign out
+              <button type="submit" className="text-slate-600 hover:text-rose-600 px-1">
+                <span className="hidden sm:inline">Sign out</span>
+                <span className="sm:hidden" aria-label="Sign out">
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" strokeLinecap="round" />
+                    <path d="M10 17l-5-5 5-5M5 12h12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               </button>
             </form>
           </nav>
@@ -130,6 +136,7 @@ export default async function DashboardPage() {
         orgId={primaryOrgId}
         userName={friendlyName}
         hasAnyShift={hasAnyShift}
+        githubLinked={me.githubId != null}
         initialEvents={events.map(serializeEvent)}
         initialNarrative={latestNarrative ? serializeNarrative(latestNarrative) : null}
         periodStart={periodStart.toISOString()}
@@ -142,6 +149,7 @@ export default async function DashboardPage() {
                 id: activeBreak.id,
                 startedAt: activeBreak.startedAt.toISOString(),
                 reason: activeBreak.reason,
+                category: activeBreak.category,
               }
             : null
         }

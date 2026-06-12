@@ -47,7 +47,7 @@ export default async function DevLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 px-6 py-16">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-[var(--m-accent-soft)] px-6 py-16">
       <div className="max-w-4xl mx-auto">
         <div className="rounded-2xl bg-gradient-to-br from-rose-50 to-amber-50 border border-rose-200 p-4 mb-8">
           <p className="text-[12px] font-semibold uppercase tracking-widest text-rose-700">

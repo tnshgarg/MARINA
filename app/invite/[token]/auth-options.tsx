@@ -143,7 +143,7 @@ export default function InviteAuthOptions({
           <button
             onClick={sendMagicLink}
             disabled={busy || !typedEmail.includes('@')}
-            className="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-[14px] font-medium transition"
+            className="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl bg-[var(--m-accent)] text-white hover:bg-[var(--m-accent-2)] disabled:opacity-50 disabled:cursor-not-allowed text-[14px] font-medium transition"
           >
             {busy ? 'Sending…' : 'Send sign-in link'}
           </button>

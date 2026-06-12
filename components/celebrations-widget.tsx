@@ -76,31 +76,31 @@ export function CelebrationsWidget({ orgId }: { orgId: number }) {
           next 30 days
         </span>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="space-y-2">
         {items.slice(0, 6).map((it, i) => (
           <li
             key={`${it.userId}-${it.kind}-${i}`}
-            className="flex items-center gap-2.5 text-[12.5px]"
+            className="flex items-start gap-2 text-[12.5px]"
           >
             <CharacterAvatar characterKey={it.characterKey} size={24} />
             <div className="flex-1 min-w-0">
-              <p className="text-[var(--m-ink)] truncate">
-                <span className="font-medium">{it.name}</span>
-                {it.kind === 'birthday' ? (
-                  <span className="text-[var(--m-ink-3)]"> · birthday</span>
-                ) : (
-                  <span className="text-[var(--m-ink-3)]">
-                    {' '}· {it.yearsAtCompany} year{it.yearsAtCompany === 1 ? '' : 's'} at the company
-                  </span>
-                )}
+              <p className="text-[var(--m-ink)] font-medium truncate leading-tight">
+                {it.name}
+              </p>
+              <p className="text-[11px] text-[var(--m-ink-3)] truncate leading-tight">
+                {it.kind === 'birthday'
+                  ? 'Birthday'
+                  : `${it.yearsAtCompany} year${it.yearsAtCompany === 1 ? '' : 's'} at the company`}
               </p>
             </div>
-            <span className="shrink-0 text-[11px] text-[var(--m-ink-3)] tabular-nums">
-              {formatWhen(it.whenIso)}
-            </span>
-            <span aria-hidden className="shrink-0 text-[14px]">
-              {it.kind === 'birthday' ? '🎂' : '🎉'}
-            </span>
+            <div className="shrink-0 flex flex-col items-end gap-0">
+              <span className="text-[11px] text-[var(--m-ink-2)] tabular-nums font-medium">
+                {formatWhen(it.whenIso)}
+              </span>
+              <span aria-hidden className="text-[13px] leading-none mt-0.5">
+                {it.kind === 'birthday' ? '🎂' : '🎉'}
+              </span>
+            </div>
           </li>
         ))}
       </ul>
