@@ -97,6 +97,27 @@ async function main() {
   `)
   console.log('  · 0005 teams + team_members OK')
 
+  // 0007 — Founder announcements (in-app banner).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "announcements" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "title" text NOT NULL,
+      "body" text NOT NULL,
+      "severity" text NOT NULL DEFAULT 'info',
+      "audience" text NOT NULL DEFAULT 'all',
+      "href" text,
+      "starts_at" timestamp with time zone NOT NULL DEFAULT now(),
+      "ends_at" timestamp with time zone,
+      "created_by_user_id" integer REFERENCES "users"("id") ON DELETE SET NULL,
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "announcements_active_idx"
+    ON "announcements" USING btree ("starts_at","ends_at")
+  `)
+  console.log('  · 0007 announcements OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

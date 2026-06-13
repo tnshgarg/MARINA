@@ -6,6 +6,7 @@ import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import { hasCap } from '@/lib/auth/capabilities'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
+import { AnnouncementBanner } from '@/components/announcement-banner'
 
 export default async function OrgLayout({
   children,
@@ -77,6 +78,7 @@ export default async function OrgLayout({
       />
       <main className="bg-[var(--m-bg)] min-w-0">
         <MobileNav orgName={org.name} />
+        <AnnouncementBanner viewerRole={viewer.membership.role as 'owner' | 'manager' | 'lead' | 'member'} />
         <div className="px-4 pt-4 pb-10 sm:px-8 sm:pt-8 max-w-[1400px] mx-auto fade-in">
           {children}
         </div>

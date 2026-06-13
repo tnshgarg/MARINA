@@ -1110,6 +1110,41 @@ export const membershipManagers = pgTable(
 
 export type MembershipManager = typeof membershipManagers.$inferSelect
 export type NewMembershipManager = typeof membershipManagers.$inferInsert
+
+/**
+ * Founder-authored in-app announcements. Surfaced as a slim banner above the
+ * org sidebar — every authenticated user sees it across every workspace they
+ * belong to.
+ *
+ * Authored via /admin/broadcast. Examples we use this for:
+ *   - "Scheduled maintenance Sunday 02:00 UTC"
+ *   - "New: One-click Slack install in Integrations"
+ *   - "Important: Razorpay verification expiring — re-link your card"
+ *
+ * Severity drives the colour: info=sage, warn=amber, critical=rose.
+ * Audience filters who sees it (`all` covers everyone; `owners` and
+ * `managers` filter by RBAC role on EVERY org they're in).
+ */
+export const announcements = pgTable(
+  'announcements',
+  {
+    id: serial('id').primaryKey(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    severity: text('severity').notNull().default('info'), // 'info' | 'warn' | 'critical'
+    audience: text('audience').notNull().default('all'),  // 'all' | 'owners' | 'managers'
+    href: text('href'),                                   // optional learn-more URL
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    activeIdx: index('announcements_active_idx').on(t.startsAt, t.endsAt),
+  }),
+)
+export type Announcement = typeof announcements.$inferSelect
+export type NewAnnouncement = typeof announcements.$inferInsert
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect
