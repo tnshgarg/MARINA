@@ -121,9 +121,8 @@ export default function DashboardClient({
   const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [provider, setProvider] = useState<'groq' | 'openai'>(
-    (process.env.NEXT_PUBLIC_DEFAULT_AI_PROVIDER as 'groq' | 'openai') || 'groq'
-  )
+  // AI provider is a server-side decision now — we don't surface which model
+  // we're using to the user. They get the best available; the server picks.
   const [narrative, setNarrative] = useState<NarrativeDto | null>(initialNarrative)
 
   // Break modal state
@@ -166,7 +165,7 @@ export default function DashboardClient({
     setBusy('narrative')
     setError(null)
     try {
-      const res = await fetch(`/api/narrative?provider=${provider}`, { method: 'POST' })
+      const res = await fetch(`/api/narrative`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || data?.error || 'narrative failed')
       setNarrative(data.narrative)
@@ -383,20 +382,11 @@ export default function DashboardClient({
             Deep dive · narrative, telemetry, recent activity
           </summary>
           <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-4">
-            {/* Narrative + provider picker, compact */}
+            {/* Narrative */}
             <div>
               <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <p className="app-eyebrow">7-day narrative</p>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={provider}
-                    onChange={(e) => setProvider(e.target.value as 'groq' | 'openai')}
-                    className="select max-w-[140px] text-[12px]"
-                    disabled={busy !== null}
-                  >
-                    <option value="groq">Groq · Llama 3.3</option>
-                    <option value="openai">OpenAI · 4o-mini</option>
-                  </select>
                   <button
                     onClick={runNarrative}
                     disabled={busy !== null || isPending}

@@ -744,6 +744,23 @@ export async function GET(
       risks.push({ kind: 'idle', severity: 'medium', label: `${Math.floor(shiftTotals.idleMin / 60)}h of idle time during the latest shift` })
     }
 
+    // Paired desktop devices for this employee — managers need to know who
+    // is and isn't running the agent, and owners need a one-click revoke
+    // so a lost laptop can't keep streaming activity.
+    const devices = await db
+      .select({
+        id: schema.agentTokens.id,
+        label: schema.agentTokens.label,
+        platform: schema.agentTokens.platform,
+        agentVersion: schema.agentTokens.agentVersion,
+        pairedAt: schema.agentTokens.pairedAt,
+        lastSeenAt: schema.agentTokens.lastSeenAt,
+        revokedAt: schema.agentTokens.revokedAt,
+      })
+      .from(schema.agentTokens)
+      .where(eq(schema.agentTokens.userId, user.id))
+      .orderBy(desc(schema.agentTokens.pairedAt))
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -863,6 +880,18 @@ export async function GET(
         kind: d.kind,
         completedAt: d.completedAt.toISOString(),
         verificationStatus: d.verificationStatus,
+      })),
+      // Paired desktop devices — managers see who's running the agent; owners
+      // also get a Revoke button to nuke access when a laptop is lost or an
+      // employee is offboarding.
+      devices: devices.map((d) => ({
+        id: d.id,
+        label: d.label,
+        platform: d.platform,
+        agentVersion: d.agentVersion,
+        pairedAt: d.pairedAt.toISOString(),
+        lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
+        revokedAt: d.revokedAt?.toISOString() ?? null,
       })),
     })
   } catch (err) {

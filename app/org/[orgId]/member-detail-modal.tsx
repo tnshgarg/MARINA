@@ -168,6 +168,15 @@ type Detail = {
     completedAt: string
     verificationStatus: 'unverified' | 'verified' | 'mismatch'
   }>
+  devices: Array<{
+    id: number
+    label: string
+    platform: string | null
+    agentVersion: string | null
+    pairedAt: string
+    lastSeenAt: string | null
+    revokedAt: string | null
+  }>
 }
 
 const DISCIPLINE_DELIVERABLE_LABEL: Record<Discipline, string> = {
@@ -557,17 +566,29 @@ export function MemberDetailModal({
 
           {/* ── ABOUT tab ── identity + admin */}
           {tab === 'about' && (
-            <ProfileTab
-              detail={detail}
-              orgId={orgId}
-              membershipId={membershipId!}
-              isManager={isManager}
-              isOwner={isOwner}
-              onSaved={async () => {
-                const fresh = await fetch(`/api/orgs/${orgId}/members/${membershipId}/detail`)
-                if (fresh.ok) setDetail(await fresh.json())
-              }}
-            />
+            <div className="space-y-4">
+              <ProfileTab
+                detail={detail}
+                orgId={orgId}
+                membershipId={membershipId!}
+                isManager={isManager}
+                isOwner={isOwner}
+                onSaved={async () => {
+                  const fresh = await fetch(`/api/orgs/${orgId}/members/${membershipId}/detail`)
+                  if (fresh.ok) setDetail(await fresh.json())
+                }}
+              />
+              <DevicesPanel
+                devices={detail.devices ?? []}
+                orgId={orgId}
+                membershipId={membershipId!}
+                isOwner={isOwner}
+                onChanged={async () => {
+                  const fresh = await fetch(`/api/orgs/${orgId}/members/${membershipId}/detail`)
+                  if (fresh.ok) setDetail(await fresh.json())
+                }}
+              />
+            </div>
           )}
         </div>
       )}
@@ -2823,4 +2844,156 @@ function pillFor(s: string): string {
   if (s === 'denied') return 'pill-bad'
   if (s === 'cancelled') return 'pill-slate'
   return 'pill-warn'
+}
+
+/**
+ * Paired desktop devices for this employee.
+ *
+ * Managers see the list (so they know who's running the agent vs not).
+ * Owners additionally get a Revoke button per device — used when a laptop
+ * is lost or an employee is being offboarded.
+ *
+ * Status is computed from the row itself:
+ *   - revokedAt set     → "Revoked"
+ *   - lastSeenAt < 24h  → "Online"
+ *   - lastSeenAt < 7d   → "Idle"
+ *   - older             → "Stale"
+ *   - never             → "Paired but never reported in"
+ */
+function DevicesPanel({
+  devices,
+  orgId,
+  membershipId,
+  isOwner,
+  onChanged,
+}: {
+  devices: Detail['devices']
+  orgId: number
+  membershipId: number
+  isOwner: boolean
+  onChanged: () => Promise<void> | void
+}) {
+  const [busy, setBusy] = useState<number | null>(null)
+  const toast = useToast()
+
+  async function revoke(deviceId: number, label: string) {
+    if (!confirm(`Revoke "${label}"? The agent on that device will stop tracking immediately.`)) return
+    setBusy(deviceId)
+    try {
+      const res = await fetch(
+        `/api/orgs/${orgId}/members/${membershipId}/devices/${deviceId}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || 'revoke failed')
+      }
+      toast.push({ kind: 'success', title: 'Device revoked' })
+      await onChanged()
+    } catch (e) {
+      toast.push({
+        kind: 'error',
+        title: 'Revoke failed',
+        body: e instanceof Error ? e.message : String(e),
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[13px] font-semibold text-slate-900">
+          Paired devices
+          <span className="ml-1.5 text-slate-400 tabular-nums">
+            {devices.filter((d) => !d.revokedAt).length}
+          </span>
+        </h3>
+        {devices.length === 0 && (
+          <p className="text-[11.5px] text-slate-500">Not running the desktop agent yet</p>
+        )}
+      </div>
+      {devices.length === 0 ? (
+        <p className="text-[12.5px] text-slate-500">
+          Nothing paired. Ask this teammate to download MARINA from{' '}
+          <a href="/download" className="text-[var(--m-accent)] hover:underline">marina.team/download</a>{' '}
+          and pair using their account.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {devices.map((d) => {
+            const status = deviceStatus(d)
+            return (
+              <li key={d.id} className="py-2.5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-md bg-slate-100 inline-flex items-center justify-center shrink-0">
+                  <DeviceIcon platform={d.platform} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                    {d.label}
+                    <span className="ml-1.5 text-[10.5px] text-slate-400 font-normal uppercase tracking-wider">
+                      {d.platform ?? 'unknown'}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {d.agentVersion ? `v${d.agentVersion} · ` : ''}
+                    Paired {timeAgo(d.pairedAt)}
+                    {d.lastSeenAt ? ` · Last ping ${timeAgo(d.lastSeenAt)}` : ''}
+                  </p>
+                </div>
+                <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-full shrink-0 ${status.cls}`}>
+                  {status.label}
+                </span>
+                {isOwner && !d.revokedAt && (
+                  <button
+                    type="button"
+                    onClick={() => revoke(d.id, d.label)}
+                    disabled={busy === d.id}
+                    className="text-[11px] font-medium px-2 py-1 rounded-md border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 transition shrink-0"
+                  >
+                    {busy === d.id ? '…' : 'Revoke'}
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function DeviceIcon({ platform }: { platform: string | null }) {
+  const p = (platform ?? '').toLowerCase()
+  if (p.includes('mac') || p.includes('darwin')) {
+    return (
+      <svg width={18} height={18} viewBox="0 0 384 512" fill="currentColor" className="text-slate-600">
+        <path d="M318 268c-1-69 56-103 59-105-32-47-82-53-100-54-43-4-83 25-105 25-22 0-55-25-90-24-46 1-89 27-113 68-48 84-12 207 35 274 23 33 50 70 86 69 35-1 48-22 89-22 41 0 53 22 89 22 37-1 60-34 82-67 26-38 37-75 38-77-1-1-73-28-70-109zM254 80c19-23 32-55 28-87-28 1-62 19-82 41-18 20-34 53-30 84 31 2 63-16 84-38z" />
+      </svg>
+    )
+  }
+  if (p.includes('win')) {
+    return (
+      <svg width={18} height={18} viewBox="0 0 448 512" fill="currentColor" className="text-slate-600">
+        <path d="M0 93.7l183-25.2v177.4H0V93.7zm0 324.6l183 25.2V268.4H0v149.9zm203 28L448 480V268H203v178.3zm0-410v177.5h245V32L203 38.3z" />
+      </svg>
+    )
+  }
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-slate-600">
+      <rect x={3} y={4} width={18} height={12} rx={2} />
+      <path d="M8 20h8M12 16v4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function deviceStatus(d: Detail['devices'][number]): { label: string; cls: string } {
+  if (d.revokedAt) return { label: 'Revoked', cls: 'bg-rose-50 text-rose-700 border border-rose-200' }
+  if (!d.lastSeenAt) return { label: 'Pending', cls: 'bg-slate-50 text-slate-600 border border-slate-200' }
+  const age = Date.now() - new Date(d.lastSeenAt).getTime()
+  const day = 24 * 60 * 60 * 1000
+  if (age < day) return { label: 'Online', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
+  if (age < 7 * day) return { label: 'Idle', cls: 'bg-amber-50 text-amber-700 border border-amber-200' }
+  return { label: 'Stale', cls: 'bg-slate-50 text-slate-500 border border-slate-200' }
 }
