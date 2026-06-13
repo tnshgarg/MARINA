@@ -2,7 +2,11 @@ import { createHash, randomBytes } from 'crypto'
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 
-export const MAGIC_TTL_MINUTES = 15
+// 60 minutes — enough headroom for the email to land, the inbox-spam-triage
+// dance, and the user actually finding a moment to click. 15 min was too short
+// for invite flows where the user is on a meeting / commute / etc. and comes
+// back to their inbox an hour later. Standard for Slack/Notion/Linear too.
+export const MAGIC_TTL_MINUTES = 60
 
 export function generateMagicToken(): { plaintext: string; hash: string } {
   const raw = randomBytes(32).toString('base64url')

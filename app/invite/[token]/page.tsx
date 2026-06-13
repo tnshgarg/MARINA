@@ -22,8 +22,16 @@ function pendingInviteCookieOptions() {
   }
 }
 
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<{ auth_error?: string }>
+}) {
   const { token } = await params
+  const sp = await searchParams
+  const authError = sp.auth_error ?? null
 
   const row = await db
     .select({ invite: schema.invites, org: schema.orgs })
@@ -123,6 +131,13 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           You&apos;re invited
         </p>
         <h1 className="text-[32px] font-semibold tracking-tight text-slate-900 mt-2">Join your squad</h1>
+
+        {authError === 'invalid_or_expired_link' && state === 'ready' && (
+          <Message tone="error" title="That sign-in link expired">
+            The magic link in your email is good for 60 minutes after we send it.
+            Pick an option below to get a fresh one — your invite is still valid.
+          </Message>
+        )}
 
         {state === 'invalid' && (
           <Message tone="error" title="Invite not found">

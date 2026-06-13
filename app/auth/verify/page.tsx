@@ -40,6 +40,13 @@ export default async function VerifyPage({
       throw err
     }
     console.error('[auth/verify] failed', err)
+    // If the user came from an invite flow, bounce them back to /invite/{token}
+    // so they can request a fresh magic link without losing the invite context.
+    // Previously we redirected to `/` which dropped the invite and made the
+    // user think the invite itself had been consumed.
+    if (redirectTo.startsWith('/invite/')) {
+      redirect(`${redirectTo}?auth_error=invalid_or_expired_link`)
+    }
     redirect('/?auth_error=invalid_or_expired_link')
   }
 

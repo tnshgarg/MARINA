@@ -40,6 +40,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin"            label="Overview"   icon={<OverviewIcon />} />
           <AdminNavLink href="/admin/workspaces" label="Workspaces" icon={<BuildingIcon />} />
           <AdminNavLink href="/admin/health"     label="Health"     icon={<PulseIcon />} />
+          <AdminNavLink href="/admin/errors"     label="Errors"     icon={<BugIcon />} />
           <AdminNavLink href="/admin/features"   label="Features"   icon={<ChartIcon />} />
           <AdminNavLink href="/admin/costs"      label="AI costs"   icon={<DollarIcon />} />
           <AdminNavLink href="/admin/broadcast"  label="Broadcast"  icon={<MegaphoneIcon />} />
@@ -132,6 +133,13 @@ function MegaphoneIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
       <path d="M3 11v2a2 2 0 0 0 2 2h2l5 4V5L7 9H5a2 2 0 0 0-2 2zM16 9a4 4 0 0 1 0 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function BugIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path d="M8 6h8M12 2v4M5 11l-3 1M19 11l3 1M5 18l-2 2M19 18l2 2M8 22a4 4 0 0 1-4-4v-3a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v3a4 4 0 0 1-4 4z" strokeLinecap="round" />
     </svg>
   )
 }

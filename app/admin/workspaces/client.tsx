@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import type { HealthVerdict } from '@/lib/admin/analytics'
 
 type Row = {
@@ -147,10 +148,11 @@ export function WorkspacesClient({ orgs }: { orgs: Row[] }) {
         ) : (
           <ul className="divide-y divide-white/5">
             {filtered.map((o) => (
-              <li
-                key={o.orgId}
-                className="grid grid-cols-[minmax(0,1.6fr)_70px_80px_70px_70px_70px_90px_80px] gap-3 px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors items-center"
-              >
+              <li key={o.orgId} className="bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                <Link
+                  href={`/admin/workspaces/${o.orgId}`}
+                  className="grid grid-cols-[minmax(0,1.6fr)_70px_80px_70px_70px_70px_90px_80px] gap-3 px-4 py-3 items-center"
+                >
                 <div className="min-w-0 flex items-center gap-2.5">
                   <span className="w-7 h-7 rounded-md bg-gradient-to-br from-amber-400/30 to-rose-400/20 inline-flex items-center justify-center text-[11px] font-semibold text-amber-200 shrink-0">
                     {o.name.charAt(0).toUpperCase()}
@@ -173,6 +175,7 @@ export function WorkspacesClient({ orgs }: { orgs: Row[] }) {
                 </span>
                 <span className="text-[12.5px] text-slate-200 tabular-nums">{o.spendUsd}</span>
                 <HealthBadge h={o.health} />
+                </Link>
               </li>
             ))}
           </ul>

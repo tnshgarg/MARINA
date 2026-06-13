@@ -48,7 +48,7 @@ export default function InviteAuthOptions({
         <p className="mt-1 text-[13px] text-emerald-800">
           {sent.link
             ? "Email isn't fully configured — use the link below."
-            : `We sent a one-click sign-in link to ${typedEmail}. It expires in 15 minutes.`}
+            : `We sent a one-click sign-in link to ${typedEmail}. It's good for 60 minutes.`}
         </p>
         {sent.link && (
           <a

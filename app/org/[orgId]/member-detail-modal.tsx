@@ -446,6 +446,11 @@ export function MemberDetailModal({
           {/* ── TODAY tab ── what's happening RIGHT NOW + the 1:1 prep tool */}
           {tab === 'today' && (
             <div className="space-y-5">
+              {/* TodaySnapshot always renders — even for a brand-new member
+                  with no GitHub, no story, no narrative. It mirrors the info
+                  the outer card showed (status, focus, etc.) so the modal
+                  never feels emptier than the card you clicked from. */}
+              <TodaySnapshot detail={detail} />
               {detail.risks.length > 0 && <RisksStrip risks={detail.risks} />}
               <OneOnOneSection brief={oneOnOne} loading={oneOnOneLoading} onLoad={loadOneOnOne} />
 
@@ -2615,6 +2620,227 @@ function ScreenMix({ mix }: { mix: Detail['screenMix'] }) {
 }
 
 /* ───── Manager-depth components ────────────────────────────────────────── */
+
+/**
+ * Today snapshot — the always-rendered "what does this person look like RIGHT
+ * NOW" tile grid. Lives at the top of the Today tab and is designed for HR
+ * + manager personas:
+ *
+ *  - HR: at-a-glance "is this person here, are they shipping, are they
+ *    blocked, are they about to take leave?"
+ *  - Manager: "what's the immediate ask for the next 1:1 with this person?"
+ *
+ * The tiles deliberately collapse a lot of data into 1-2 lines each so the
+ * snapshot stays scan-able. Click-through to the relevant tab for depth.
+ *
+ * Why this needs to exist: when a teammate is brand-new (no GitHub, no story,
+ * no narrative) the Today tab used to render essentially nothing — even
+ * though the outer card had useful info (Off-clock, no GitHub, no signals).
+ * The snapshot is the floor: even a brand-new teammate shows here.
+ */
+function TodaySnapshot({ detail }: { detail: Detail }) {
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const activeBreak = detail.recentBreaks.find((b) => !b.endedAt) ?? null
+  const isOnShift = !!detail.latestShift && !detail.latestShift.punchedOutAt
+  const todayDeliverables = detail.recentDeliverables.filter((d) =>
+    d.completedAt.slice(0, 10) === todayIso,
+  )
+  const todayBreaks = detail.recentBreaks.filter((b) =>
+    b.startedAt.slice(0, 10) === todayIso,
+  )
+  const onLeaveToday = detail.recentLeaves.find(
+    (l) =>
+      l.status === 'approved' &&
+      l.startDate <= todayIso &&
+      l.endDate >= todayIso,
+  )
+  const pairedDevices = detail.devices.filter((d) => !d.revokedAt)
+  const onlineDevice = pairedDevices.find(
+    (d) => d.lastSeenAt && Date.now() - new Date(d.lastSeenAt).getTime() < 24 * 60 * 60 * 1000,
+  )
+
+  // Status — the headline pill
+  const status: { label: string; tone: 'good' | 'warn' | 'bad' | 'neutral' } = (() => {
+    if (onLeaveToday) return { label: `On leave · ${onLeaveToday.leaveType}`, tone: 'warn' }
+    if (activeBreak?.category === 'blocked') return { label: 'Blocked', tone: 'bad' }
+    if (activeBreak) return { label: `On break · ${activeBreak.category}`, tone: 'warn' }
+    if (isOnShift) return { label: 'Working', tone: 'good' }
+    return { label: 'Off-clock', tone: 'neutral' }
+  })()
+  const statusColor =
+    status.tone === 'good'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : status.tone === 'warn'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : status.tone === 'bad'
+          ? 'bg-rose-50 text-rose-700 border-rose-200'
+          : 'bg-slate-100 text-slate-600 border-slate-200'
+
+  // Today's work minutes — from the latest shift's punch-in.
+  const todayMinutes =
+    isOnShift && detail.latestShift
+      ? Math.floor((Date.now() - new Date(detail.latestShift.punchedInAt).getTime()) / 60000)
+      : detail.shiftTotals.workMin
+
+  // 7d shipped (deliverables + GH commits combined for an honest engineer + non-engineer view).
+  const ghLast7 = detail.last7DaysOutput.reduce(
+    (acc, d) => acc + d.commits + d.prs + d.reviews + d.issues,
+    0,
+  )
+  const shipped7d = ghLast7 + detail.recentDeliverables.filter((d) =>
+    new Date(d.completedAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).length
+
+  // Tenure (joined ago)
+  const tenureStr = (() => {
+    if (!detail.joinedOn) return null
+    const days = Math.floor((Date.now() - new Date(detail.joinedOn + 'T00:00:00').getTime()) / (24 * 60 * 60 * 1000))
+    if (days < 0) return null
+    if (days < 30) return `${days}d`
+    if (days < 365) return `${Math.floor(days / 30)}mo`
+    return `${(days / 365).toFixed(1)}y`
+  })()
+
+  // Setup health
+  const setupBits: Array<{ label: string; ok: boolean }> = [
+    { label: 'GitHub', ok: detail.user.hasGithub },
+    { label: 'Agent', ok: pairedDevices.length > 0 },
+    { label: 'Calendar', ok: detail.todayMeetings.length > 0 || detail.weekMeetingsCount > 0 },
+  ]
+  const setupComplete = setupBits.filter((b) => b.ok).length
+
+  return (
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
+      {/* Top row: name pill + status + tenure */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className={`text-[11.5px] font-medium px-2 py-0.5 rounded-full border ${statusColor}`}>
+          {status.label}
+        </span>
+        {tenureStr && (
+          <span className="text-[11px] text-[var(--m-ink-4)]">
+            with the team for <span className="text-[var(--m-ink-2)] font-medium">{tenureStr}</span>
+          </span>
+        )}
+        {detail.jobTitle && (
+          <span className="text-[11px] text-[var(--m-ink-4)] truncate">
+            · {detail.jobTitle}
+          </span>
+        )}
+      </div>
+
+      {/* Tile grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <Tile
+          label="Today"
+          value={isOnShift ? fmtHm(todayMinutes) : '—'}
+          sub={isOnShift ? 'on the clock' : 'not punched in'}
+        />
+        <Tile
+          label="Shipped today"
+          value={todayDeliverables.length.toString()}
+          sub={
+            todayDeliverables.length === 0
+              ? 'no deliverables logged'
+              : todayDeliverables[0].title.slice(0, 28) + (todayDeliverables[0].title.length > 28 ? '…' : '')
+          }
+        />
+        <Tile
+          label="Breaks today"
+          value={todayBreaks.length.toString()}
+          sub={todayBreaks.length === 0 ? 'no breaks' : `${todayBreaks.filter((b) => !b.endedAt).length} active`}
+        />
+        <Tile
+          label="Meetings today"
+          value={detail.todayMeetings.length.toString()}
+          sub={detail.weekMeetingsCount > 0 ? `${detail.weekMeetingsCount} this week` : 'none scheduled'}
+        />
+        <Tile
+          label="Shipped 7d"
+          value={shipped7d.toString()}
+          sub="commits + PRs + deliverables"
+        />
+        <Tile
+          label="Setup"
+          value={`${setupComplete}/3`}
+          sub={setupBits.filter((b) => !b.ok).map((b) => b.label).join(', ') || 'fully connected'}
+          tone={setupComplete < 2 ? 'warn' : 'neutral'}
+        />
+        <Tile
+          label="Devices"
+          value={pairedDevices.length.toString()}
+          sub={onlineDevice ? `Online · ${onlineDevice.platform ?? '?'}` : pairedDevices.length === 0 ? 'no agent' : 'paired but offline'}
+          tone={pairedDevices.length === 0 ? 'warn' : 'neutral'}
+        />
+        <Tile
+          label="Recent leaves"
+          value={detail.recentLeaves.filter((l) => l.status === 'approved').length.toString()}
+          sub={
+            detail.recentLeaves[0]?.status === 'pending'
+              ? '1 pending'
+              : 'last 60 days'
+          }
+        />
+      </div>
+
+      {/* If the active break is a blocker, surface the reason inline — most
+          urgent thing a manager needs to see when they open this tab. */}
+      {activeBreak?.category === 'blocked' && (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+          <p className="text-[10.5px] uppercase tracking-wider text-rose-700 font-semibold">
+            Active blocker · {Math.floor((Date.now() - new Date(activeBreak.startedAt).getTime()) / 60000)}m
+          </p>
+          <p className="text-[12.5px] text-rose-900 mt-0.5">
+            {activeBreak.reason || '(no reason given)'}
+            {activeBreak.waitingOnExternal && (
+              <span className="text-rose-700"> — waiting on {activeBreak.waitingOnExternal}</span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* If on leave, surface the leave reason + dates inline. */}
+      {onLeaveToday && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="text-[10.5px] uppercase tracking-wider text-amber-700 font-semibold">
+            On leave · {onLeaveToday.leaveType}
+          </p>
+          <p className="text-[12.5px] text-amber-900 mt-0.5">
+            {onLeaveToday.startDate} → {onLeaveToday.endDate}
+            {onLeaveToday.reason && ` · ${onLeaveToday.reason}`}
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Tile({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string
+  value: string
+  sub: string
+  tone?: 'warn' | 'neutral'
+}) {
+  const fg = tone === 'warn' ? 'text-amber-700' : 'text-slate-900'
+  return (
+    <div className="rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)]/40 px-3 py-2.5">
+      <p className="text-[10px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold">{label}</p>
+      <p className={`mt-1 text-[18px] font-display tracking-tight tabular-nums ${fg}`}>{value}</p>
+      <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5 truncate">{sub}</p>
+    </div>
+  )
+}
+
+function fmtHm(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
+}
 
 /** Compact row of risk chips at the top of the Overview tab. */
 function RisksStrip({ risks }: { risks: Detail['risks'] }) {
