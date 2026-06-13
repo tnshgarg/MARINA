@@ -614,6 +614,7 @@ export default function TeamDashboardClient({
         onClose={() => setDetailMember(null)}
         isManager={isManager}
         isOwner={isOwner}
+        viewerUserId={viewerUserId}
       />
 
       <BlockerResolver

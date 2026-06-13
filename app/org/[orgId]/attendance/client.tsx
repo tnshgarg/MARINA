@@ -10,6 +10,7 @@ type Member = {
   login: string
   name: string | null
   characterKey: string | null
+  joinedOnIso: string  // YYYY-MM-DD — earliest day this person should be tracked
 }
 
 type Shift = {
@@ -29,7 +30,7 @@ type Leave = {
 
 type Holiday = { date: string; name: string; isOptional: boolean }
 
-type DayKind = 'present' | 'absent' | 'leave' | 'holiday' | 'weekend' | 'future' | 'today-empty'
+type DayKind = 'present' | 'absent' | 'leave' | 'holiday' | 'weekend' | 'future' | 'today-empty' | 'pre-join'
 
 type DayCell = {
   date: string         // YYYY-MM-DD
@@ -48,6 +49,7 @@ const KIND_STYLE: Record<DayKind, { bg: string; fg: string; label: string }> = {
   weekend:     { bg: 'bg-slate-50',    fg: 'text-slate-400',   label: 'Weekend'        },
   future:      { bg: 'bg-white',       fg: 'text-slate-300',   label: 'Upcoming'       },
   'today-empty': { bg: 'bg-white',     fg: 'text-slate-500',   label: 'Not yet logged' },
+  'pre-join':  { bg: 'bg-white',       fg: 'text-slate-300',   label: 'Before joining' },
 }
 
 export default function AttendanceClient({
@@ -70,9 +72,13 @@ export default function AttendanceClient({
   const router = useRouter()
   const [pickedDay, setPickedDay] = useState<DayCell | null>(null)
 
+  const selectedMember = useMemo(
+    () => members.find((m) => m.userId === selectedUserId) ?? null,
+    [members, selectedUserId],
+  )
   const cells = useMemo(
-    () => buildCalendar(month, shifts, leaves, holidays),
-    [month, shifts, leaves, holidays],
+    () => buildCalendar(month, shifts, leaves, holidays, selectedMember?.joinedOnIso ?? null),
+    [month, shifts, leaves, holidays, selectedMember],
   )
 
   const summary = useMemo(() => summarise(cells), [cells])
@@ -333,6 +339,7 @@ function buildCalendar(
   shifts: Shift[],
   leaves: Leave[],
   holidays: Holiday[],
+  joinedOnIso: string | null,
 ): (DayCell | null)[] {
   const [yy, mm] = month.split('-').map(Number) as [number, number]
   const first = new Date(yy, mm - 1, 1)
@@ -374,6 +381,9 @@ function buildCalendar(
 
     if (future) {
       kind = 'future'
+    } else if (joinedOnIso && date < joinedOnIso) {
+      // Person wasn't in the company yet — don't count it against them.
+      kind = 'pre-join'
     } else {
       // approved leave covering this date
       leaveForDay = approvedLeaves.find((l) => l.startDate <= date && l.endDate >= date)

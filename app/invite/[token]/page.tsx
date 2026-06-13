@@ -46,6 +46,22 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const session = await auth()
   const signedIn = !!session?.appUserId
 
+  // Seamless re-entry: if the invite was already accepted AND the viewer is
+  // signed in AND already has a membership for that org, just take them in.
+  // This handles the common case where someone reopens an old invite link.
+  if (state === 'used' && signedIn && invite && org && session?.appUserId) {
+    const m = await db.query.memberships.findFirst({
+      where: and(
+        eq(schema.memberships.orgId, invite.orgId),
+        eq(schema.memberships.userId, session.appUserId),
+      ),
+    })
+    if (m) {
+      const { roleAtLeast } = await import('@/lib/auth/guards')
+      redirect(roleAtLeast(m.role, 'manager') ? `/org/${org.id}` : '/dashboard')
+    }
+  }
+
   // Auto-accept: if the viewer is signed in AND the invite is ready, just
   // create the membership server-side and redirect into the org. Avoids the
   // extra "Accept and join" click after a fresh OAuth/magic-link sign-in.
@@ -119,9 +135,30 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </Message>
         )}
         {state === 'used' && (
-          <Message tone="info" title="Already accepted">
-            This invite to <strong>{org?.name}</strong> has already been used. Sign in to access it.
-          </Message>
+          <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">
+              Welcome back
+            </p>
+            <p className="mt-1 text-[15px] text-slate-700">
+              This invite to <strong className="text-slate-900">{org?.name}</strong> has already
+              been used. Sign in to jump straight into the workspace.
+            </p>
+            <div className="mt-5">
+              {signedIn ? (
+                <Message tone="info" title="You're signed in, but not a member yet">
+                  Ask an admin of <strong>{org?.name}</strong> to send you a fresh invite — the
+                  original link has been consumed.
+                </Message>
+              ) : (
+                <InviteAuthOptions
+                  token={token}
+                  email={invite?.email ?? ''}
+                  githubSignIn={ghSignIn}
+                  googleSignIn={process.env.GOOGLE_SSO_CLIENT_ID ? gSignIn : undefined}
+                />
+              )}
+            </div>
+          </div>
         )}
 
         {state === 'ready' && invite && org && (

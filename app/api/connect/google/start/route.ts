@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     let cfg
     try {
-      cfg = googleConfig()
+      cfg = googleConfig(req)
     } catch (e) {
       return NextResponse.json(
         { error: 'Google OAuth not configured', detail: (e as Error).message },

@@ -215,31 +215,37 @@ export function OrgSidebar({
         })}
       </nav>
 
-      {/* Pinned footer — always visible regardless of scroll */}
+      {/* Pinned footer — always visible regardless of scroll. We constrain
+          every item's vertical footprint so the row stays a tidy 44px even
+          when the name has a tall display font or the bell adds an unread
+          dot. `flex-nowrap` keeps it on one line; `shrink-0` on the buttons
+          guarantees they don't get cropped when the name is very long. */}
       <div className="shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-nowrap min-h-[44px]">
           <CharacterAvatar
             characterKey={characterKey}
             imageUrl={userAvatarUrl}
             size={32}
           />
-          <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-medium text-slate-900 truncate">
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="text-[12.5px] font-medium text-slate-900 truncate leading-tight">
               {me?.name ?? `@${userLogin}`}
             </p>
-            <p className="text-[11px] text-slate-500 truncate">{role}</p>
+            <p className="text-[11px] text-slate-500 truncate leading-tight">{role}</p>
           </div>
-          <NotificationBell />
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="btn-ghost"
-              title="Sign out"
-              aria-label="Sign out"
-            >
-              <LogoutIcon />
-            </button>
-          </form>
+          <div className="shrink-0 flex items-center gap-1">
+            <NotificationBell />
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogoutIcon />
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </aside>

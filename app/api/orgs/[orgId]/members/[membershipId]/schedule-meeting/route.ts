@@ -79,6 +79,27 @@ export async function POST(
         : 30
     const endAt = new Date(startAt.getTime() + durationMin * 60_000)
 
+    // GATE: the organiser MUST have Google Calendar connected. Without it
+    // we'd just create a row in our DB that nobody sees on a real calendar —
+    // and the attendee has no way to "add to my calendar". Make them connect
+    // first; the UI surfaces a clear CTA when this 412 is returned.
+    const calendarAccount = await db.query.accounts.findFirst({
+      where: and(
+        eq(schema.accounts.userId, session.appUserId),
+        eq(schema.accounts.provider, 'google'),
+      ),
+    })
+    if (!calendarAccount?.access_token) {
+      return NextResponse.json(
+        {
+          error: 'calendar_not_connected',
+          message:
+            'Connect Google Calendar from Settings → Integrations before scheduling. We need it to put the meeting on both of your calendars.',
+        },
+        { status: 412 },
+      )
+    }
+
     // Insert the row first — it's the source of truth.
     const [row] = await db
       .insert(schema.scheduledMeetings)
@@ -93,52 +114,48 @@ export async function POST(
       })
       .returning()
 
-    // Best-effort push to Google Calendar when the organiser has it linked.
+    // Push to Google Calendar. We've already verified the account exists.
     let googleEventId: string | null = null
     let conferenceUrl: string | null = null
+    let calendarViewUrl: string | null = null
     let googleError: string | null = null
     try {
-      const account = await db.query.accounts.findFirst({
-        where: and(
-          eq(schema.accounts.userId, session.appUserId),
-          eq(schema.accounts.provider, 'google'),
-        ),
-      })
-      if (account?.access_token && attendee.email) {
-        const insertRes = await fetch(
-          'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${account.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              summary: title,
-              description: agenda ?? 'Scheduled from MARINA.',
-              start: { dateTime: startAt.toISOString() },
-              end: { dateTime: endAt.toISOString() },
-              attendees: [{ email: attendee.email }],
-              conferenceData: {
-                createRequest: {
-                  requestId: `marina-${row.id}-${Date.now()}`,
-                  conferenceSolutionKey: { type: 'hangoutsMeet' },
-                },
-              },
-            }),
+      const insertRes = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${calendarAccount.access_token}`,
+            'Content-Type': 'application/json',
           },
-        )
-        if (insertRes.ok) {
-          const ev = await insertRes.json()
-          googleEventId = ev.id ?? null
-          conferenceUrl = ev.hangoutLink ?? null
-          await db
-            .update(schema.scheduledMeetings)
-            .set({ googleEventId, conferenceUrl })
-            .where(eq(schema.scheduledMeetings.id, row.id))
-        } else {
-          googleError = `Calendar insert failed: ${insertRes.status}`
-        }
+          body: JSON.stringify({
+            summary: title,
+            description: agenda ?? 'Scheduled from MARINA.',
+            start: { dateTime: startAt.toISOString() },
+            end: { dateTime: endAt.toISOString() },
+            attendees: attendee.email ? [{ email: attendee.email }] : [],
+            conferenceData: {
+              createRequest: {
+                requestId: `marina-${row.id}-${Date.now()}`,
+                conferenceSolutionKey: { type: 'hangoutsMeet' },
+              },
+            },
+          }),
+        },
+      )
+      if (insertRes.ok) {
+        const ev = await insertRes.json()
+        googleEventId = ev.id ?? null
+        conferenceUrl = ev.hangoutLink ?? null
+        // `htmlLink` is Google's permanent "open this event" URL — great for
+        // the email recipient who wants to add it to their own calendar.
+        calendarViewUrl = ev.htmlLink ?? null
+        await db
+          .update(schema.scheduledMeetings)
+          .set({ googleEventId, conferenceUrl })
+          .where(eq(schema.scheduledMeetings.id, row.id))
+      } else {
+        googleError = `Calendar insert failed: ${insertRes.status}`
       }
     } catch (e) {
       googleError = e instanceof Error ? e.message : String(e)
@@ -164,6 +181,14 @@ export async function POST(
     )
 
     if (attendee.email) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+      const dashboardUrl = appUrl ? `${appUrl}/dashboard` : null
+      const linkRow = [
+        conferenceUrl ? `<a href="${conferenceUrl}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#3f6b54;color:white;text-decoration:none;font-weight:600;margin-right:8px;">Join the meeting</a>` : '',
+        calendarViewUrl ? `<a href="${calendarViewUrl}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:white;color:#3f6b54;border:1px solid #3f6b54;text-decoration:none;font-weight:600;margin-right:8px;">Open in Google Calendar</a>` : '',
+        dashboardUrl ? `<a href="${dashboardUrl}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:white;color:#0f172a;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;">View on MARINA</a>` : '',
+      ].filter(Boolean).join('')
+
       void sendEmail({
         to: attendee.email,
         subject: `Meeting scheduled: ${title}`,
@@ -172,10 +197,11 @@ export async function POST(
                <p><strong>${title}</strong><br/>
                ${startAt.toLocaleString()} – ${endAt.toLocaleString()}</p>
                ${agenda ? `<p><em>Agenda:</em> ${agenda}</p>` : ''}
-               ${conferenceUrl ? `<p><a href="${conferenceUrl}">Join the meeting</a></p>` : ''}
-               <p>You'll find it on your MARINA dashboard.</p>`,
+               <p style="margin-top:20px;">${linkRow}</p>`,
         text: `${organiser.name ?? organiser.login} scheduled "${title}" at ${startAt.toLocaleString()}.\n${
           conferenceUrl ? `\nJoin: ${conferenceUrl}\n` : ''
+        }${calendarViewUrl ? `Add to your calendar: ${calendarViewUrl}\n` : ''}${
+          dashboardUrl ? `View on MARINA: ${dashboardUrl}\n` : ''
         }${agenda ? `\nAgenda: ${agenda}` : ''}`,
       })
     }

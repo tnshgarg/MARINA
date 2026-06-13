@@ -37,13 +37,18 @@ export default async function AttendancePage({
   const monthStart = new Date(Date.UTC(yy, mm - 1, 1))
   const monthEnd = new Date(Date.UTC(yy, mm, 0, 23, 59, 59, 999))
 
-  // Fetch members for the picker.
+  // Fetch members for the picker. We surface the membership's `createdAt`
+  // and the optional user-set `joinedOn` so the calendar can grey out days
+  // before the employee actually joined — otherwise every historical day
+  // would render as red "Absent", which is just noise.
   const memberRows = await db
     .select({
       userId: schema.memberships.userId,
       login: schema.users.login,
       name: schema.users.name,
       characterKey: schema.users.characterKey,
+      joinedAt: schema.memberships.createdAt,
+      joinedOn: schema.users.joinedOn,
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
@@ -118,6 +123,9 @@ export default async function AttendancePage({
           login: m.login,
           name: m.name,
           characterKey: m.characterKey,
+          // Prefer the admin-set joining date; fall back to membership row's
+          // createdAt so we always have *something* to clamp absences against.
+          joinedOnIso: m.joinedOn ?? isoDay(m.joinedAt),
         }))}
         selectedUserId={selectedUserId}
         shifts={shifts.map((s) => ({

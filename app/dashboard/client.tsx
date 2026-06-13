@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { WelcomeTour } from '@/components/welcome-tour'
 import { BlockerCoaching } from '@/components/blocker-coaching'
+import { ProfileCompletionCard } from '@/components/profile-completion-card'
 import { MeetingsPanel } from '@/components/meetings-panel'
 import { LogDeliverableCard } from '@/components/log-deliverable-card'
 import { YourDayCard } from '@/components/your-day-card'
@@ -280,6 +281,12 @@ export default function DashboardClient({
           break banner so it's the first thing they see. The card hides
           itself when there's nothing new in the thread. */}
       {activeBreak?.category === 'blocked' && <BlockerCoaching />}
+
+      {/* People-care field self-fill — auto-hides once the user has set both
+          their joining date and birthday. Keeps HR off the data-entry hook. */}
+      <div className="col-span-12">
+        <ProfileCompletionCard />
+      </div>
 
       {activeBreak && (
         <div

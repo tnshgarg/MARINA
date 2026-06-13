@@ -1122,7 +1122,7 @@ function Footer() {
           </div>
           <FooterCol title="Product" items={[['Features', '#product'], ['Workflows', '#workflows'], ['Pricing', '#pricing'], ['Download app', '/download'], ['Changelog', '/changelog']]} />
           <FooterCol title="Legal" items={[['Privacy', '/privacy'], ['Terms', '/terms'], ['DPA', '/dpa'], ['Security', '/security']]} />
-          <FooterCol title="Contact" items={[['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com'], ['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com'], ['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com']]} />
+          <FooterCol title="Contact" items={[['Email us', 'mailto:thetanishgarg@gmail.com'], ['Request a demo', 'mailto:thetanishgarg@gmail.com?subject=MARINA%20demo%20request']]} />
         </div>
         <div className="mt-12 pt-6 border-t border-[var(--m-border)] flex items-center justify-between flex-wrap gap-3 text-[11.5px] text-[var(--m-ink-4)]">
           <p>© 2026 Project MARINA Private Limited. All rights reserved.</p>

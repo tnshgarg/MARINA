@@ -15,15 +15,44 @@ export const GOOGLE_SCOPES = [
   'profile',
 ].join(' ')
 
-export function googleConfig() {
+/**
+ * Build the OAuth config + redirect URI.
+ *
+ * We MUST use the same redirect_uri on both the /start (authorize) and
+ * /callback (token exchange) ends, or Google returns `redirect_uri_mismatch`.
+ *
+ * Order of resolution (highest priority first):
+ *   1. Origin derived from the live request headers — this is the source of
+ *      truth in production, where `x-forwarded-proto` + `x-forwarded-host`
+ *      reflect what the browser actually saw (e.g. `https://marina.team`).
+ *   2. `NEXT_PUBLIC_APP_URL` — fallback for background jobs that don't have a
+ *      request, e.g. token refresh from a cron.
+ *   3. `http://localhost:3000` — last-resort local dev only.
+ *
+ * Pass the inbound `Request` to `googleConfig(req)` from any route handler
+ * that needs to redirect the user.
+ */
+export function googleConfig(req?: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   if (!clientId || !clientSecret) {
     throw new Error('Google OAuth not configured — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.')
   }
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const baseUrl = (req && originFromRequest(req)) || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const redirectUri = `${baseUrl.replace(/\/+$/, '')}/api/connect/google/callback`
   return { clientId, clientSecret, redirectUri }
+}
+
+function originFromRequest(req: Request): string | null {
+  try {
+    const h = new Headers(req.headers)
+    const proto = h.get('x-forwarded-proto') ?? new URL(req.url).protocol.replace(':', '')
+    const host = h.get('x-forwarded-host') ?? h.get('host') ?? new URL(req.url).host
+    if (!host) return null
+    return `${proto}://${host}`
+  } catch {
+    return null
+  }
 }
 
 export type GoogleState = {
@@ -69,9 +98,13 @@ export type GoogleTokenResponse = {
   id_token?: string
 }
 
-/** Exchange an auth code for tokens. */
-export async function exchangeCode(code: string): Promise<GoogleTokenResponse> {
-  const cfg = googleConfig()
+/**
+ * Exchange an auth code for tokens. Pass the inbound `Request` so the
+ * redirect_uri sent here matches the one used at /start (Google verifies
+ * they're identical). Background callers without a request can omit it.
+ */
+export async function exchangeCode(code: string, req?: Request): Promise<GoogleTokenResponse> {
+  const cfg = googleConfig(req)
   const params = new URLSearchParams({
     code,
     client_id: cfg.clientId,

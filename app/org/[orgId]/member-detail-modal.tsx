@@ -253,6 +253,7 @@ export function MemberDetailModal({
   onClose,
   isManager,
   isOwner = false,
+  viewerUserId,
 }: {
   orgId: number
   membershipId: number | null
@@ -261,6 +262,7 @@ export function MemberDetailModal({
   onClose: () => void
   isManager: boolean
   isOwner?: boolean
+  viewerUserId?: number
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -392,14 +394,16 @@ export function MemberDetailModal({
                 {busy ? '…' : 'Sync GitHub'}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setScheduleOpen(true)}
-              disabled={busy}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
-            >
-              Schedule meeting
-            </button>
+            {detail.user.id !== viewerUserId && (
+              <button
+                type="button"
+                onClick={() => setScheduleOpen(true)}
+                disabled={busy}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+              >
+                Schedule meeting
+              </button>
+            )}
             <button
               type="button"
               onClick={brief}

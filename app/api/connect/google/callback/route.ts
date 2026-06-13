@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const tokens = await exchangeCode(code)
+    const tokens = await exchangeCode(code, req)
 
     // Resolve the Google account email so we can show it in settings + dedupe.
     let providerAccountId = `${state.userId}` // fallback if userinfo fails

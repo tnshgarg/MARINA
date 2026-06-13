@@ -17,10 +17,14 @@ export const metadata: Metadata = {
  * builds.
  */
 export default function DownloadPage() {
-  const macUrl = process.env.NEXT_PUBLIC_MAC_DOWNLOAD_URL ?? 'https://marina.in/download/mac/latest.dmg'
-  const winUrl = process.env.NEXT_PUBLIC_WIN_DOWNLOAD_URL ?? 'https://marina.in/download/windows/latest.exe'
+  // Real download URLs live in env so we can swap the artifact host without a
+  // code change (GitHub Releases, Vercel Blob, S3 etc.). When unset — which is
+  // the case during early-access — we render a "Notify me" CTA instead of a
+  // broken link, since the binaries aren't published yet.
+  const macUrl = process.env.NEXT_PUBLIC_MAC_DOWNLOAD_URL ?? null
+  const winUrl = process.env.NEXT_PUBLIC_WIN_DOWNLOAD_URL ?? null
   const version = process.env.NEXT_PUBLIC_AGENT_VERSION ?? '0.9.0 (beta)'
-  const releasedAt = process.env.NEXT_PUBLIC_AGENT_RELEASED_AT ?? 'June 2026'
+  const releasedAt = process.env.NEXT_PUBLIC_AGENT_RELEASED_AT ?? 'soon'
 
   return (
     <main className="min-h-screen paper text-[var(--m-ink)]">
@@ -161,7 +165,7 @@ function PlatformCard({
   sub: string
   requirements: string[]
   steps: string[]
-  url: string
+  url: string | null
   buttonLabel: string
   buttonHint: string
   icon: React.ReactNode
@@ -191,13 +195,29 @@ function PlatformCard({
           </div>
         </div>
 
-        <a
-          href={url}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[14px] font-medium transition w-full justify-center"
-        >
-          ↓ {buttonLabel}
-        </a>
-        <p className="mt-2 text-[11px] text-[var(--m-ink-4)] text-center">{buttonHint}</p>
+        {url ? (
+          <>
+            <a
+              href={url}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[14px] font-medium transition w-full justify-center"
+            >
+              ↓ {buttonLabel}
+            </a>
+            <p className="mt-2 text-[11px] text-[var(--m-ink-4)] text-center">{buttonHint}</p>
+          </>
+        ) : (
+          <>
+            <a
+              href={`mailto:thetanishgarg@gmail.com?subject=${encodeURIComponent(`Notify me when ${title} ships`)}&body=${encodeURIComponent(`Hi — please email me when the ${title} build is ready to download.`)}`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border-2 border-[var(--m-ink)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)] text-[14px] font-medium transition w-full justify-center"
+            >
+              Notify me when it&apos;s ready
+            </a>
+            <p className="mt-2 text-[11px] text-[var(--m-ink-4)] text-center">
+              Build in private beta · Public release coming
+            </p>
+          </>
+        )}
 
         <div className="mt-5">
           <p className="text-[10.5px] tracking-[0.18em] uppercase text-[var(--m-ink-4)] font-semibold mb-2">
