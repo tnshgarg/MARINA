@@ -78,7 +78,7 @@ in production or the corresponding code path will throw.
 | Var | Required when… | Note |
 |---|---|---|
 | `RESEND_API_KEY` | always | Verified domain in Resend dashboard |
-| `RESEND_FROM` | always | e.g. `MARINA <hello@marina.in>` |
+| `RESEND_FROM` | always | e.g. `MARINA <thetanishgarg@gmail.com>` |
 | `SMTP_URL` *or* `SMTP_HOST` + `SMTP_PORT` + `SMTP_USER` + `SMTP_PASS` | optional | Routes weekly/daily digests through nodemailer SMTP. Falls back to Resend when unset. |
 | `SMTP_FROM` | with SMTP | Defaults to `SMTP_USER` if unset |
 
@@ -269,7 +269,7 @@ These are deliberately deferred — we ship without them and add them post-launc
 based on early customer feedback:
 
 - **Linux desktop agent** — Mac and Windows cover ~95% of remote-team employees
-- **Self-serve plan downgrade** — currently requires emailing `hello@marina.in`
+- **Self-serve plan downgrade** — currently requires emailing `thetanishgarg@gmail.com`
 - **Mobile-optimised manager dashboard** — usable on tablets, cramped on phones
 - **Audit-log export** — rows are written, but the export-to-CSV UI is pending
 
@@ -289,4 +289,4 @@ git push origin v2026.06.12
 Tag the agent binary separately when it ships (`agent-v0.9.1`, etc.) — agent
 and web are independent release tracks.
 
-— Built with care in Bangalore. If something breaks, `hello@marina.in`.
+— Built with care in Bangalore. If something breaks, `thetanishgarg@gmail.com`.

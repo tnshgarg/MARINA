@@ -362,8 +362,8 @@ function PlanAndBilling({
         <p className="mt-2 text-[11.5px] text-slate-500">
           We hand these to design partners and our first 50 organisations. If you&rsquo;ve been
           promised one but lost it, email{' '}
-          <a href="mailto:hello@marina.in" className="text-slate-700 underline">
-            hello@marina.in
+          <a href="mailto:thetanishgarg@gmail.com" className="text-slate-700 underline">
+            thetanishgarg@gmail.com
           </a>
           .
         </p>

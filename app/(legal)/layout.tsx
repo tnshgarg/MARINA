@@ -7,7 +7,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" width={28} height={28} alt="MARINA" className="block object-contain" />
+            <img src="/logo.svg" width={28} height={28} alt="MARINA" className="block object-contain" />
             <span className="font-display text-[18px] tracking-tight text-[var(--m-ink)]">MARINA</span>
           </Link>
           <nav className="flex items-center gap-5 text-[13px] text-[var(--m-ink-2)]">

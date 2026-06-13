@@ -59,7 +59,7 @@ export default function SecurityPage() {
       <Pillar
         title="Vulnerability handling"
         body={[
-          'Submit security reports to security@marina.in. We acknowledge within 24 hours and patch high-severity issues within 7 days.',
+          'Submit security reports to thetanishgarg@gmail.com. We acknowledge within 24 hours and patch high-severity issues within 7 days.',
           'Automated dependency scans on every commit (Dependabot + npm audit). Annual penetration tests.',
         ]}
       />
@@ -79,16 +79,16 @@ export default function SecurityPage() {
         </h3>
         <p className="text-[14px] text-[var(--m-ink-2)] leading-relaxed">
           Email{' '}
-          <a className="text-[var(--m-accent)] underline" href="mailto:security@marina.in">
-            security@marina.in
+          <a className="text-[var(--m-accent)] underline" href="mailto:thetanishgarg@gmail.com">
+            thetanishgarg@gmail.com
           </a>
           . We typically respond within one business day. Self-serve downloads coming Q1 2026.
         </p>
       </div>
 
       <div className="mt-6 grid sm:grid-cols-2 gap-3">
-        <ContactCard title="security@marina.in" body="Vulnerability reports + security questions" />
-        <ContactCard title="dpo@marina.in" body="Data protection officer (DPDP § 10)" />
+        <ContactCard title="thetanishgarg@gmail.com" body="Vulnerability reports + security questions" />
+        <ContactCard title="thetanishgarg@gmail.com" body="Data protection officer (DPDP § 10)" />
       </div>
     </>
   )

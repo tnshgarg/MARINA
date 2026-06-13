@@ -6,7 +6,7 @@ import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { CHARACTERS } from '@/lib/characters/data'
 import { CharacterAvatar } from '@/components/character-avatar'
-import { CountUp, Reveal } from '@/components/reveal'
+import { Reveal } from '@/components/reveal'
 import LandingClient from './landing-client'
 import {
   BlockerResolverMockup,
@@ -77,13 +77,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
         characters={CHARACTERS.slice(0, 8).map((c) => ({ key: c.key, name: c.name, color: c.color }))}
       />
 
-      <LogosStrip />
       <ValueProps />
       <ProductSection />
       <ShowcaseSection />
       <Workflows />
       <RosterShowcase />
-      <Testimonials />
       <Integrations />
       <Pricing />
       <ResourceCards />
@@ -226,7 +224,7 @@ function HeroPreview() {
           <span className="w-2.5 h-2.5 rounded-full bg-[#e5e0d4]" />
           <span className="w-2.5 h-2.5 rounded-full bg-[#e5e0d4]" />
           <span className="ml-3 text-[10.5px] tracking-wider uppercase text-[var(--m-ink-4)]">
-            Team Pulse · Acme
+            Team Pulse
           </span>
           <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-[var(--m-good)] font-medium">
             <span className="relative inline-flex">
@@ -301,7 +299,7 @@ function HeroPreview() {
             <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-accent)]">
               <path d="M8 8l-4 4 4 4M16 8l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="font-medium truncate">Figma · Mobile onboarding</span>
+            <span className="font-medium truncate">Designing onboarding screens</span>
           </p>
           <div className="h-1 rounded-full overflow-hidden flex bg-[var(--m-bg-soft)] m-shimmer">
             <div className="h-full bg-[var(--m-accent)]" style={{ width: '68%' }} />
@@ -320,7 +318,7 @@ function HeroPreview() {
               <span className="text-[9.5px] text-[var(--m-ink-4)] uppercase tracking-wider">Sales</span>
             </p>
             <p className="text-[10.5px] text-[var(--m-ink-3)] truncate">
-              In a call · Zoom · Acme Corp
+              On a customer call · Zoom
             </p>
           </div>
           <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--m-info-soft)] text-[var(--m-info)]">
@@ -346,53 +344,6 @@ function Stat({ n, label, tone }: { n: string; label: string; tone: 'good' | 'ba
       <span className={`text-[22px] font-semibold tabular-nums tracking-tight ${colorClass}`}>{n}</span>
       <span className="text-[11.5px] text-[var(--m-ink-3)]">{label}</span>
     </div>
-  )
-}
-
-/* ============================ LOGOS STRIP ============================ */
-
-function LogosStrip() {
-  const logos = [
-    { name: 'Zerodha', font: 'serif' },
-    { name: 'Razorpay', font: 'sans' },
-    { name: 'CleverTap', font: 'sans' },
-    { name: 'Postman', font: 'sans' },
-    { name: 'Hasura', font: 'sans' },
-    { name: 'BrowserStack', font: 'sans' },
-    { name: 'Zomato', font: 'sans' },
-    { name: 'Swiggy', font: 'sans' },
-    { name: 'Freshworks', font: 'sans' },
-    { name: 'Atlan', font: 'sans' },
-  ]
-  // Duplicate for seamless marquee loop
-  const items = [...logos, ...logos]
-  return (
-    <section className="border-y border-[var(--m-border)]/60 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <Reveal>
-          <p className="text-center text-[11px] tracking-[0.2em] uppercase text-[var(--m-ink-4)] mb-7">
-            Trusted by remote teams at
-          </p>
-        </Reveal>
-        <div className="relative">
-          {/* Fade edges */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-20 z-10 bg-gradient-to-r from-[var(--m-bg)] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-20 z-10 bg-gradient-to-l from-[var(--m-bg)] to-transparent" />
-          <div className="m-marquee flex items-center gap-x-14 whitespace-nowrap">
-            {items.map((l, i) => (
-              <span
-                key={`${l.name}-${i}`}
-                className={`text-[18px] md:text-[20px] tracking-tight text-[var(--m-ink-3)] opacity-70 ${
-                  l.font === 'serif' ? 'font-display italic' : 'font-medium'
-                }`}
-              >
-                {l.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -437,7 +388,7 @@ function ValueProps() {
           <ValueCard
             eyebrow="Every role"
             title="Engineers, designers, sales, support"
-            body="Hours, focus, meetings and breaks work for everyone. Connect GitHub, Figma, Linear or HubSpot to pull per-role deliverables — or stay manual."
+            body="Hours, focus, meetings and breaks work for everyone. Connect GitHub for engineering activity and Google Calendar for meetings — non-engineering roles log deliverables manually."
             tone="gold"
           />
         </Reveal>
@@ -873,104 +824,6 @@ function RosterShowcase() {
   )
 }
 
-/* ============================ TESTIMONIALS ============================ */
-
-function Testimonials() {
-  return (
-    <section className="bg-[var(--m-bg-soft)] border-y border-[var(--m-border)]">
-      <div className="max-w-7xl mx-auto px-6 py-20 md:py-24">
-        <Reveal>
-          <p className="text-center text-[11px] tracking-[0.18em] uppercase text-[var(--m-ink-4)] mb-3">
-            Customer stories
-          </p>
-          <h2 className="font-display text-[32px] md:text-[44px] leading-tight tracking-tight text-center max-w-2xl mx-auto">
-            Trusted by <span className="italic brand-gradient-text">top performers</span>
-          </h2>
-        </Reveal>
-
-        <div className="mt-12 grid md:grid-cols-2 gap-5 items-stretch">
-          <Reveal delay={0} className="h-full">
-            <Testimonial
-              quote="MARINA listens to us a lot. They take suggestions seriously and ship them within a week. The Scrum Mode replaced our 25-minute standup."
-              name="Arjun Mehta"
-              role="Engineering Manager · Hulk Labs"
-              metricCount={30}
-              metricSuffix="h"
-              metricLabel="weekly hours saved on standups + status reports"
-              gradient="sage"
-            />
-          </Reveal>
-          <Reveal delay={120} className="h-full">
-            <Testimonial
-              quote="We wanted to create the most efficient and effective system for spotting blockers and unblocking the team. MARINA's nudge workflow ships exactly that."
-              name="Priya Nair"
-              role="Head of Product · Spider Co."
-              metricCount={2000}
-              metricSuffix=""
-              metricLabel="blockers resolved in our first month"
-              gradient="clay"
-            />
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function Testimonial({
-  quote,
-  name,
-  role,
-  metricCount,
-  metricSuffix,
-  metricLabel,
-  gradient,
-}: {
-  quote: string
-  name: string
-  role: string
-  metricCount: number
-  metricSuffix: string
-  metricLabel: string
-  gradient: 'sage' | 'clay'
-}) {
-  const avatarBg = gradient === 'sage' ? 'var(--m-accent-soft)' : 'var(--m-clay-soft)'
-  const avatarText = gradient === 'sage' ? 'var(--m-accent)' : 'var(--m-clay-deep)'
-  const metricColor = gradient === 'sage' ? 'var(--m-accent)' : 'var(--m-clay-deep)'
-  return (
-    <article className="lift-on-hover h-full rounded-2xl bg-white border border-[var(--m-border)] p-6 md:p-8 shadow-[var(--m-shadow-sm)]">
-      <div className="grid md:grid-cols-5 gap-6 items-start">
-        <div className="md:col-span-3">
-          <svg width={28} height={20} viewBox="0 0 28 20" className="text-[var(--m-clay)] mb-3 opacity-50" fill="currentColor">
-            <path d="M0 20V8c0-4.4 3.6-8 8-8h2v6H8c-1.1 0-2 .9-2 2v2h6v10H0zm16 0V8c0-4.4 3.6-8 8-8h2v6h-2c-1.1 0-2 .9-2 2v2h6v10H16z" />
-          </svg>
-          <p className="font-display text-[20px] md:text-[22px] leading-snug text-[var(--m-ink)] italic">
-            {quote}
-          </p>
-          <div className="mt-5 flex items-center gap-3">
-            <span
-              className="inline-flex w-10 h-10 rounded-full items-center justify-center font-semibold text-[14px]"
-              style={{ background: avatarBg, color: avatarText }}
-            >
-              {name.split(' ').map((s) => s[0]).join('').slice(0, 2)}
-            </span>
-            <div>
-              <p className="text-[13.5px] font-medium text-[var(--m-ink)]">{name}</p>
-              <p className="text-[11.5px] text-[var(--m-ink-3)]">{role}</p>
-            </div>
-          </div>
-        </div>
-        <div className="md:col-span-2 md:border-l md:border-[var(--m-border)] md:pl-6">
-          <p className="font-display text-[48px] leading-none tracking-tight" style={{ color: metricColor }}>
-            <CountUp to={metricCount} suffix={metricSuffix} />
-          </p>
-          <p className="mt-3 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">{metricLabel}</p>
-        </div>
-      </div>
-    </article>
-  )
-}
-
 /* ============================ INTEGRATIONS ============================ */
 
 function Integrations() {
@@ -996,13 +849,25 @@ function Integrations() {
           chat, and payroll. Engineering data flows in; clean signal flows out.
         </p>
 
-        <div className="mt-12 grid grid-cols-3 md:grid-cols-6 gap-3 max-w-3xl mx-auto">
-          {['GitHub', 'GitLab', 'Slack', 'Google Cal', 'Linear', 'Jira', 'Razorpay', 'KEKA', 'WhatsApp', 'Notion', 'Figma', 'M365'].map((n) => (
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto">
+          {[
+            { name: 'GitHub', live: true },
+            { name: 'Slack', live: true },
+            { name: 'Google Calendar', live: true },
+            { name: 'Razorpay', live: true },
+            { name: 'Linear', live: false },
+            { name: 'Jira', live: false },
+            { name: 'Notion', live: false },
+            { name: 'WhatsApp', live: false },
+          ].map((n) => (
             <div
-              key={n}
-              className="rounded-xl bg-white border border-[var(--m-border)] py-4 px-3 text-[12.5px] text-[var(--m-ink-2)] font-medium shadow-[var(--m-shadow-sm)] hover:shadow-[var(--m-shadow)] transition-shadow"
+              key={n.name}
+              className="rounded-xl bg-white border border-[var(--m-border)] py-4 px-3 text-[12.5px] text-[var(--m-ink-2)] font-medium shadow-[var(--m-shadow-sm)] hover:shadow-[var(--m-shadow)] transition-shadow relative"
             >
-              {n}
+              {n.name}
+              {!n.live && (
+                <span className="ml-1.5 text-[9.5px] uppercase tracking-wider text-[var(--m-ink-4)]">soon</span>
+              )}
             </div>
           ))}
         </div>
@@ -1227,7 +1092,7 @@ function FinalCTA({
             </form>
           )}
           <a
-            href="mailto:hello@marina.in?subject=MARINA%20demo%20request"
+            href="mailto:thetanishgarg@gmail.com?subject=MARINA%20demo%20request"
             className="text-[14px] text-white/90 hover:text-white border border-white/30 hover:border-white/60 rounded-lg px-5 py-2.5 transition"
           >
             Request a demo
@@ -1257,7 +1122,7 @@ function Footer() {
           </div>
           <FooterCol title="Product" items={[['Features', '#product'], ['Workflows', '#workflows'], ['Pricing', '#pricing'], ['Download app', '/download'], ['Changelog', '/changelog']]} />
           <FooterCol title="Legal" items={[['Privacy', '/privacy'], ['Terms', '/terms'], ['DPA', '/dpa'], ['Security', '/security']]} />
-          <FooterCol title="Contact" items={[['hello@marina.in', 'mailto:hello@marina.in'], ['security@marina.in', 'mailto:security@marina.in'], ['dpo@marina.in', 'mailto:dpo@marina.in']]} />
+          <FooterCol title="Contact" items={[['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com'], ['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com'], ['thetanishgarg@gmail.com', 'mailto:thetanishgarg@gmail.com']]} />
         </div>
         <div className="mt-12 pt-6 border-t border-[var(--m-border)] flex items-center justify-between flex-wrap gap-3 text-[11.5px] text-[var(--m-ink-4)]">
           <p>© 2026 Project MARINA Private Limited. All rights reserved.</p>
@@ -1291,7 +1156,7 @@ function Logo() {
   // to look identical — a single asset, one source of truth.
   return (
     <img
-      src="/logo.png"
+      src="/logo.svg"
       width={32}
       height={32}
       alt="MARINA"

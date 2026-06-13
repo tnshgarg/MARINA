@@ -53,7 +53,7 @@ export default function SetupGuidePage() {
           <div className="flex items-baseline justify-between gap-4 pb-5 mb-6 border-b border-slate-200">
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" width={36} height={36} alt="" className="block object-contain" />
+              <img src="/logo.svg" width={36} height={36} alt="" className="block object-contain" />
               <div>
                 <p className="font-display text-[26px] leading-tight text-slate-900">
                   MARINA
@@ -62,8 +62,8 @@ export default function SetupGuidePage() {
               </div>
             </div>
             <p className="text-[11px] text-slate-500 text-right">
-              hello@marina.in<br />
-              support@marina.in
+              thetanishgarg@gmail.com<br />
+              thetanishgarg@gmail.com
             </p>
           </div>
 
@@ -201,9 +201,9 @@ export default function SetupGuidePage() {
 
           <Section title="Help">
             <p className="text-[12.5px] text-slate-700 leading-relaxed">
-              · Can&apos;t sign in or pair? Email <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">hello@marina.in</code> — we usually reply within an hour during IST business hours.<br />
+              · Can&apos;t sign in or pair? Email <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">thetanishgarg@gmail.com</code> — we usually reply within an hour during IST business hours.<br />
               · Found a bug? Desktop agent menu → <em>Report an issue</em> — logs attach automatically.<br />
-              · Security / privacy questions? <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">security@marina.in</code> · <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">dpo@marina.in</code>
+              · Security / privacy questions? <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">thetanishgarg@gmail.com</code> · <code className="font-mono text-[11.5px] bg-slate-100 px-1 rounded">thetanishgarg@gmail.com</code>
             </p>
           </Section>
 

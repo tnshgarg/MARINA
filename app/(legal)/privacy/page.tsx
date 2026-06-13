@@ -79,7 +79,7 @@ export default function PrivacyPage() {
         <li><strong>Correct:</strong> update your profile in settings.</li>
         <li><strong>Erase:</strong> permanently delete your account via Settings → Danger zone, or <code>DELETE /api/me/account</code>. Cascade is immediate.</li>
         <li><strong>Pause:</strong> stop the agent from collecting anything new — the menu bar &quot;Pause tracking&quot; button.</li>
-        <li><strong>Object / complain:</strong> contact our DPO at <code>dpo@marina.in</code>, or file a complaint with the Data Protection Board of India.</li>
+        <li><strong>Object / complain:</strong> contact our DPO at <code>thetanishgarg@gmail.com</code>, or file a complaint with the Data Protection Board of India.</li>
       </ul>
 
       <h2 className="text-[18px] font-semibold mt-8 mb-2">8. Security</h2>
@@ -93,8 +93,8 @@ export default function PrivacyPage() {
       <h2 className="text-[18px] font-semibold mt-8 mb-2">9. Data Protection Officer</h2>
       <p>
         Project MARINA Private Limited<br />
-        DPO: <code>dpo@marina.in</code><br />
-        Security incidents: <code>security@marina.in</code> (24h SLA)<br />
+        DPO: <code>thetanishgarg@gmail.com</code><br />
+        Security incidents: <code>thetanishgarg@gmail.com</code> (24h SLA)<br />
         Postal: [Registered office address — TBD]
       </p>
 

@@ -102,7 +102,7 @@ export const REDEEM_FAILURE_COPY: Record<
   string
 > = {
   unknown_code: 'That code doesn’t look right. Double-check with whoever shared it.',
-  inactive: 'This code was disabled. Reach out to hello@marina.in if you think this is a mistake.',
+  inactive: 'This code was disabled. Reach out to thetanishgarg@gmail.com if you think this is a mistake.',
   expired: 'This code has expired. We’re happy to issue you a fresh one — drop us a line.',
   exhausted: 'This code has been fully redeemed. It can’t be used again.',
   already_redeemed: 'Your workspace already redeemed this code.',

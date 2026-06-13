@@ -177,7 +177,7 @@ export async function sendDigestMail({
     from ??
     process.env.SMTP_FROM ??
     process.env.RESEND_FROM ??
-    'MARINA <hello@marina.in>'
+    'MARINA <thetanishgarg@gmail.com>'
 
   const transporter = getSmtpTransporter()
   if (transporter) {

@@ -73,7 +73,7 @@ export default function TermsPage() {
       </p>
 
       <p className="mt-8 text-[13px] text-slate-500">
-        Questions? Email <code>legal@marina.in</code>.
+        Questions? Email <code>thetanishgarg@gmail.com</code>.
       </p>
     </>
   )

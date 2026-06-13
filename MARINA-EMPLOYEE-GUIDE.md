@@ -239,12 +239,12 @@ exact rows your manager has access to right now, anytime.
 
 ## Help
 
-- **Can't sign in?** Email `hello@marina.in` — we usually reply within an
+- **Can't sign in?** Email `thetanishgarg@gmail.com` — we usually reply within an
   hour during IST business hours.
 - **Found a bug?** Use the desktop agent menu → **Report an issue** — it
   attaches the relevant logs automatically.
-- **Security questions?** `security@marina.in`
-- **Data / privacy questions?** `dpo@marina.in`
+- **Security questions?** `thetanishgarg@gmail.com`
+- **Data / privacy questions?** `thetanishgarg@gmail.com`
 
 We hope MARINA actually makes your work life better. If anything feels off,
 tell us — we ship fixes weekly.

@@ -8,11 +8,10 @@ export const metadata: Metadata = {
   description:
     "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for product startups.",
   icons: {
-    // /logo.png is the brand mark (sage M with a gold triangle). Browsers
-    // pick the best-fitting size on their own; we keep one source of truth
-    // instead of generating multiple variants until we actually need them.
-    icon: [{ url: "/logo.png", type: "image/png" }],
-    apple: [{ url: "/logo.png" }],
+    // /logo.svg is the brand mark (sage M with a gold triangle). SVG scales
+    // perfectly across every device pixel ratio — no need for size variants.
+    icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/logo.svg" }],
   },
 };
 

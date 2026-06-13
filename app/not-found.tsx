@@ -13,8 +13,8 @@ export default function NotFound() {
         <p className="mt-6 text-[15px] text-[var(--m-ink-2)] leading-relaxed">
           The page you're looking for might have been moved, deleted, or perhaps
           never existed. If you got here from a MARINA link, let us know at{' '}
-          <a className="text-[var(--m-accent)] underline" href="mailto:hello@marina.in">
-            hello@marina.in
+          <a className="text-[var(--m-accent)] underline" href="mailto:thetanishgarg@gmail.com">
+            thetanishgarg@gmail.com
           </a>
           .
         </p>

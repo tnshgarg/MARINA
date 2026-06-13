@@ -68,7 +68,7 @@ export function MobileNav({ orgName }: { orgName: string }) {
         </button>
         <div className="flex-1 flex items-center justify-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" width={22} height={22} alt="" aria-hidden className="block object-contain" />
+          <img src="/logo.svg" width={22} height={22} alt="" aria-hidden className="block object-contain" />
           <span className="text-[13.5px] font-semibold text-slate-900 truncate">
             {orgName}
           </span>

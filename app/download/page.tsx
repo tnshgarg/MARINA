@@ -132,8 +132,8 @@ export default function DownloadPage() {
           <p className="mt-2 text-[13px] text-[var(--m-ink-3)] leading-relaxed">
             Linux build, custom MDM rollout, air-gapped install, or a Slack-only experience without
             the agent — drop us a line at{' '}
-            <a href="mailto:hello@marina.in" className="text-[var(--m-accent)] hover:text-[var(--m-accent-2)]">
-              hello@marina.in
+            <a href="mailto:thetanishgarg@gmail.com" className="text-[var(--m-accent)] hover:text-[var(--m-accent-2)]">
+              thetanishgarg@gmail.com
             </a>{' '}
             and we&apos;ll point you the right way.
           </p>
@@ -251,7 +251,7 @@ function Nav() {
       <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" width={28} height={28} alt="MARINA" className="block object-contain" />
+          <img src="/logo.svg" width={28} height={28} alt="MARINA" className="block object-contain" />
           <span className="font-display text-[18px] leading-none text-[var(--m-ink)] tracking-tight">MARINA</span>
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-[13.5px] text-[var(--m-ink-2)]">
@@ -276,7 +276,7 @@ function Footer() {
           {' · '}
           <Link href="/security" className="hover:text-[var(--m-ink)]">Security</Link>
           {' · '}
-          <a href="mailto:hello@marina.in" className="hover:text-[var(--m-ink)]">hello@marina.in</a>
+          <a href="mailto:thetanishgarg@gmail.com" className="hover:text-[var(--m-ink)]">thetanishgarg@gmail.com</a>
         </p>
       </div>
     </footer>

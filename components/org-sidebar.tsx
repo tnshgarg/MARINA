@@ -249,12 +249,12 @@ export function OrgSidebar({
 /* ---------- Icons (inline) ---------- */
 
 function LogoMark() {
-  // Use the canonical /logo.png so the sidebar mark always matches the
+  // Use the canonical /logo.svg so the sidebar mark always matches the
   // landing page nav, the favicon and the email letterhead. Sized at 32×32
   // because the sidebar header gives this slot room to breathe.
   return (
     <img
-      src="/logo.png"
+      src="/logo.svg"
       width={32}
       height={32}
       alt=""

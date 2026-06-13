@@ -88,7 +88,7 @@ export default function DPAPage() {
       </p>
 
       <p className="mt-6 text-[13px] text-slate-500">
-        To execute this DPA, email <code>legal@marina.in</code> with your company details. A
+        To execute this DPA, email <code>thetanishgarg@gmail.com</code> with your company details. A
         countersigned PDF will be returned within 2 business days.
       </p>
     </>

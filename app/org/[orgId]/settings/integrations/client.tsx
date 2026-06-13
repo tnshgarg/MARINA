@@ -180,7 +180,7 @@ export default function IntegrationsClient({
           </p>
         </div>
         <a
-          href="mailto:hello@marina.in?subject=Integration%20request"
+          href="mailto:thetanishgarg@gmail.com?subject=Integration%20request"
           className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
         >
           Request an integration
