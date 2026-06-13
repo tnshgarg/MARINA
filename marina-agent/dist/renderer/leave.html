@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+    <title>Request leave</title>
+    <style>
+      :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+      body { margin: 0; padding: 24px 28px; background: #fafafa; color: #111; }
+      @media (prefers-color-scheme: dark) { body { background: #18181b; color: #f4f4f5; } }
+      .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a; margin: 0; font-weight: 600; }
+      h1 { margin: 4px 0 12px; font-size: 22px; font-weight: 600; }
+      .hint { font-size: 13px; line-height: 1.5; color: #52525b; }
+      @media (prefers-color-scheme: dark) { .hint { color: #a1a1aa; } }
+      label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #71717a; margin: 16px 0 6px; font-weight: 600; }
+      input, textarea {
+        width: 100%; box-sizing: border-box; padding: 10px 12px; font: inherit; font-size: 14px;
+        border: 1px solid #d4d4d8; border-radius: 8px; background: white; color: inherit; outline: none;
+        transition: border-color 100ms, box-shadow 100ms;
+      }
+      input:focus, textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+      textarea { min-height: 80px; resize: vertical; line-height: 1.45; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (prefers-color-scheme: dark) { input, textarea { background: #27272a; border-color: #3f3f46; } }
+      .actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+      button { font: inherit; padding: 9px 16px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; font-weight: 500; }
+      .primary { background: #6366f1; color: white; }
+      .primary:hover { background: #4f46e5; }
+      .primary:disabled { opacity: 0.55; cursor: default; }
+      .secondary { background: transparent; border-color: #d4d4d8; color: inherit; }
+      @media (prefers-color-scheme: dark) { .secondary { border-color: #3f3f46; } }
+      .err { margin-top: 10px; color: #b91c1c; font-size: 12px; }
+      .ok { margin-top: 10px; color: #047857; font-size: 12px; }
+      .warn { padding: 10px 14px; border-radius: 10px; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; font-size: 13px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">MARINA · Request leave</p>
+    <h1>Request time off</h1>
+    <p class="hint">Pick the dates and add a quick note. Your manager will approve or deny on the team dashboard.</p>
+
+    <div id="noOrg" class="warn" hidden>
+      You aren’t part of a team yet. Accept a team invite on the web dashboard before requesting leave.
+    </div>
+
+    <form id="form">
+      <div class="row">
+        <div>
+          <label for="start">From</label>
+          <input id="start" type="date" required />
+        </div>
+        <div>
+          <label for="end">Until</label>
+          <input id="end" type="date" required />
+        </div>
+      </div>
+      <label for="reason">Reason</label>
+      <textarea id="reason" placeholder="e.g. Family function · personal day · medical appointment" maxlength="500" required></textarea>
+      <div class="actions">
+        <button type="button" class="secondary" id="cancel">Cancel</button>
+        <button type="submit" class="primary" id="submit">Submit request</button>
+      </div>
+      <p id="msg"></p>
+    </form>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      let busy = false
+
+      ;(async () => {
+        const state = await window.marina.getState()
+        $('start').min = state.todayDate
+        $('end').min = state.todayDate
+        if (!state.hasOrg) {
+          $('noOrg').hidden = false
+          $('form').hidden = true
+        }
+      })()
+
+      $('start').addEventListener('change', () => {
+        const v = $('start').value
+        if (v) {
+          $('end').min = v
+          if ($('end').value && $('end').value < v) $('end').value = v
+        }
+      })
+
+      $('cancel').addEventListener('click', () => window.marina.close())
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        if (busy) return
+        busy = true
+        $('submit').disabled = true
+        $('submit').textContent = 'Submitting…'
+        $('msg').className = ''
+        $('msg').textContent = ''
+        try {
+          const res = await window.marina.submit({
+            startDate: $('start').value,
+            endDate: $('end').value,
+            reason: $('reason').value,
+          })
+          if (res.ok) {
+            $('msg').className = 'ok'
+            $('msg').textContent = 'Request submitted. Your manager will be notified.'
+            setTimeout(() => window.marina.close(), 700)
+          } else {
+            $('msg').className = 'err'
+            $('msg').textContent = res.error || 'Failed.'
+          }
+        } finally {
+          busy = false
+          $('submit').disabled = false
+          $('submit').textContent = 'Submit request'
+        }
+      })
+    </script>
+  </body>
+</html>

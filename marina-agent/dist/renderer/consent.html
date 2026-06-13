@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+    <title>Project MARINA — Consent</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 28px 32px;
+        background: #fafafa;
+        color: #111;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #18181b; color: #f4f4f5; }
+        ul li::marker { color: #71717a; }
+      }
+      .eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #71717a;
+        margin: 0;
+      }
+      h1 { margin: 4px 0 14px; font-size: 22px; font-weight: 600; }
+      p, li { font-size: 13px; line-height: 1.55; }
+      ul { padding-left: 18px; margin: 10px 0 16px; }
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: #e4e4e7;
+        color: #18181b;
+        margin-right: 6px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .pill { background: #27272a; color: #fafafa; }
+      }
+      .actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+      button {
+        font: inherit;
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .primary { background: #18181b; color: #fafafa; }
+      .primary:hover { background: #27272a; }
+      .secondary { background: transparent; border-color: #d4d4d8; color: inherit; }
+      .secondary:hover { background: rgba(0,0,0,0.04); }
+      @media (prefers-color-scheme: dark) {
+        .primary { background: #fafafa; color: #18181b; }
+        .primary:hover { background: #e4e4e7; }
+        .secondary { border-color: #3f3f46; }
+        .secondary:hover { background: rgba(255,255,255,0.06); }
+      }
+      footer { margin-top: 14px; font-size: 11px; color: #71717a; }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">Project MARINA</p>
+    <h1>Before we start tracking</h1>
+
+    <p>
+      The Project MARINA agent runs in your menu bar. With your consent, it samples a
+      small amount of activity data every 30 seconds and uploads a summary every 5 minutes
+      to your organization’s dashboard.
+    </p>
+
+    <p><span class="pill">What we collect</span></p>
+    <ul>
+      <li>The name of the application currently in the foreground (e.g. <em>Code</em>, <em>Safari</em>).</li>
+      <li>Whether you’re actively typing/clicking or your machine has gone idle.</li>
+      <li>Optionally, the foreground window title — <strong>off by default</strong>. Your team
+        explicitly enables this in Settings if they want it.</li>
+    </ul>
+
+    <p><span class="pill">What we never collect</span></p>
+    <ul>
+      <li>Screenshots, keystrokes, or any document/file contents.</li>
+      <li>Activity while you have tracking paused.</li>
+    </ul>
+
+    <p><span class="pill">You stay in control</span></p>
+    <ul>
+      <li>One click in the menu bar pauses tracking. Your manager only sees “paused.”</li>
+      <li>You can revoke this device any time from Settings on the web app.</li>
+    </ul>
+
+    <div class="actions">
+      <button class="secondary" id="decline">Don’t install · Quit</button>
+      <button class="primary" id="accept">I understand and consent</button>
+    </div>
+
+    <footer>By accepting you confirm you’re a member of an organization using Project MARINA
+      and have read its policy.</footer>
+
+    <script>
+      document.getElementById('accept').addEventListener('click', () => window.marina.accept())
+      document.getElementById('decline').addEventListener('click', () => window.marina.decline())
+    </script>
+  </body>
+</html>

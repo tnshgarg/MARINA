@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+    <title>Punch out · Day summary</title>
+    <style>
+      :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+      body { margin: 0; padding: 28px 32px; background: #fafafa; color: #111; }
+      @media (prefers-color-scheme: dark) { body { background: #18181b; color: #f4f4f5; } }
+      .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a; margin: 0; font-weight: 600; }
+      h1 { margin: 4px 0 10px; font-size: 22px; font-weight: 600; }
+      .hint { font-size: 13px; line-height: 1.5; color: #52525b; }
+      @media (prefers-color-scheme: dark) { .hint { color: #a1a1aa; } }
+      label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #71717a; margin: 16px 0 6px; font-weight: 600; }
+      textarea {
+        width: 100%; box-sizing: border-box; padding: 12px 14px; font: inherit; font-size: 14px;
+        border: 1px solid #d4d4d8; border-radius: 10px; background: white; color: inherit;
+        min-height: 200px; resize: vertical; line-height: 1.55; outline: none;
+        transition: border-color 100ms, box-shadow 100ms;
+      }
+      textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+      @media (prefers-color-scheme: dark) { textarea { background: #27272a; border-color: #3f3f46; } }
+      .info-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; font-size: 11px; color: #71717a; }
+      .timer { font-variant-numeric: tabular-nums; font-weight: 600; color: #0f172a; }
+      @media (prefers-color-scheme: dark) { .timer { color: #fafafa; } }
+      .ai-note {
+        margin-top: 10px; padding: 12px 14px; border-radius: 10px;
+        background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; font-size: 12px; line-height: 1.5;
+      }
+      @media (prefers-color-scheme: dark) {
+        .ai-note { background: #1e1b4b; border-color: #3730a3; color: #c7d2fe; }
+      }
+      .actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; align-items: center; }
+      .counter { font-size: 11px; color: #71717a; flex: 1; }
+      button { font: inherit; padding: 10px 18px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; font-weight: 500; }
+      .primary { background: #6366f1; color: white; }
+      .primary:hover { background: #4f46e5; }
+      .primary:disabled { opacity: 0.55; cursor: default; }
+      .secondary { background: transparent; border-color: #d4d4d8; color: inherit; }
+      @media (prefers-color-scheme: dark) { .secondary { border-color: #3f3f46; } }
+      .err { margin-top: 10px; color: #b91c1c; font-size: 12px; }
+      .ok { margin-top: 10px; color: #047857; font-size: 12px; }
+      .result {
+        margin-top: 16px; padding: 16px 18px; border-radius: 12px;
+      }
+      .result.verified { background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; }
+      .result.suspect  { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+      .result.unverified { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
+      .result .score { font-size: 28px; font-weight: 700; margin: 4px 0; font-variant-numeric: tabular-nums; }
+      .result .notes { font-size: 13px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">MARINA · End of shift</p>
+    <h1 id="title">What did you work on today?</h1>
+    <p class="hint">Tell your manager what you shipped. Be specific — MARINA cross-checks your summary against your actual commits, PRs, and focus time. Honest detail scores high; vague summaries score low.</p>
+
+    <div class="info-row">
+      <span>Shift duration: <strong class="timer" id="duration">00:00</strong></span>
+      <span id="login"></span>
+    </div>
+
+    <form id="form">
+      <label for="summary">Day summary</label>
+      <textarea
+        id="summary"
+        placeholder="e.g. Shipped PR #482 — login OAuth refresh. Reviewed Sneha's Stripe webhook PR. Spent 2h debugging race condition in payment-worker. Pair-programmed with Rahul on settings UI for an hour after lunch."
+        maxlength="4000"
+        autofocus
+      ></textarea>
+      <div class="ai-note" id="ai-note">
+        🛡️ <strong>How verification works:</strong> An AI compares your summary against actual telemetry from your shift (commits, PRs, active apps, focus time). Score ≥70 = verified. &lt;40 = suspect (your manager will see the flag).
+      </div>
+      <div class="actions">
+        <span class="counter" id="counter">0 chars</span>
+        <button type="button" class="secondary" id="cancel">Cancel</button>
+        <button type="submit" class="primary" id="submit" disabled>Submit & punch out</button>
+      </div>
+      <p id="msg"></p>
+    </form>
+
+    <div id="result" class="result" hidden>
+      <p class="eyebrow" id="result-label"></p>
+      <p class="score" id="result-score"></p>
+      <p class="notes" id="result-notes"></p>
+      <div class="actions">
+        <button class="primary" id="close-result">Close</button>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      let timerInterval = null
+      let busy = false
+      let punchedInAt = null
+
+      function startDurationTimer() {
+        if (timerInterval) clearInterval(timerInterval)
+        const tick = () => {
+          if (!punchedInAt) return
+          const s = Math.max(0, Math.floor((Date.now() - punchedInAt.getTime()) / 1000))
+          const h = Math.floor(s / 3600)
+          const m = Math.floor((s % 3600) / 60)
+          const sec = s % 60
+          const hh = h > 0
+            ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+            : `${m}:${String(sec).padStart(2,'0')}`
+          $('duration').textContent = hh
+        }
+        tick()
+        timerInterval = setInterval(tick, 1000)
+      }
+
+      ;(async () => {
+        const state = await window.marina.getState()
+        if (state.activeShift) {
+          punchedInAt = new Date(state.activeShift.punchedInAt)
+          startDurationTimer()
+        } else {
+          $('msg').className = 'err'
+          $('msg').textContent = 'No open shift — punch in first.'
+          $('form').hidden = true
+        }
+        if (state.userLogin) $('login').textContent = '@' + state.userLogin
+      })()
+
+      const ta = $('summary')
+      ta.addEventListener('input', () => {
+        const len = ta.value.length
+        $('counter').textContent = `${len} chars`
+        $('submit').disabled = len < 20 || busy
+      })
+
+      $('cancel').addEventListener('click', () => window.marina.close())
+      $('close-result').addEventListener('click', () => window.marina.close())
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        if (busy) return
+        busy = true
+        $('submit').disabled = true
+        $('submit').textContent = 'Verifying…'
+        $('msg').className = ''
+        $('msg').textContent = ''
+        try {
+          const res = await window.marina.punchOut({ summary: ta.value })
+          if (res.ok) {
+            const v = res.verification
+            $('form').hidden = true
+            const r = $('result')
+            r.hidden = false
+            r.className = 'result ' + (v.status || 'unverified')
+            $('result-label').textContent = 'Verification · ' + v.status
+            $('result-score').textContent = v.score + ' / 100'
+            $('result-notes').textContent = v.notes || ''
+            if (timerInterval) clearInterval(timerInterval)
+          } else {
+            $('msg').className = 'err'
+            $('msg').textContent = res.error || 'Failed.'
+          }
+        } finally {
+          busy = false
+          $('submit').disabled = ta.value.length < 20
+          $('submit').textContent = 'Submit & punch out'
+        }
+      })
+    </script>
+  </body>
+</html>

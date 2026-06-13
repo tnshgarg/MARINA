@@ -1,0 +1,159 @@
+import { powerMonitor } from 'electron'
+import { bus } from './state'
+import { enqueueBatches } from './uploader'
+import { STORE_KEYS, get } from './store'
+import type { PendingBatch } from './store'
+
+type AppBucket = {
+  activeSeconds: number
+  idleSeconds: number
+  sampleCount: number
+  lastTitle: string | null
+}
+
+type ActiveWinResult = {
+  owner?: { name?: string; bundleId?: string }
+  title?: string
+} | null
+
+let sampleTimer: NodeJS.Timeout | null = null
+let flushTimer: NodeJS.Timeout | null = null
+let windowStart: number | null = null
+let buckets = new Map<string, AppBucket>()
+let stopped = true
+
+export function startSampler(): void {
+  if (!stopped) return
+  stopped = false
+  windowStart = Date.now()
+  buckets = new Map()
+  scheduleSample()
+  scheduleFlush()
+  console.log('[sampler] started')
+}
+
+export function stopSampler(opts: { flush?: boolean } = {}): void {
+  if (stopped) return
+  stopped = true
+  if (sampleTimer) clearTimeout(sampleTimer)
+  if (flushTimer) clearTimeout(flushTimer)
+  sampleTimer = null
+  flushTimer = null
+  if (opts.flush) {
+    closeWindowAndEnqueue()
+  } else {
+    // Discard any in-flight buckets so resumed tracking starts clean.
+    buckets.clear()
+    windowStart = null
+  }
+  console.log('[sampler] stopped (flush:', !!opts.flush, ')')
+}
+
+function scheduleSample(): void {
+  const intervalMs = Math.max(5, bus.get().sampleIntervalSeconds) * 1000
+  sampleTimer = setTimeout(async () => {
+    if (stopped) return
+    try {
+      await tick()
+    } catch (err) {
+      console.error('[sampler] tick failed', err)
+      bus.patch({ lastError: `sampler: ${String(err)}` })
+    }
+    if (!stopped) scheduleSample()
+  }, intervalMs)
+}
+
+function scheduleFlush(): void {
+  const intervalMs = Math.max(30, bus.get().flushIntervalSeconds) * 1000
+  flushTimer = setTimeout(() => {
+    if (stopped) return
+    try {
+      closeWindowAndEnqueue()
+    } catch (err) {
+      console.error('[sampler] flush failed', err)
+      bus.patch({ lastError: `flush: ${String(err)}` })
+    }
+    if (!stopped) scheduleFlush()
+  }, intervalMs)
+}
+
+async function tick(): Promise<void> {
+  const state = bus.get()
+  if (state.paused) return // belt-and-suspenders: paused agents shouldn't even tick
+
+  const sampleInterval = Math.max(5, state.sampleIntervalSeconds)
+
+  const idleSeconds = safeIdleSeconds()
+  let result: ActiveWinResult = null
+  try {
+    const { default: activeWin } = await import('active-win')
+    result = (await activeWin()) as ActiveWinResult
+  } catch (err) {
+    // active-win can fail if accessibility permissions are missing. Surface
+    // that to the UI but keep the agent alive — heartbeat still runs.
+    bus.patch({ lastError: `active-win: ${(err as Error).message}` })
+    result = null
+  }
+
+  const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown'
+  const title = state.windowTitlesEnabled ? (result?.title ?? '').trim() || null : null
+
+  const bucket = buckets.get(appName) ?? {
+    activeSeconds: 0,
+    idleSeconds: 0,
+    sampleCount: 0,
+    lastTitle: null,
+  }
+  if (idleSeconds >= sampleInterval) {
+    bucket.idleSeconds += sampleInterval
+  } else {
+    bucket.activeSeconds += sampleInterval
+  }
+  bucket.sampleCount += 1
+  if (title) bucket.lastTitle = title
+  buckets.set(appName, bucket)
+}
+
+function safeIdleSeconds(): number {
+  try {
+    return powerMonitor.getSystemIdleTime()
+  } catch {
+    return 0
+  }
+}
+
+function closeWindowAndEnqueue(): void {
+  if (!windowStart || buckets.size === 0) {
+    windowStart = Date.now()
+    buckets = new Map()
+    return
+  }
+  const now = Date.now()
+  const start = new Date(windowStart).toISOString()
+  const end = new Date(now).toISOString()
+
+  const batches: PendingBatch[] = []
+  for (const [app, b] of buckets.entries()) {
+    if (b.sampleCount === 0) continue
+    batches.push({
+      windowStart: start,
+      windowEnd: end,
+      activeApp: app.slice(0, 128),
+      activeSeconds: Math.round(b.activeSeconds),
+      idleSeconds: Math.round(b.idleSeconds),
+      sampleCount: b.sampleCount,
+      windowTitle: b.lastTitle,
+    })
+  }
+
+  if (batches.length > 0) {
+    enqueueBatches(batches)
+  }
+
+  buckets = new Map()
+  windowStart = now
+}
+
+export function snapshotPendingCount(): number {
+  return (get(STORE_KEYS.pendingBatches) ?? []).length
+}

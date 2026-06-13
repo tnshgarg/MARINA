@@ -1,0 +1,79 @@
+{
+  "name": "marina-agent",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Project MARINA — cross-platform desktop agent (macOS + Windows)",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && pnpm copy:assets",
+    "copy:assets": "node scripts/copy-assets.mjs",
+    "start": "pnpm build && electron .",
+    "dev": "pnpm build && electron .",
+    "dist": "pnpm build && electron-builder",
+    "dist:mac": "pnpm build && electron-builder --mac",
+    "dist:win": "pnpm build && electron-builder --win",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "active-win": "8.2.1",
+    "electron-store": "8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.41",
+    "electron": "33.4.0",
+    "electron-builder": "25.1.8",
+    "typescript": "5.9.3"
+  },
+  "build": {
+    "appId": "co.marina.agent",
+    "productName": "Project MARINA",
+    "asar": true,
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "publisherName": "Project MARINA Private Limited",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Project MARINA"
+    }
+  }
+}

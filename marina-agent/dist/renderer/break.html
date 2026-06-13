@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+    <title>Pause tracking</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --bg-elev: #fafafa;
+        --fg: #0f172a;
+        --fg-muted: #64748b;
+        --fg-faint: #94a3b8;
+        --border: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --accent-strong: #4338ca;
+        --rose: #e11d48;
+        --rose-soft: #fef2f2;
+        --rose-strong: #be123c;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a0a0a;
+          --bg-elev: #18181b;
+          --fg: #f4f4f5;
+          --fg-muted: #a1a1aa;
+          --fg-faint: #71717a;
+          --border: #27272a;
+          --border-strong: #3f3f46;
+          --accent-soft: #1e1b4b;
+        }
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px 26px 22px;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .eyebrow {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--fg-faint);
+        margin: 0;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 6px 0 6px;
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.011em;
+        color: var(--fg);
+      }
+      .lede {
+        color: var(--fg-muted);
+        margin: 0 0 4px;
+      }
+
+      label {
+        display: block;
+        font-size: 11px;
+        color: var(--fg-muted);
+        margin: 16px 0 6px;
+        font-weight: 500;
+      }
+      label .opt {
+        color: var(--fg-faint);
+        font-weight: 400;
+      }
+
+      /* Category grid */
+      .cat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .cat {
+        position: relative;
+        font: inherit;
+        font-size: 12px;
+        padding: 10px 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--fg-muted);
+        cursor: pointer;
+        text-align: center;
+        font-weight: 500;
+        transition: border-color 100ms, background 100ms, color 100ms;
+      }
+      .cat:hover { border-color: var(--border-strong); color: var(--fg); }
+      .cat.on {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        box-shadow: inset 0 0 0 1px var(--accent);
+      }
+      .cat .icon {
+        display: block;
+        width: 18px;
+        height: 18px;
+        margin: 0 auto 4px;
+        color: currentColor;
+      }
+      @media (prefers-color-scheme: dark) {
+        .cat.on { color: #c7d2fe; }
+      }
+
+      /* Form fields */
+      .field {
+        width: 100%;
+        padding: 9px 11px;
+        font: inherit;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--fg);
+        outline: none;
+        transition: border-color 100ms, box-shadow 100ms;
+      }
+      .field:hover { border-color: var(--border-strong); }
+      .field:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+      }
+      textarea.field { min-height: 60px; resize: vertical; line-height: 1.45; }
+      .field::placeholder { color: var(--fg-faint); }
+
+      /* Blocked sub-form */
+      .blocked-box {
+        margin-top: 8px;
+        padding: 12px 12px 14px;
+        border-radius: 10px;
+        background: var(--rose-soft);
+        border: 1px solid #fecdd3;
+      }
+      @media (prefers-color-scheme: dark) {
+        .blocked-box { background: #1f0a10; border-color: #4c0519; }
+      }
+      .blocked-box .eyebrow { color: var(--rose-strong); }
+      @media (prefers-color-scheme: dark) { .blocked-box .eyebrow { color: #fecdd3; } }
+
+      /* Autocomplete */
+      .autocomplete { position: relative; margin-top: 2px; }
+      .suggest {
+        position: absolute;
+        left: 0; right: 0;
+        top: calc(100% + 4px);
+        z-index: 10;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px -8px rgba(0,0,0,0.18);
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 4px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .suggest { box-shadow: 0 8px 24px -8px rgba(0,0,0,0.5); }
+      }
+      .suggest button {
+        display: flex; gap: 9px; align-items: center;
+        width: 100%; padding: 7px 9px;
+        background: transparent; border: 0;
+        border-radius: 6px;
+        cursor: pointer; text-align: left;
+        font: inherit; font-size: 12.5px; color: var(--fg);
+      }
+      .suggest button:hover, .suggest button.kbsel { background: var(--bg-elev); }
+      @media (prefers-color-scheme: dark) {
+        .suggest button:hover, .suggest button.kbsel { background: var(--border); }
+      }
+      .swatch {
+        width: 22px; height: 22px; border-radius: 5px;
+        flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 10.5px; font-weight: 600; color: white;
+      }
+      .sug-name { font-size: 12.5px; font-weight: 500; color: var(--fg); }
+      .sug-login { font-size: 11px; color: var(--fg-faint); }
+
+      /* Pill for picked user */
+      .picked-pill {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 5px 10px 5px 6px;
+        margin-bottom: 6px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 500;
+      }
+      @media (prefers-color-scheme: dark) { .picked-pill { color: #c7d2fe; } }
+      .picked-pill .x {
+        font-size: 14px; cursor: pointer; opacity: 0.55;
+        width: 16px; height: 16px;
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-left: 2px;
+      }
+      .picked-pill .x:hover { opacity: 1; }
+
+      /* "Back by" chip row */
+      .chip-row {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        margin-top: 2px;
+      }
+      .chip {
+        font: inherit;
+        font-size: 12px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--fg-muted);
+        cursor: pointer;
+        transition: all 100ms;
+      }
+      .chip:hover { border-color: var(--border-strong); color: var(--fg); }
+      .chip.on {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-strong);
+      }
+      @media (prefers-color-scheme: dark) { .chip.on { color: #c7d2fe; } }
+      .chip-custom {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 6px 4px 11px;
+      }
+      .chip-custom input {
+        width: 56px;
+        padding: 3px 6px;
+        font: inherit;
+        font-size: 12px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: inherit;
+        border-radius: 6px;
+        outline: none;
+        text-align: center;
+      }
+      .chip-custom input:focus {
+        border-color: var(--accent);
+        background: var(--bg);
+      }
+      .chip-custom .unit { color: var(--fg-faint); font-size: 11px; }
+
+      /* Active state banner */
+      .active-banner {
+        margin-top: 4px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+      }
+      .active-banner .label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--fg-faint);
+        font-weight: 600;
+      }
+      .timer {
+        font-variant-numeric: tabular-nums;
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin-top: 4px;
+        color: var(--fg);
+      }
+      .reason {
+        font-size: 12.5px;
+        margin-top: 6px;
+        color: var(--fg-muted);
+      }
+
+      /* Actions */
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 18px;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      button.cta {
+        font: inherit;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        font-weight: 500;
+        font-size: 13px;
+        transition: background 100ms, border-color 100ms, color 100ms;
+      }
+      .primary {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      .primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+      .primary:disabled { opacity: 0.4; cursor: default; }
+      .secondary {
+        background: transparent;
+        border-color: var(--border-strong);
+        color: var(--fg);
+      }
+      .secondary:hover { background: var(--bg-elev); }
+      .danger {
+        background: var(--rose);
+        color: white;
+        border-color: var(--rose);
+      }
+      .danger:hover { background: var(--rose-strong); border-color: var(--rose-strong); }
+
+      .msg { margin-top: 10px; font-size: 12px; }
+      .msg.err { color: var(--rose-strong); }
+      .msg.ok { color: #047857; }
+      @media (prefers-color-scheme: dark) {
+        .msg.ok { color: #34d399; }
+        .msg.err { color: #fb7185; }
+      }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">Pause tracking</p>
+    <h1 id="title">Stepping away?</h1>
+    <p id="lede" class="lede">Tag what's up so your team knows — tracking pauses until you resume.</p>
+
+    <div id="active" hidden>
+      <div class="active-banner">
+        <div class="label">You're paused</div>
+        <div class="timer" id="timer">00:00</div>
+        <div class="reason" id="reason"></div>
+      </div>
+      <div class="actions">
+        <button class="cta secondary" id="closeActive">Close</button>
+        <button class="cta danger" id="end">Resume work</button>
+      </div>
+    </div>
+
+    <form id="form">
+      <label>What's pulling you away?</label>
+      <div class="cat-grid" id="cats">
+        <button type="button" class="cat" data-cat="focus">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+          Focus
+        </button>
+        <button type="button" class="cat" data-cat="meeting">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-2v8l-5-2z"/></svg>
+          Meeting
+        </button>
+        <button type="button" class="cat" data-cat="blocked">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8" stroke-linecap="round"/></svg>
+          Blocked
+        </button>
+        <button type="button" class="cat" data-cat="lunch">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11h14v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-2z"/><path d="M18 11h2a2 2 0 0 1 0 4h-2" stroke-linecap="round"/><path d="M7 7v-1M11 7v-2M15 7v-1" stroke-linecap="round"/></svg>
+          Lunch
+        </button>
+        <button type="button" class="cat" data-cat="errand">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="5" r="2"/><path d="M12 8v6l-3 4M12 14l3 4M9 11h6"/></svg>
+          Errand
+        </button>
+        <button type="button" class="cat" data-cat="personal">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="3.5"/><path d="M5 20c1-3 4-5 7-5s6 2 7 5"/></svg>
+          Personal
+        </button>
+        <button type="button" class="cat" data-cat="other">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+          Other
+        </button>
+      </div>
+
+      <div id="blockedBox" class="blocked-box" hidden>
+        <p class="eyebrow">Waiting on…</p>
+        <p class="lede" style="margin: 4px 0 10px; font-size: 12px">Pick a teammate or type an external dependency. Your manager sees this in the blockers panel.</p>
+        <div class="autocomplete">
+          <div id="pickedPill"></div>
+          <input type="text" id="waitOn" class="field" placeholder="Type a name, or 'Acme client', 'Stripe support'…" autocomplete="off" />
+          <div id="suggest" class="suggest" hidden></div>
+        </div>
+      </div>
+
+      <label for="reason-input">Quick note <span class="opt">(optional if blocked)</span></label>
+      <textarea id="reason-input" class="field" placeholder="e.g. PR #482 needs review · waiting on design sign-off" maxlength="500"></textarea>
+
+      <label>Back by <span class="opt">(optional)</span></label>
+      <div class="chip-row" id="backChips">
+        <button type="button" class="chip" data-mins="15">15 min</button>
+        <button type="button" class="chip" data-mins="30">30 min</button>
+        <button type="button" class="chip" data-mins="60">1 hr</button>
+        <button type="button" class="chip" data-mins="120">2 hrs</button>
+        <span class="chip chip-custom" id="customChip">
+          <input type="number" id="customMins" min="1" max="600" placeholder="—" />
+          <span class="unit">min</span>
+        </span>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="cta secondary" id="cancel">Cancel</button>
+        <button type="submit" class="cta primary" id="submit" disabled>Pause</button>
+      </div>
+      <p id="msg" class="msg"></p>
+    </form>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      let timerInterval = null
+      let busy = false
+      let category = null
+      let pickedUser = null
+      let roster = []
+      let kbIdx = -1
+      let backByMins = null
+
+      function colorFor(key) {
+        const palette = ['#6366f1','#10b981','#f59e0b','#ec4899','#0ea5e9','#8b5cf6','#84cc16','#f97316']
+        const s = String(key || 'x')
+        let h = 0
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+        return palette[h % palette.length]
+      }
+      function initials(name, login) {
+        const src = (name || login || '?').trim()
+        const parts = src.split(/\s+/)
+        return (parts[0]?.[0] || '?').toUpperCase() + (parts[1]?.[0] || '').toUpperCase()
+      }
+      function avatarHTML(m) {
+        const bg = colorFor(m.characterKey || m.login)
+        return '<span class="swatch" style="background:' + bg + '">' + initials(m.name, m.login) + '</span>'
+      }
+
+      function selectCategory(c) {
+        category = c
+        for (const btn of document.querySelectorAll('.cat')) {
+          btn.classList.toggle('on', btn.dataset.cat === c)
+        }
+        $('blockedBox').hidden = c !== 'blocked'
+        updateSubmit()
+        if (c === 'blocked') {
+          setTimeout(() => $('waitOn').focus(), 50)
+          if (roster.length === 0) loadRoster()
+        }
+      }
+
+      async function loadRoster() {
+        const res = await window.marina.roster()
+        if (res.ok) roster = res.members
+      }
+
+      function updateSubmit() {
+        const note = $('reason-input').value.trim()
+        if (!category) { $('submit').disabled = true; return }
+        if (category === 'blocked') {
+          // Need either a picked user or an external label
+          const hasTarget = !!pickedUser || $('waitOn').value.trim().length > 0
+          $('submit').disabled = !hasTarget
+        } else {
+          // Other categories: a note is recommended but not required for focus/meeting etc.
+          $('submit').disabled = false
+        }
+      }
+
+      function renderSuggest(query) {
+        const sug = $('suggest')
+        if (pickedUser) { sug.hidden = true; return }
+        const q = query.trim().toLowerCase()
+        if (q.length === 0) { sug.hidden = true; return }
+        const matches = roster
+          .filter((m) =>
+            m.login.toLowerCase().includes(q) ||
+            (m.name || '').toLowerCase().includes(q),
+          )
+          .slice(0, 6)
+        if (matches.length === 0) { sug.hidden = true; return }
+        kbIdx = -1
+        sug.innerHTML = matches.map((m, i) =>
+          '<button type="button" data-i="' + i + '" data-uid="' + m.userId + '">' +
+            avatarHTML(m) +
+            '<span><span class="sug-name">' + escapeHtml(m.name || m.login) + '</span><br /><span class="sug-login">@' + escapeHtml(m.login) + '</span></span>' +
+          '</button>'
+        ).join('')
+        sug.hidden = false
+        for (const btn of sug.querySelectorAll('button')) {
+          btn.addEventListener('click', () => {
+            const uid = Number(btn.dataset.uid)
+            pickUser(matches.find((m) => m.userId === uid))
+          })
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      }
+
+      function pickUser(m) {
+        pickedUser = m
+        $('waitOn').value = ''
+        $('suggest').hidden = true
+        const pill = $('pickedPill')
+        pill.innerHTML = '<span class="picked-pill">' + avatarHTML(m) + '<span>@' + escapeHtml(m.login) + '</span><span class="x" id="unpick">×</span></span>'
+        $('unpick').addEventListener('click', clearPick)
+        $('waitOn').placeholder = 'Add a note about what you need from them…'
+        updateSubmit()
+      }
+      function clearPick() {
+        pickedUser = null
+        $('pickedPill').innerHTML = ''
+        $('waitOn').placeholder = "Type a name, or 'Acme client', 'Stripe support'…"
+        updateSubmit()
+      }
+
+      function pickBackBy(mins) {
+        backByMins = mins
+        for (const btn of document.querySelectorAll('.chip')) {
+          if (btn.id !== 'customChip') btn.classList.toggle('on', Number(btn.dataset.mins) === mins)
+        }
+        $('customChip').classList.toggle('on', false)
+        $('customMins').value = ''
+      }
+
+      function renderState(state) {
+        if (state.activeBreak) {
+          $('form').hidden = true
+          $('active').hidden = false
+          $('title').textContent = "You're paused"
+          $('lede').textContent = 'Tracking is off until you resume. Pick up where you left off whenever.'
+          $('reason').textContent = state.activeBreak.reason
+          startTimer(new Date(state.activeBreak.startedAt))
+        } else {
+          $('form').hidden = false
+          $('active').hidden = true
+          selectCategory('focus')
+        }
+      }
+
+      function startTimer(startedAt) {
+        if (timerInterval) clearInterval(timerInterval)
+        const tick = () => {
+          const s = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000))
+          const h = Math.floor(s / 3600)
+          const m = Math.floor((s % 3600) / 60)
+          const sec = s % 60
+          const hh = h > 0
+            ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+            : `${m}:${String(sec).padStart(2,'0')}`
+          $('timer').textContent = hh
+        }
+        tick()
+        timerInterval = setInterval(tick, 1000)
+      }
+
+      function expectedEndIso() {
+        if (!backByMins || backByMins <= 0) return null
+        return new Date(Date.now() + backByMins * 60_000).toISOString()
+      }
+
+      /* ---- wire up ---- */
+      for (const btn of document.querySelectorAll('.cat')) {
+        btn.addEventListener('click', () => selectCategory(btn.dataset.cat))
+      }
+      $('reason-input').addEventListener('input', updateSubmit)
+      $('waitOn').addEventListener('input', (e) => {
+        if (pickedUser) clearPick()
+        renderSuggest(e.target.value)
+        updateSubmit()
+      })
+      $('waitOn').addEventListener('keydown', (e) => {
+        const sug = $('suggest')
+        if (sug.hidden) return
+        const buttons = sug.querySelectorAll('button')
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          kbIdx = (kbIdx + 1) % buttons.length
+          buttons.forEach((b, i) => b.classList.toggle('kbsel', i === kbIdx))
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          kbIdx = (kbIdx - 1 + buttons.length) % buttons.length
+          buttons.forEach((b, i) => b.classList.toggle('kbsel', i === kbIdx))
+        } else if (e.key === 'Enter' && kbIdx >= 0) {
+          e.preventDefault()
+          buttons[kbIdx].click()
+        } else if (e.key === 'Escape') {
+          sug.hidden = true
+        }
+      })
+
+      for (const btn of document.querySelectorAll('.chip[data-mins]')) {
+        btn.addEventListener('click', () => pickBackBy(Number(btn.dataset.mins)))
+      }
+      $('customMins').addEventListener('focus', () => {
+        for (const btn of document.querySelectorAll('.chip[data-mins]')) btn.classList.remove('on')
+        $('customChip').classList.add('on')
+      })
+      $('customMins').addEventListener('input', (e) => {
+        const v = Number(e.target.value)
+        backByMins = Number.isFinite(v) && v > 0 ? Math.min(600, Math.floor(v)) : null
+      })
+
+      ;(async () => {
+        const state = await window.marina.getState()
+        renderState(state)
+      })()
+
+      $('cancel').addEventListener('click', () => window.marina.close())
+      $('closeActive').addEventListener('click', () => window.marina.close())
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        if (busy) return
+        busy = true
+        $('submit').disabled = true
+        $('submit').textContent = 'Pausing…'
+        $('msg').className = 'msg'
+        $('msg').textContent = ''
+        try {
+          const payload = {
+            reason: $('reason-input').value,
+            category,
+            waitingOnUserId: pickedUser ? pickedUser.userId : null,
+            waitingOnExternal: !pickedUser && category === 'blocked' ? $('waitOn').value.trim() : null,
+            expectedEndAt: expectedEndIso(),
+          }
+          const res = await window.marina.start(payload)
+          if (res.ok) {
+            $('msg').className = 'msg ok'
+            $('msg').textContent = 'Paused.'
+            setTimeout(() => window.marina.close(), 300)
+          } else {
+            $('msg').className = 'msg err'
+            $('msg').textContent = res.error || 'Failed.'
+          }
+        } finally {
+          busy = false
+          $('submit').disabled = false
+          $('submit').textContent = 'Pause'
+        }
+      })
+
+      $('end').addEventListener('click', async () => {
+        $('end').disabled = true
+        $('end').textContent = 'Resuming…'
+        const res = await window.marina.end()
+        if (res.ok) {
+          if (timerInterval) clearInterval(timerInterval)
+          window.marina.close()
+        } else {
+          $('end').disabled = false
+          $('end').textContent = 'Resume work'
+          alert(res.error || 'Failed to resume.')
+        }
+      })
+    </script>
+  </body>
+</html>

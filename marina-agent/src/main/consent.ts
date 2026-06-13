@@ -1,0 +1,90 @@
+import { BrowserWindow, app, ipcMain } from 'electron'
+import path from 'path'
+import { STORE_KEYS, get, set } from './store'
+import { POLICY_VERSION } from './config'
+import { bringToFront, hideDockIfIdle } from './window-utils'
+
+let consentWindow: BrowserWindow | null = null
+let resolver: ((accepted: boolean) => void) | null = null
+
+export function hasConsented(): boolean {
+  return get(STORE_KEYS.consentAt) != null && get(STORE_KEYS.policyVersionAccepted) === POLICY_VERSION
+}
+
+export function recordConsent(): void {
+  set(STORE_KEYS.consentAt, new Date().toISOString())
+  set(STORE_KEYS.policyVersionAccepted, POLICY_VERSION)
+}
+
+export async function showConsentWindow(): Promise<boolean> {
+  if (consentWindow) {
+    bringToFront(consentWindow)
+    return new Promise((res) => {
+      resolver = res
+    })
+  }
+
+  consentWindow = new BrowserWindow({
+    width: 540,
+    height: 600,
+    title: 'Project MARINA — Consent',
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    show: false,
+    alwaysOnTop: true,
+    center: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-consent.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+
+  consentWindow.removeMenu()
+  await consentWindow.loadFile(path.join(__dirname, '..', 'renderer', 'consent.html'))
+  bringToFront(consentWindow)
+
+  const promise = new Promise<boolean>((res) => {
+    resolver = res
+  })
+
+  consentWindow.on('closed', () => {
+    consentWindow = null
+    hideDockIfIdle()
+    if (resolver) {
+      resolver(false)
+      resolver = null
+    }
+  })
+
+  return promise
+}
+
+export function registerConsentIpc(): void {
+  ipcMain.handle('marina:consent:accept', () => {
+    recordConsent()
+    if (resolver) {
+      resolver(true)
+      resolver = null
+    }
+    if (consentWindow) {
+      consentWindow.close()
+    }
+    return true
+  })
+
+  ipcMain.handle('marina:consent:decline', () => {
+    if (resolver) {
+      resolver(false)
+      resolver = null
+    }
+    if (consentWindow) {
+      consentWindow.close()
+    }
+    app.quit()
+    return false
+  })
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+    <title>Pair this device</title>
+    <style>
+      :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+      body { margin: 0; padding: 24px 28px; background: #fafafa; color: #111; }
+      @media (prefers-color-scheme: dark) { body { background: #18181b; color: #f4f4f5; } }
+      .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a; margin: 0; }
+      h1 { margin: 4px 0 14px; font-size: 20px; font-weight: 600; }
+      p { font-size: 13px; line-height: 1.5; }
+      label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #71717a; margin: 14px 0 6px; }
+      input {
+        width: 100%; box-sizing: border-box; padding: 8px 10px; font: inherit; font-size: 14px;
+        border: 1px solid #d4d4d8; border-radius: 6px; background: white; color: inherit;
+      }
+      input.code { font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.3em; text-align: center; text-transform: uppercase; }
+      @media (prefers-color-scheme: dark) {
+        input { background: #27272a; border-color: #3f3f46; }
+      }
+      .actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+      button { font: inherit; padding: 8px 14px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+      .primary { background: #18181b; color: #fafafa; }
+      .primary:hover { background: #27272a; }
+      .primary:disabled { opacity: 0.5; cursor: default; }
+      .secondary { background: transparent; border-color: #d4d4d8; color: inherit; }
+      @media (prefers-color-scheme: dark) {
+        .primary { background: #fafafa; color: #18181b; }
+        .primary:hover { background: #e4e4e7; }
+        .secondary { border-color: #3f3f46; }
+      }
+      .err { margin-top: 10px; color: #b91c1c; font-size: 12px; }
+      .ok { margin-top: 10px; color: #047857; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">Project MARINA</p>
+    <h1>Pair this device</h1>
+    <p>Open <strong>Settings → Pair a device</strong> on the web app, generate a code, and paste it here.</p>
+
+    <form id="form" autocomplete="off">
+      <label for="server">Server URL</label>
+      <input id="server" type="url" required placeholder="https://app.marina.example" />
+
+      <label for="code">Pairing code (8 characters)</label>
+      <input id="code" class="code" maxlength="16" required placeholder="A1B2 C3D4" />
+
+      <label for="label">This device's label</label>
+      <input id="label" type="text" required maxlength="80" />
+
+      <div class="actions">
+        <button type="button" class="secondary" id="cancel">Cancel</button>
+        <button type="submit" class="primary" id="submit">Pair</button>
+      </div>
+      <p id="msg"></p>
+    </form>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      let busy = false
+
+      ;(async () => {
+        const d = await window.marina.getDefaults()
+        $('server').value = d.serverBaseUrl
+        $('label').value = d.label
+      })()
+
+      $('cancel').addEventListener('click', () => window.marina.cancel())
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        if (busy) return
+        busy = true
+        $('submit').disabled = true
+        $('submit').textContent = 'Pairing…'
+        $('msg').className = ''
+        $('msg').textContent = ''
+        try {
+          const res = await window.marina.submit({
+            serverBaseUrl: $('server').value,
+            code: $('code').value,
+            label: $('label').value,
+          })
+          if (res.ok) {
+            $('msg').className = 'ok'
+            $('msg').textContent = 'Paired as @' + res.login
+            setTimeout(() => window.marina.cancel(), 800)
+          } else {
+            $('msg').className = 'err'
+            $('msg').textContent = res.error || 'Pairing failed'
+          }
+        } catch (err) {
+          $('msg').className = 'err'
+          $('msg').textContent = String(err && err.message ? err.message : err)
+        } finally {
+          busy = false
+          $('submit').disabled = false
+          $('submit').textContent = 'Pair'
+        }
+      })
+    </script>
+  </body>
+</html>
