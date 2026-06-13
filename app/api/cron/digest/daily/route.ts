@@ -47,7 +47,7 @@ async function run() {
           isNull(schema.memberships.endedAt),
         ),
       )
-    const targets = managers.filter((row) => row.m.role === 'owner' || row.m.role === 'manager')
+    const targets = managers.filter((row) => row.m.role === 'admin' || row.m.role === 'manager')
 
     for (const t of targets) {
       if (!t.u.email) {
@@ -59,7 +59,7 @@ async function run() {
       const reportIds = managers
         .filter((row) => row.m.reportsToMembershipId === t.m.id)
         .map((row) => row.u.id)
-      const scope = t.m.role === 'owner' || reportIds.length === 0 ? null : reportIds
+      const scope = t.m.role === 'admin' || reportIds.length === 0 ? null : reportIds
 
       try {
         const digest = await buildManagerDailyDigest({

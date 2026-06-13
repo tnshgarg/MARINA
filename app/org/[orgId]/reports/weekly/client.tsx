@@ -164,7 +164,7 @@ function Row({ row, rank, orgId }: { row: WeeklyRow; rank: number | null; orgId:
           {rank}
         </span>
       )}
-      <CharacterAvatar characterKey={row.characterKey} size={36} />
+      <CharacterAvatar characterKey={row.characterKey} name={row.name} login={row.login} size={36} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           <p className="text-[13.5px] font-medium text-slate-900 truncate">{row.name}</p>
@@ -226,7 +226,7 @@ function CalloutBlock({
       <ul className="mt-2.5 space-y-1.5">
         {rows.map((r) => (
           <li key={r.userId} className="flex items-center gap-2.5">
-            <CharacterAvatar characterKey={r.characterKey} size={24} />
+            <CharacterAvatar characterKey={r.characterKey} name={r.name} login={r.login} size={24} />
             <span className="text-[12.5px] font-medium text-slate-900 truncate flex-1">{r.name}</span>
             <span className="text-[11.5px] text-slate-500">{r.score} pts</span>
             <a

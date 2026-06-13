@@ -15,7 +15,7 @@ export async function managerUserIdsForOrg(orgId: number): Promise<number[]> {
         eq(schema.memberships.orgId, orgId),
         isNull(schema.memberships.endedAt),
         or(
-          eq(schema.memberships.role, 'owner'),
+          eq(schema.memberships.role, 'admin'),
           eq(schema.memberships.role, 'manager'),
         ),
       ),
@@ -62,7 +62,7 @@ export async function userIdsWithCapability(
 
   const ids = new Set<number>()
   for (const r of rows) {
-    if (r.role === 'owner') ids.add(r.userId)
+    if (r.role === 'admin') ids.add(r.userId)
     else if (r.role === 'manager' && isManagerDefault) ids.add(r.userId)
     else if (Array.isArray(r.extraCaps) && r.extraCaps.includes(capability)) ids.add(r.userId)
   }

@@ -226,7 +226,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
                 key={e.id}
                 className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50/60 transition-colors"
               >
-                <CharacterAvatar characterKey={e.user.characterKey} size={28} />
+                <CharacterAvatar characterKey={e.user.characterKey} name={e.user.name} login={e.user.login} size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`pill ${TYPE_PILL[e.type] ?? 'pill-slate'}`}>

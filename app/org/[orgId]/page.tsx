@@ -35,20 +35,36 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
   if (!session?.appUserId || !session.login) redirect('/')
 
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-  if (!me?.characterKey) redirect('/pick')
+  if (!me) redirect('/')
 
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
   if (!org) notFound()
 
-  const rawMembers = await db
+  // Visibility scoping: admins see every active member; managers + leads see
+  // only their reports-to chain + members of teams they manage. The helper
+  // returns user-id and membership-id sets — we filter the org-wide member
+  // list down to those before going any further so every downstream query
+  // (narratives, breaks, shifts) gets the scoped userIds.
+  const { getVisibleScope } = await import('@/lib/auth/scope')
+  const scope = await getVisibleScope(orgId, {
+    userId: session.appUserId,
+    membershipId: viewer.membership.id,
+    role: viewer.membership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
+
+  const allMembers = await db
     .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
+  const rawMembers = scope.isAdminScope
+    ? allMembers
+    : allMembers.filter((r) => scope.userIds.has(r.u.id))
+
   const userIds = rawMembers.map((r) => r.u.id)
   const isManager = roleAtLeast(viewer.membership.role, 'manager')
-  const isOwner = viewer.membership.role === 'owner'
+  const isOwner = viewer.membership.role === 'admin'
 
   const [narratives, compact, settingsRows, pendingLeaves, recentBreaks, openShifts] = await Promise.all([
     userIds.length

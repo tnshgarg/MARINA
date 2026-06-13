@@ -7,11 +7,32 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/db-migrate.ts",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+
+    "db:migrate":      "tsx --env-file=.env scripts/db-migrate.ts",
+    "db:migrate:dev":  "tsx --env-file=.env scripts/db-migrate.ts",
+    "db:migrate:prod": "tsx --env-file=.env.production scripts/db-migrate.ts",
+
+    "db:apply":        "tsx --env-file=.env scripts/db-apply-pending.ts",
+    "db:apply:dev":    "tsx --env-file=.env scripts/db-apply-pending.ts",
+    "db:apply:prod":   "tsx --env-file=.env.production scripts/db-apply-pending.ts",
+
+    "db:push":      "set -a && . ./.env && set +a && drizzle-kit push",
+    "db:push:dev":  "set -a && . ./.env && set +a && drizzle-kit push",
+    "db:push:prod": "echo '⚠️  drizzle-kit push against PRODUCTION can DROP columns. Hit Enter to continue, Ctrl-C to abort.' && read _ && set -a && . ./.env.production && set +a && drizzle-kit push",
+
+    "db:studio":      "set -a && . ./.env && set +a && drizzle-kit studio",
+    "db:studio:dev":  "set -a && . ./.env && set +a && drizzle-kit studio",
+    "db:studio:prod": "set -a && . ./.env.production && set +a && drizzle-kit studio",
+
+    "seed:demo":       "tsx --env-file=.env scripts/seed-demo.ts",
+    "seed:demo:dev":   "tsx --env-file=.env scripts/seed-demo.ts",
+    "seed:demo:prod":  "tsx --env-file=.env.production scripts/seed-demo.ts",
+
+    "seed:codes":      "tsx --env-file=.env scripts/seed-early-bird-codes.ts",
+    "seed:codes:dev":  "tsx --env-file=.env scripts/seed-early-bird-codes.ts",
+    "seed:codes:prod": "tsx --env-file=.env.production scripts/seed-early-bird-codes.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

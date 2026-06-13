@@ -105,8 +105,12 @@ export default function PerformanceReportClient({ report }: { report: Performanc
               {fmtRange(report.range.start, report.range.end)} ·{' '}
               <span className="text-slate-500">{report.range.workingDays} working days</span>
             </p>
-            <p className="mt-4 text-[14px] leading-relaxed text-slate-800 italic font-display">
-              “{report.narrative.summary}”
+            {/* Summary line — body sans-serif to match the rest of the
+                product. The italic display serif was performing as a
+                pull-quote which clashed with the "professional report"
+                voice the page is going for. */}
+            <p className="mt-4 text-[14px] leading-relaxed text-slate-800">
+              {report.narrative.summary}
             </p>
           </section>
 
@@ -204,7 +208,7 @@ export default function PerformanceReportClient({ report }: { report: Performanc
             <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
               Manager recommendation
             </p>
-            <p className="font-display text-[16px] leading-snug text-slate-900 italic">
+            <p className="text-[15px] leading-snug text-slate-900">
               {report.narrative.recommendation}
             </p>
             <p className="mt-6 text-[11px] text-slate-400">

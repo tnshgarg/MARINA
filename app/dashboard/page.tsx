@@ -21,7 +21,7 @@ export default async function DashboardPage() {
 
   const memberships = await listMembershipsForCurrentUser()
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-  if (!me?.characterKey) redirect('/pick')
+  if (!me) redirect('/')
   const character = getCharacter(me.characterKey)
 
   const [events, latestNarrative, today, userSettings, activeBreak, recentBreaks, myLeaves] =
@@ -86,7 +86,7 @@ export default async function DashboardPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <CharacterAvatar characterKey={me.characterKey} size={36} />
+            <CharacterAvatar characterKey={me.characterKey} name={me.name} login={me.login} size={36} />
             <div className="min-w-0">
               <p className="app-eyebrow hidden sm:block">My console</p>
               <h1 className="app-h2 truncate flex items-baseline gap-2 text-[15px] sm:text-[20px]">

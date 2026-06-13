@@ -305,7 +305,7 @@ export default function ScrumClient({
                           : 'border-transparent hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)]'
                       }`}
                     >
-                      <CharacterAvatar characterKey={m.characterKey} size={28} ring={isActive} />
+                      <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={28} ring={isActive} />
                       <div className="flex-1 min-w-0">
                         <p
                           className={`text-[13px] truncate ${
@@ -407,7 +407,7 @@ function BriefPane({
 
       {/* Person header */}
       <div className="flex items-center gap-5 mb-6">
-        <CharacterAvatar characterKey={member.characterKey} size={68} ring />
+        <CharacterAvatar characterKey={member.characterKey} name={member.name} login={member.login} size={68} ring />
         <div className="flex-1 min-w-0">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--m-ink-4)] font-semibold">
             Next up · {position} of {total}

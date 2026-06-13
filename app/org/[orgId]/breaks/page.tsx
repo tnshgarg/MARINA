@@ -60,7 +60,7 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
             <ul className="divide-y divide-slate-100">
               {ongoing.map(({ b, u }) => (
                 <li key={b.id} className="px-4 py-3 flex items-start gap-3">
-                  <CharacterAvatar characterKey={u.characterKey} size={32} />
+                  <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={32} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-slate-900 truncate">
                       {u.name ?? `@${u.login}`}
@@ -97,7 +97,7 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
             <ul className="divide-y divide-slate-100">
               {recent.slice(0, 12).map(({ b, u }) => (
                 <li key={b.id} className="px-4 py-2.5 flex items-start gap-3">
-                  <CharacterAvatar characterKey={u.characterKey} size={26} />
+                  <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[12.5px] font-medium text-slate-900 truncate">
                       {u.name ?? `@${u.login}`}

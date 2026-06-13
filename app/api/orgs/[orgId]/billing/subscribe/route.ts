@@ -23,7 +23,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'owner')
+    const { session } = await requireMembership(orgId, 'admin')
     const body = (await req.json().catch(() => ({}))) as { plan?: RazorpayPlanKey }
     const plan = body.plan
     if (plan !== 'team' && plan !== 'scale') {

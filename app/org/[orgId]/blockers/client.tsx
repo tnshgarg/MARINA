@@ -186,7 +186,7 @@ function BlockerRow({
     >
       {/* Blocked person */}
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <CharacterAvatar characterKey={blocker.blockedUser.characterKey} size={36} />
+        <CharacterAvatar characterKey={blocker.blockedUser.characterKey} name={blocker.blockedUser.name} login={blocker.blockedUser.login} size={36} />
         <div className="min-w-0">
           <p className="text-[13.5px] font-medium text-slate-900 truncate">
             {blocker.blockedUser.name ?? `@${blocker.blockedUser.login}`}
@@ -204,7 +204,7 @@ function BlockerRow({
           <div className="flex items-center gap-2">
             {blocker.waitingOnUser ? (
               <>
-                <CharacterAvatar characterKey={blocker.waitingOnUser.characterKey} size={26} />
+                <CharacterAvatar characterKey={blocker.waitingOnUser.characterKey} name={blocker.waitingOnUser.name} login={blocker.waitingOnUser.login} size={26} />
                 <span className="text-[12.5px] text-slate-700 font-medium">
                   {blocker.waitingOnUser.name ?? `@${blocker.waitingOnUser.login}`}
                 </span>

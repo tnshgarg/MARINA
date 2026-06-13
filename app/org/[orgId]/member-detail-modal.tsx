@@ -375,7 +375,7 @@ export function MemberDetailModal({
       title={
         detail ? (
           <span className="flex items-center gap-2.5">
-            <CharacterAvatar characterKey={detail.user.characterKey} size={28} />
+            <CharacterAvatar characterKey={detail.user.characterKey} name={detail.user.name} login={detail.user.login} size={28} />
             <span>{detail.user.name ?? `@${detail.user.login}`}</span>
           </span>
         ) : (
@@ -1442,7 +1442,7 @@ function ProfileTab({
         </Section>
       )}
 
-      {isOwner && detail.role !== 'owner' && (
+      {isOwner && detail.role !== 'admin' && (
         <Section title="Extra capabilities" hint="owner-only — grant manager rights to specific people">
           <div className="mb-3">
             <TutorialHint id="extra-caps-explainer" tone="gold" title="When to grant extras">

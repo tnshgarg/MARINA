@@ -191,6 +191,11 @@ html, body {
 }
 .m-slow-pulse { animation: m-slow-pulse 2.4s ease-in-out infinite; }
 
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Ribbon shimmer — sweeps once on view; runs forever subtly in hero */
 @keyframes m-shimmer {
   0%   { transform: translateX(-100%); }

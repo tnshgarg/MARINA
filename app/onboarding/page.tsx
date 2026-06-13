@@ -21,7 +21,7 @@ export default async function OnboardingPage() {
   }
 
   const user = await getCurrentUser()
-  if (!user?.characterKey) redirect('/pick')
+  if (!user) redirect('/')
   const character = getCharacter(user.characterKey)
 
   const pendingInvites = user?.email

@@ -122,7 +122,7 @@ export default function AttendanceClient({
                         active ? 'bg-[var(--m-accent-soft)]/60 text-[var(--m-accent-2)]' : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     >
-                      <CharacterAvatar characterKey={m.characterKey} size={24} />
+                      <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={24} />
                       <span className="text-[12.5px] font-medium truncate">
                         {m.name ?? `@${m.login}`}
                       </span>

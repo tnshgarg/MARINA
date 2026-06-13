@@ -44,9 +44,9 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
   export_data:          'Export reports',
 }
 
-/** Default capabilities granted by each base role. Owners always implicitly hold ALL. */
+/** Default capabilities granted by each base role. Admins always implicitly hold ALL. */
 const BASE_CAPS_BY_ROLE: Record<Role, Capability[]> = {
-  owner: ALL_CAPABILITIES,
+  admin: ALL_CAPABILITIES,
   manager: [
     'manage_members',
     'view_reports_only',
@@ -54,6 +54,7 @@ const BASE_CAPS_BY_ROLE: Record<Role, Capability[]> = {
     'schedule_meetings',
     'export_data',
   ],
+  lead: ['view_reports_only', 'schedule_meetings'],
   member: [],
 }
 

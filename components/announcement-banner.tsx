@@ -11,7 +11,7 @@ import { db, schema } from '@/lib/db/client'
  *   - `audience='all'` always shows. Owners/Managers audience filtering is
  *     done at the caller (we pass the viewer's role).
  */
-export async function AnnouncementBanner({ viewerRole }: { viewerRole?: 'owner' | 'manager' | 'lead' | 'member' }) {
+export async function AnnouncementBanner({ viewerRole }: { viewerRole?: 'admin' | 'manager' | 'lead' | 'member' }) {
   const now = new Date()
   const rows = await db
     .select()
@@ -30,8 +30,8 @@ export async function AnnouncementBanner({ viewerRole }: { viewerRole?: 'owner' 
   if (!a) return null
 
   // Audience filter
-  if (a.audience === 'owners' && viewerRole !== 'owner') return null
-  if (a.audience === 'managers' && viewerRole !== 'owner' && viewerRole !== 'manager' && viewerRole !== 'lead') return null
+  if (a.audience === 'admins' && viewerRole !== 'admin') return null
+  if (a.audience === 'managers' && viewerRole !== 'admin' && viewerRole !== 'manager' && viewerRole !== 'lead') return null
 
   const palette =
     a.severity === 'critical'

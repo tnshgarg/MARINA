@@ -79,7 +79,7 @@ export function BlockerCoaching() {
           >
             {t.author ? (
               <CharacterAvatar
-                characterKey={t.author.characterKey}
+                characterKey={t.author.characterKey} name={t.author.name} login={t.author.login}
                 imageUrl={t.author.avatarUrl}
                 size={28}
               />

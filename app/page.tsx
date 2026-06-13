@@ -7,6 +7,7 @@ import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { CHARACTERS } from '@/lib/characters/data'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { Reveal } from '@/components/reveal'
+import { HeroPreview } from '@/components/hero-preview'
 import LandingClient from './landing-client'
 import {
   BlockerResolverMockup,
@@ -25,7 +26,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     const me = await db.query.users.findFirst({
       where: eq(schema.users.id, session.appUserId),
     })
-    if (!me?.characterKey) redirect('/pick')
+    // Character pick was removed — users now use uploaded photo or initials avatar
 
     const jar = await cookies()
     const pendingInvite = jar.get('marina_pending_invite')?.value
@@ -117,7 +118,15 @@ function Nav() {
           >
             Sign in
           </a>
-          <a href="#cta" className="btn-primary">Request a demo</a>
+          {/* Open the mail client directly with a pre-filled subject + body.
+              Was: smooth-scroll to #cta then a second click to mail — two
+              clicks for one intent. One link, one tap, written intent. */}
+          <a
+            href="mailto:thetanishgarg@gmail.com?subject=MARINA%20demo%20request&body=Hi%20MARINA%20team%2C%0A%0AI%27d%20like%20a%20demo%20of%20MARINA%20for%20my%20team.%0A%0ATeam%20size%3A%20%0AWhere%20we%27re%20remote%2Fhybrid%2Foffice%3A%20%0AWhat%20we%27re%20struggling%20with%20today%3A%20%0A%0AThanks!"
+            className="btn-primary"
+          >
+            Request a demo
+          </a>
         </div>
       </div>
     </header>
@@ -203,149 +212,6 @@ function Hero({
   )
 }
 
-function HeroPreview() {
-  return (
-    <div className="relative">
-      {/* Soft pastel background — floats gently */}
-      <div
-        className="absolute -inset-6 rounded-[28px] -z-10 m-float"
-        style={{
-          background:
-            'linear-gradient(135deg, rgba(63,107,84,0.12) 0%, rgba(196,123,86,0.08) 50%, rgba(193,154,77,0.10) 100%)',
-        }}
-      />
-      {/* Decorative offset card behind for depth */}
-      <div className="absolute inset-0 translate-x-3 translate-y-4 rounded-[20px] bg-[var(--m-bg-soft)] border border-[var(--m-border)] -z-10" />
-
-      <div className="relative rounded-[20px] bg-white border border-[var(--m-border)] shadow-[var(--m-shadow-xl)] p-5">
-        {/* Mock chrome */}
-        <div className="flex items-center gap-1.5 mb-4">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#e5e0d4]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#e5e0d4]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#e5e0d4]" />
-          <span className="ml-3 text-[10.5px] tracking-wider uppercase text-[var(--m-ink-4)]">
-            Team Pulse
-          </span>
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-[var(--m-good)] font-medium">
-            <span className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-[var(--m-good)]/40 animate-ping" />
-              <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-good)]" />
-            </span>
-            live
-          </span>
-        </div>
-
-        {/* Greeting */}
-        <p className="font-display text-[18px] text-[var(--m-ink)] leading-tight">
-          Good morning, Tanish
-        </p>
-        <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
-          2 teammates waiting on you · 7 of 12 shipping today
-        </p>
-
-        {/* Inline stats */}
-        <div className="flex items-baseline gap-6 mt-4 pb-4 border-b border-[var(--m-border-soft)]">
-          <Stat n="2" label="blocked" tone="bad" />
-          <Stat n="7" label="shipping" tone="good" />
-          <Stat n="1" label="on leave" tone="warn" />
-        </div>
-
-        {/* Blocker card */}
-        <div className="mt-4 rounded-lg border border-[#f1d5d6] bg-[#fbf2f2]/60 p-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] tracking-wider uppercase text-[var(--m-bad)] font-semibold flex items-center gap-1.5">
-              <span className="relative inline-flex">
-                <span className="absolute inset-0 rounded-full bg-[var(--m-bad)]/40 animate-ping" />
-                <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-bad)]" />
-              </span>
-              Active blocker
-            </p>
-            <span className="text-[10.5px] text-[var(--m-bad)] tabular-nums font-medium">47 min</span>
-          </div>
-          <p className="mt-1.5 text-[13px] text-[var(--m-ink)]">
-            <span className="font-medium">Priya</span>
-            <span className="text-[var(--m-ink-3)]"> waiting on </span>
-            <span className="font-medium">@arjun</span>
-          </p>
-          <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
-            Brand review pending sign-off · marketing
-          </p>
-        </div>
-
-        {/* Member row — designer */}
-        <div className="mt-3 rounded-lg border border-[var(--m-border)] bg-white p-3">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="inline-flex w-8 h-8 rounded-md bg-[var(--m-clay-soft)] items-center justify-center text-[var(--m-clay-deep)] text-[11.5px] font-semibold">
-              A
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate flex items-center gap-1.5 flex-wrap">
-                Anika Roy
-                <span className="text-[10px] text-[var(--m-ink-4)] uppercase tracking-wider">Design</span>
-                <span className="ml-1 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--m-good-soft)] text-[var(--m-good)]">
-                  <span className="inline-block w-1 h-1 rounded-full bg-[var(--m-good)]" />
-                  Working
-                </span>
-              </p>
-            </div>
-          </div>
-          {/* Right now line */}
-          <p className="text-[11.5px] text-[var(--m-ink-2)] mb-1.5 flex items-center gap-1.5">
-            <span className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-[var(--m-good)]/40 animate-ping" />
-              <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-good)]" />
-            </span>
-            <span className="text-[var(--m-ink-3)]">Right now</span>
-            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="text-[var(--m-accent)]">
-              <path d="M8 8l-4 4 4 4M16 8l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="font-medium truncate">Designing onboarding screens</span>
-          </p>
-          <div className="h-1 rounded-full overflow-hidden flex bg-[var(--m-bg-soft)] m-shimmer">
-            <div className="h-full bg-[var(--m-accent)]" style={{ width: '68%' }} />
-            <div className="h-full bg-[var(--m-ink-5)]" style={{ width: '22%' }} />
-          </div>
-        </div>
-
-        {/* Second row — sales (mixed-team hint) */}
-        <div className="mt-2.5 rounded-lg border border-[var(--m-border)] bg-white p-2.5 flex items-center gap-3">
-          <span className="inline-flex w-7 h-7 rounded-md bg-[var(--m-info-soft)] items-center justify-center text-[var(--m-info)] text-[11px] font-semibold">
-            V
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-medium text-[var(--m-ink)] truncate flex items-center gap-1.5">
-              Vikram Shah
-              <span className="text-[9.5px] text-[var(--m-ink-4)] uppercase tracking-wider">Sales</span>
-            </p>
-            <p className="text-[10.5px] text-[var(--m-ink-3)] truncate">
-              On a customer call · Zoom
-            </p>
-          </div>
-          <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--m-info-soft)] text-[var(--m-info)]">
-            In meeting
-          </span>
-        </div>
-
-        <p className="mt-3 text-[10.5px] text-[var(--m-ink-4)] text-center">
-          Live preview · auto-refreshes every 45 seconds
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function Stat({ n, label, tone }: { n: string; label: string; tone: 'good' | 'bad' | 'warn' }) {
-  const colorClass =
-    tone === 'good' ? 'text-[var(--m-good)]'
-    : tone === 'bad' ? 'text-[var(--m-bad)]'
-    : 'text-[var(--m-warn)]'
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`text-[22px] font-semibold tabular-nums tracking-tight ${colorClass}`}>{n}</span>
-      <span className="text-[11.5px] text-[var(--m-ink-3)]">{label}</span>
-    </div>
-  )
-}
 
 /* ============================ VALUE PROPS ============================ */
 

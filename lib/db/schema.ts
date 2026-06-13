@@ -195,7 +195,21 @@ export const orgs = pgTable('orgs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export type Role = 'owner' | 'manager' | 'member'
+/**
+ * Workspace role.
+ *
+ *   admin   — full org access. Can manage members, integrations, billing,
+ *             see every team's data. Multiple admins per org is supported
+ *             and encouraged (previously this was "owner" — singular).
+ *   manager — team-scoped access. Sees only their direct/indirect reports
+ *             + members of teams they manage. Cannot see other teams.
+ *   lead    — same scope as manager, lighter signalling. Reserved.
+ *   member  — self-only. Sees their own dashboard, breaks, deliverables.
+ *
+ * The DB still has rows with role='owner' from before this rename — the
+ * migration in `scripts/db-apply-pending.ts` flips them to 'admin'.
+ */
+export type Role = 'admin' | 'manager' | 'lead' | 'member'
 
 /**
  * Functional discipline of the person inside the org. Drives which signals

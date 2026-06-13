@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     await db.insert(schema.memberships).values({
       orgId: org.id,
       userId: session.appUserId,
-      role: 'owner',
+      role: 'admin',
     })
 
     return NextResponse.json({ ok: true, org })

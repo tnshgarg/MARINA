@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import { CharacterAvatar } from "@/components/character-avatar";
 import { NavLink } from "@/components/nav-link";
 import { NotificationBell } from "@/components/notification-bell";
-import { getCharacter } from "@/lib/characters/data";
 
 type NavEntry = {
   key: string;
@@ -109,6 +108,7 @@ export function OrgSidebar({
   orgName,
   orgLogoUrl,
   userLogin,
+  userName,
   characterKey,
   userAvatarUrl,
   role,
@@ -121,14 +121,17 @@ export function OrgSidebar({
   orgName: string;
   orgLogoUrl?: string | null;
   userLogin: string;
-  characterKey: string | null;
+  /** Real display name from the users row. Falls back to @login. */
+  userName?: string | null;
+  /** Kept on the signature so existing callers don't break; unused now. */
+  characterKey?: string | null;
   userAvatarUrl?: string | null;
   role: string;
   pendingLeaveCount?: number;
   signOutAction: () => Promise<void> | void;
 }) {
+  void characterKey; // intentionally unused — character roster retired
   const pathname = usePathname() ?? "";
-  const me = getCharacter(characterKey);
 
   return (
     <aside className="app-sidebar">
@@ -223,13 +226,13 @@ export function OrgSidebar({
       <div className="shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
         <div className="flex items-center gap-2 flex-nowrap min-h-[44px]">
           <CharacterAvatar
-            characterKey={characterKey}
+            name={userName ?? userLogin}
             imageUrl={userAvatarUrl}
             size={32}
           />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="text-[12.5px] font-medium text-slate-900 truncate leading-tight">
-              {me?.name ?? `@${userLogin}`}
+              {userName ?? `@${userLogin}`}
             </p>
             <p className="text-[11px] text-slate-500 truncate leading-tight">{role}</p>
           </div>

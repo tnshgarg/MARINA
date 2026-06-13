@@ -81,7 +81,7 @@ export async function PATCH(
       // manager to "see everyone's data" is the kind of thing that should
       // never be a peer-to-peer decision.
       const { membership: actor } = await requireMembership(orgId, 'manager')
-      if (actor.role !== 'owner') {
+      if (actor.role !== 'admin') {
         return NextResponse.json({ error: 'only the owner can edit capabilities' }, { status: 403 })
       }
       if (!Array.isArray(body.extraCaps)) {
@@ -203,7 +203,7 @@ export async function DELETE(
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
-    if (target.role === 'owner') {
+    if (target.role === 'admin') {
       return NextResponse.json({ error: "can't remove the owner" }, { status: 409 })
     }
     if (target.id === actor.id) {

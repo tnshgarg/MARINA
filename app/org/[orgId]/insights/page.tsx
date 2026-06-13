@@ -241,7 +241,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                 b.waitingOnUserId != null ? userById.get(b.waitingOnUserId)?.login : null
               return (
                 <li key={b.id} className="flex items-center gap-2.5 text-[13px]">
-                  <CharacterAvatar characterKey={u.characterKey} size={26} />
+                  <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                   <span className="truncate">
                     <strong>{u.name ?? `@${u.login}`}</strong>{' '}
                     <span className="text-slate-500">
@@ -336,7 +336,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
           <ul className="space-y-2">
             {upcoming.slice(0, 6).map(({ l, u }) => (
               <li key={l.id} className="flex items-center gap-2.5 text-[13px]">
-                <CharacterAvatar characterKey={u.characterKey} size={26} />
+                <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                 <span className="truncate">
                   <strong>{u.name ?? `@${u.login}`}</strong>
                   <span className="text-slate-500"> · {l.leaveType}</span>
@@ -363,7 +363,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
             <ul className="space-y-2">
               {quietList.slice(0, 6).map((m) => (
                 <li key={m.userId} className="flex items-center gap-2.5 text-[13px]">
-                  <CharacterAvatar characterKey={m.characterKey} size={26} />
+                  <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={26} />
                   <span className="truncate">
                     <strong>{m.name ?? `@${m.login}`}</strong>
                   </span>
@@ -462,7 +462,7 @@ function VelocityList({
           if (!u) return null
           return (
             <li key={v.userId} className="flex items-center gap-2 text-[12.5px]">
-              <CharacterAvatar characterKey={u.characterKey} size={20} />
+              <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={20} />
               <span className="truncate">{u.name ?? `@${u.login}`}</span>
               <span className="ml-auto font-medium tabular-nums" style={{ color: dir === 'up' ? '#15803d' : '#b91c1c' }}>
                 {v.delta > 0 ? '+' : ''}

@@ -487,7 +487,7 @@ export function BlockerResolver({
                   </p>
                   {routePicked ? (
                     <div className="flex items-center gap-2 rounded-md bg-white border border-slate-200 px-2.5 py-1.5">
-                      <CharacterAvatar characterKey={routePicked.characterKey} size={22} />
+                      <CharacterAvatar characterKey={routePicked.characterKey} name={routePicked.name} login={routePicked.login} size={22} />
                       <div className="min-w-0 flex-1">
                         <p className="text-[12.5px] font-medium text-slate-900 truncate">
                           {routePicked.name ?? `@${routePicked.login}`}
@@ -522,7 +522,7 @@ export function BlockerResolver({
                                 onClick={() => { setRoutePicked(u); setRouteOptions([]); setRouteQuery('') }}
                                 className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-slate-50 transition"
                               >
-                                <CharacterAvatar characterKey={u.characterKey} size={20} />
+                                <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={20} />
                                 <span className="text-[12.5px] text-slate-900 truncate">
                                   {u.name ?? `@${u.login}`}
                                 </span>

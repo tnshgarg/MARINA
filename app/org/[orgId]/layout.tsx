@@ -36,7 +36,7 @@ export default async function OrgLayout({
   const session = await auth()
   if (!session?.appUserId || !session.login) redirect('/')
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-  if (!me?.characterKey) redirect('/pick')
+  if (!me) redirect('/')
 
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
   if (!org) notFound()
@@ -66,6 +66,7 @@ export default async function OrgLayout({
         orgLogoUrl={(org as { logoUrl?: string | null }).logoUrl ?? null}
         userLogin={session.login}
         characterKey={me.characterKey}
+        userName={me.name}
         userAvatarUrl={me.image ?? me.avatarUrl ?? null}
         role={viewer.membership.role}
         canManageWorkspace={hasCap(
@@ -78,7 +79,7 @@ export default async function OrgLayout({
       />
       <main className="bg-[var(--m-bg)] min-w-0">
         <MobileNav orgName={org.name} />
-        <AnnouncementBanner viewerRole={viewer.membership.role as 'owner' | 'manager' | 'lead' | 'member'} />
+        <AnnouncementBanner viewerRole={viewer.membership.role as 'admin' | 'manager' | 'lead' | 'member'} />
         <div className="px-4 pt-4 pb-10 sm:px-8 sm:pt-8 max-w-[1400px] mx-auto fade-in">
           {children}
         </div>

@@ -115,7 +115,7 @@ export default function LeavesClient({
         )}
         {filtered.map((l) => (
           <li key={l.id} className="px-5 py-4 flex items-start gap-3 flex-wrap">
-            <CharacterAvatar characterKey={l.user.characterKey} size={32} />
+            <CharacterAvatar characterKey={l.user.characterKey} name={l.user.name} login={l.user.login} size={32} />
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-[13px] font-medium text-slate-900">

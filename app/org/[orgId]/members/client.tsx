@@ -381,7 +381,7 @@ export default function MembersClient({
             {filteredMembers.map((m) => {
               const hero = getCharacter(m.characterKey)
               const roleClass =
-                m.role === 'owner' ? 'pill-violet' :
+                m.role === 'admin' ? 'pill-violet' :
                 m.role === 'manager' ? 'pill-info' :
                 'pill-slate'
               return (
@@ -391,14 +391,19 @@ export default function MembersClient({
                 >
                   {/* Avatar */}
                   <CharacterAvatar
-                    characterKey={m.characterKey}
+                    characterKey={m.characterKey} name={m.name} login={m.login}
                     imageUrl={(m as { avatarUrl?: string | null }).avatarUrl ?? null}
                     size={32}
                   />
 
-                  {/* Name + subtitle — on mobile we also fold role + email
-                      into this column so the row stays inside the viewport. */}
-                  <div className="min-w-0">
+                  {/* Name + subtitle — click-target for the full profile page.
+                      We wrap in a Next Link so the whole text column routes
+                      while leaving the action cells (Report, Remove) outside
+                      the link so their click handlers still fire. */}
+                  <a
+                    href={`/org/${orgId}/people/${m.membershipId}`}
+                    className="min-w-0 block hover:text-[var(--m-accent)] transition-colors"
+                  >
                     <p className="text-[13px] font-medium text-slate-900 truncate">
                       {m.name ?? `@${m.login}`}
                     </p>
@@ -414,7 +419,7 @@ export default function MembersClient({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </a>
 
                   {/* Role + discipline — desktop only column */}
                   <div className="hidden md:block min-w-0">
@@ -440,7 +445,7 @@ export default function MembersClient({
                     >
                       Report
                     </button>
-                    {isOwner && m.role !== 'owner' && m.membershipId !== viewerMembershipId && (
+                    {isOwner && m.role !== 'admin' && m.membershipId !== viewerMembershipId && (
                       <button
                         onClick={() => removeMember(m.membershipId)}
                         disabled={busy}

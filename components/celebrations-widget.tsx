@@ -82,7 +82,7 @@ export function CelebrationsWidget({ orgId }: { orgId: number }) {
             key={`${it.userId}-${it.kind}-${i}`}
             className="flex items-start gap-2 text-[12.5px]"
           >
-            <CharacterAvatar characterKey={it.characterKey} size={24} />
+            <CharacterAvatar characterKey={it.characterKey} name={it.name} login={it.login} size={24} />
             <div className="flex-1 min-w-0">
               <p className="text-[var(--m-ink)] font-medium truncate leading-tight">
                 {it.name}

@@ -569,12 +569,14 @@ export default function TeamDashboardClient({
                   <MemberCardView
                     key={m.membershipId}
                     member={m}
+                    orgId={orgId}
                     isManager={isManager}
                     isSelf={m.userId === viewerUserId}
                     busy={busy}
                     onSchedule={() => setMeetingFor(m)}
                     onBrief={() => briefMember(m.membershipId, m.name ?? `@${m.login}`)}
                     onOpen={() => openDetail(m)}
+                    onResolveBlocker={(breakId) => setResolverBreakId(breakId)}
                   />
                 ))}
               </div>
@@ -677,7 +679,7 @@ function SlackingPanel({
             tabIndex={0}
             className="px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-amber-100/40 focus:outline-none focus-visible:bg-amber-100/40 transition"
           >
-            <CharacterAvatar characterKey={a.characterKey} size={28} />
+            <CharacterAvatar characterKey={a.characterKey} name={a.name} login={a.login} size={28} />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] text-slate-900">
                 <span className="font-medium">{a.name ?? `@${a.login}`}</span>
@@ -769,14 +771,14 @@ function BlockersPanel({
               tabIndex={0}
               className={`px-5 py-3 flex items-center gap-3 flex-wrap cursor-pointer hover:bg-slate-50/70 focus:outline-none focus-visible:bg-slate-50/70 transition ${b.waitingOnYou ? 'bg-rose-50/50' : ''}`}
             >
-              <CharacterAvatar characterKey={b.blockedUser.characterKey} size={28} />
+              <CharacterAvatar characterKey={b.blockedUser.characterKey} name={b.blockedUser.name} login={b.blockedUser.login} size={28} />
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] text-slate-900 truncate">
                   <span className="font-medium">{b.blockedUser.name ?? `@${b.blockedUser.login}`}</span>
                   <span className="text-slate-400"> waiting on </span>
                   {target.kind === 'user' && (
                     <span className="inline-flex items-center gap-1 align-middle">
-                      <CharacterAvatar characterKey={target.characterKey} size={14} />
+                      <CharacterAvatar characterKey={target.characterKey} name={target.label} size={14} />
                       <span className="font-medium">{target.label}</span>
                     </span>
                   )}
@@ -977,14 +979,17 @@ function ReviewCard({
 
 function MemberCardView({
   member: m,
+  orgId,
   isManager,
   isSelf,
   busy,
   onSchedule,
   onBrief,
   onOpen,
+  onResolveBlocker,
 }: {
   member: MemberCard
+  orgId: number
   isManager: boolean
   /** True when this card belongs to the logged-in user. Manager actions
    * (schedule meeting, brief, nudge) are suppressed so the user doesn't
@@ -994,6 +999,8 @@ function MemberCardView({
   onSchedule: () => void
   onBrief: () => void
   onOpen: () => void
+  /** Open the blocker-resolver flow for this member's active block. */
+  onResolveBlocker: (breakId: number) => void
 }) {
   const character = getCharacter(m.characterKey)
   const statusKey = deriveStatus(m)
@@ -1022,7 +1029,7 @@ function MemberCardView({
     >
       {/* Header */}
       <div className="px-5 pt-4 pb-3 flex items-start gap-3">
-        <CharacterAvatar characterKey={m.characterKey} size={48} ring />
+        <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={48} ring />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-[15px] font-semibold text-slate-900 truncate">
@@ -1116,19 +1123,33 @@ function MemberCardView({
           className="border-t border-slate-100 bg-slate-50/40 px-5 py-2.5 flex items-center justify-between gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center gap-1.5">
-            {!m.hasGithub && (
-              <span className="text-[10.5px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                no GitHub
-              </span>
-            )}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {/* "no GitHub" pill removed — not every teammate uses GitHub
+                (sales, design, ops, etc) and showing the absence as a flag
+                made the card feel judgmental. Brief tells you all you need
+                to know about activity sources. */}
             {m.activity.paused && (
               <span className="text-[10.5px] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
                 paused
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* When this teammate is in a blocked break and the viewer is a
+                manager, show the most useful single action right on the
+                outer card. Avoids forcing the manager to open the modal
+                just to nudge / route / suggest. */}
+            {isManager && !isSelf && m.ongoingBreak?.category === 'blocked' && m.ongoingBreak.id && (
+              <button
+                type="button"
+                onClick={() => onResolveBlocker(m.ongoingBreak!.id)}
+                disabled={busy !== null}
+                className="px-2.5 py-1 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
+                title="Help resolve this blocker — nudge, route, or suggest a workaround"
+              >
+                Resolve blocker
+              </button>
+            )}
             {/* Schedule meeting replaces the old Sync button. Managers reach
                 for "book a 1:1" 10× more than they reach for "sync GitHub
                 events" — sync runs automatically anyway. The action is
@@ -1160,6 +1181,17 @@ function MemberCardView({
             {isSelf && (
               <span className="text-[10.5px] text-slate-400 italic px-2">This is you</span>
             )}
+            {/* Full-page profile route — sharable URL, deep links from emails,
+                day-by-day jumping. The in-page modal still works on card
+                click; this is the secondary discoverability path. */}
+            <a
+              href={`/org/${orgId}/people/${m.membershipId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[11px] text-slate-500 hover:text-[var(--m-accent)] px-2 py-1 hover:bg-slate-100 rounded-md transition"
+              title="Open full profile page"
+            >
+              Profile ↗
+            </a>
           </div>
         </div>
       )}
@@ -1516,7 +1548,7 @@ function LeavePanel({
           {leaves.slice(0, 3).map((lv) => (
             <li key={lv.id} className="px-4 py-3 space-y-2">
               <div className="flex items-center gap-2.5">
-                <CharacterAvatar characterKey={lv.user.characterKey} size={28} />
+                <CharacterAvatar characterKey={lv.user.characterKey} name={lv.user.name} login={lv.user.login} size={28} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[12.5px] font-medium text-slate-900 truncate">
                     {lv.user.name ?? `@${lv.user.login}`}
@@ -1588,7 +1620,7 @@ function BreakPanel({ breaks, orgId }: { breaks: RecentBreak[]; orgId: number })
             const cat = CATEGORY_PILL[b.category ?? 'other']
             return (
               <li key={b.id} className="px-4 py-2.5 flex items-start gap-2.5">
-                <CharacterAvatar characterKey={b.user.characterKey} size={26} />
+                <CharacterAvatar characterKey={b.user.characterKey} name={b.user.name} login={b.user.login} size={26} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-medium text-slate-900 truncate flex items-center gap-1.5">
                     <span className="truncate">{b.user.name ?? `@${b.user.login}`}</span>

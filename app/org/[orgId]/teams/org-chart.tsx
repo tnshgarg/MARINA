@@ -118,8 +118,8 @@ export default function OrgChart({
       if (r === 0) {
         // Roots — sort by role rank then name for stable ordering.
         row.sort((a, b) => {
-          const rankA = a.role === 'owner' ? 0 : a.role === 'manager' ? 1 : 2
-          const rankB = b.role === 'owner' ? 0 : b.role === 'manager' ? 1 : 2
+          const rankA = a.role === 'admin' ? 0 : a.role === 'manager' ? 1 : 2
+          const rankB = b.role === 'admin' ? 0 : b.role === 'manager' ? 1 : 2
           if (rankA !== rankB) return rankA - rankB
           return (a.name ?? a.login).localeCompare(b.name ?? b.login)
         })
@@ -315,8 +315,8 @@ export default function OrgChart({
     // Nodes
     for (const n of nodes) {
       const m = n.member
-      const fill = m.role === 'owner' ? '#fdf6e7' : m.role === 'manager' ? '#eaf2ed' : '#ffffff'
-      const stroke = m.role === 'owner' ? '#c19a4d' : m.role === 'manager' ? '#3f6b54' : '#cbd5e1'
+      const fill = m.role === 'admin' ? '#fdf6e7' : m.role === 'manager' ? '#eaf2ed' : '#ffffff'
+      const stroke = m.role === 'admin' ? '#c19a4d' : m.role === 'manager' ? '#3f6b54' : '#cbd5e1'
       parts.push(
         `<g transform="translate(${n.x}, ${n.y})"><rect width="${NODE_W}" height="${NODE_H}" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>` +
           `<text x="20" y="28" font-size="13" font-weight="600" fill="#0f172a">${esc((m.name ?? `@${m.login}`).slice(0, 28))}</text>` +
@@ -610,7 +610,7 @@ function NodeCard({
   const [hover, setHover] = useState(false)
   const m = node.member
   const tone =
-    m.role === 'owner'
+    m.role === 'admin'
       ? { border: 'border-[var(--m-clay)]/40', bg: 'from-[var(--m-clay-soft)]/40 to-white', chip: 'bg-[var(--m-clay-soft)] text-[var(--m-clay-deep)]' }
       : m.role === 'manager'
         ? { border: 'border-[var(--m-accent)]/35', bg: 'from-[var(--m-accent-soft)]/40 to-white', chip: 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]' }
@@ -648,7 +648,7 @@ function NodeCard({
       }
     >
       <div className="flex items-center gap-2.5">
-        <CharacterAvatar characterKey={m.characterKey} imageUrl={m.avatarUrl} size={36} />
+        <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} imageUrl={m.avatarUrl} size={36} />
         <div className="min-w-0 flex-1">
           <p className="text-[12.5px] font-semibold text-slate-900 truncate leading-tight">
             {m.name ?? `@${m.login}`}
@@ -791,7 +791,7 @@ function ManagerPicker({
                   onClick={() => void onPick(c.membershipId)}
                   className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 text-left"
                 >
-                  <CharacterAvatar characterKey={c.characterKey} imageUrl={c.avatarUrl} size={26} />
+                  <CharacterAvatar characterKey={c.characterKey} name={c.name} login={c.login} imageUrl={c.avatarUrl} size={26} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-medium text-slate-900 truncate">
                       {c.name ?? `@${c.login}`}

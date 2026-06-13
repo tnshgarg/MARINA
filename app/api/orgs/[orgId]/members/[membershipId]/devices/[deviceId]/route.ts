@@ -35,7 +35,7 @@ export async function DELETE(
 
   try {
     const { session, membership } = await requireMembership(orgId, 'manager')
-    if (membership.role !== 'owner') {
+    if (membership.role !== 'admin') {
       return NextResponse.json(
         { error: 'Only the workspace owner can revoke a teammate\'s device.' },
         { status: 403 },

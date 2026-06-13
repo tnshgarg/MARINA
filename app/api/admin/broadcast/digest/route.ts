@@ -74,7 +74,7 @@ export async function POST(req: Request) {
           .where(eq(schema.memberships.orgId, org.id))
 
         const eligible = managers.filter((m) =>
-          ['owner', 'manager', 'lead'].includes(
+          ['admin', 'manager', 'lead'].includes(
             (m as { role?: string }).role ?? 'member',
           ) && !!m.user.email,
         )

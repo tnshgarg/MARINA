@@ -19,7 +19,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'owner')
+    const { session } = await requireMembership(orgId, 'admin')
 
     const memberIds = await db
       .select({ userId: schema.memberships.userId })

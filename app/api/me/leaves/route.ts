@@ -117,7 +117,7 @@ export async function POST(req: Request) {
             and(
               eq(schema.memberships.orgId, orgIdForNotify),
               isNull(schema.memberships.endedAt),
-              inArray(schema.memberships.role, ['owner', 'manager']),
+              inArray(schema.memberships.role, ['admin', 'manager']),
               ne(schema.memberships.userId, session.appUserId),
             ),
           )

@@ -17,7 +17,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if (!session?.appUserId || !session.login) redirect('/')
 
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-  if (!me?.characterKey) redirect('/pick')
+  if (!me) redirect('/')
 
   const memberships = await listMembershipsForCurrentUser()
   const managerMembership = memberships.find((m) => roleAtLeast(m.role, 'manager'))
@@ -68,6 +68,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         orgName={org.name}
         userLogin={session.login}
         characterKey={me.characterKey}
+        userName={me.name}
         role={managerMembership.role}
         pendingLeaveCount={pendingRows.length}
         signOutAction={signOutAction}

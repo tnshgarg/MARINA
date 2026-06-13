@@ -16,7 +16,7 @@ type Seed = {
   name: string
   characterKey: string
   email: string
-  role: 'owner' | 'manager' | 'member'
+  role: 'admin' | 'manager' | 'member'
   /** Functional discipline — drives the role-aware UI labels. */
   discipline: Discipline
   /** Job title shown under the name in the modal subtitle. */
@@ -53,12 +53,12 @@ const SEED_HEROES: Seed[] = [
   // ─── Founders / Owners (multiple — tests "multi-root" org chart) ────────
   {
     login: 'tanish', name: 'Tanish Garg', characterKey: 'iron_knight', email: 'tanish@acmedemo.in',
-    role: 'owner', discipline: 'exec', jobTitle: 'Co-founder & CEO',
+    role: 'admin', discipline: 'exec', jobTitle: 'Co-founder & CEO',
     birthdayMmDd: '07-15', joinedOn: '2024-01-15',
   },
   {
     login: 'maya', name: 'Maya Iyengar', characterKey: 'amazon', email: 'maya@acmedemo.in',
-    role: 'owner', discipline: 'exec', jobTitle: 'Co-founder & CTO',
+    role: 'admin', discipline: 'exec', jobTitle: 'Co-founder & CTO',
     birthdayMmDd: '06-19', joinedOn: '2024-01-15',
   },
 

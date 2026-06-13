@@ -10,7 +10,7 @@ export class HttpError extends Error {
   }
 }
 
-const ROLE_RANK: Record<Role, number> = { member: 1, manager: 2, owner: 3 }
+const ROLE_RANK: Record<Role, number> = { member: 1, lead: 2, manager: 2, admin: 3 }
 
 export function roleAtLeast(actual: Role, min: Role): boolean {
   return ROLE_RANK[actual] >= ROLE_RANK[min]
@@ -106,7 +106,10 @@ export async function requireCapability(orgId: number, cap: string): Promise<{
   membership: Membership
 }> {
   const { session, membership } = await requireMembership(orgId, 'member')
-  if (membership.role === 'owner') return { session, membership }
+  // Admins implicitly have every capability — that's the whole point of the
+  // role. We still consult extraCaps for non-admins so a manager can be
+  // granted, say, manage_celebrations without becoming an admin.
+  if (membership.role === 'admin') return { session, membership }
   const extra = (membership as { extraCaps?: string[] }).extraCaps ?? []
   if (extra.includes(cap)) return { session, membership }
   throw new HttpError(403, `missing capability: ${cap}`)

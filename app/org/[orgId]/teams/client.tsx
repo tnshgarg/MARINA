@@ -177,7 +177,7 @@ export default function TeamsClient({
                 {reportsToChain.map((m, i) => (
                   <span key={m.membershipId} className="inline-flex items-center gap-1.5">
                     <CharacterAvatar
-                      characterKey={m.characterKey}
+                      characterKey={m.characterKey} name={m.name} login={m.login}
                       imageUrl={m.avatarUrl}
                       size={20}
                     />
@@ -222,31 +222,41 @@ export default function TeamsClient({
                           <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{t.description}</p>
                         )}
                       </div>
-                      {canEdit && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setEditing(t)}
-                            className="text-[11.5px] text-slate-600 hover:text-slate-900 font-medium"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteTeam(t)}
-                            className="text-[11.5px] text-rose-600 hover:text-rose-700 font-medium"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Report is available to anyone who can see the team
+                            (scoping is enforced on the report route itself). */}
+                        <a
+                          href={`/org/${orgId}/teams/${t.id}/report`}
+                          className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
+                        >
+                          Report
+                        </a>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setEditing(t)}
+                              className="text-[11.5px] text-slate-600 hover:text-slate-900 font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteTeam(t)}
+                              className="text-[11.5px] text-rose-600 hover:text-rose-700 font-medium"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {manager && (
                       <div className="mt-3 flex items-center gap-2 text-[12px]">
                         <span className="text-slate-500">Lead:</span>
                         <CharacterAvatar
-                          characterKey={manager.characterKey}
+                          characterKey={manager.characterKey} name={manager.name} login={manager.login}
                           imageUrl={manager.avatarUrl}
                           size={20}
                         />
@@ -264,7 +274,7 @@ export default function TeamsClient({
                           className="inline-block"
                         >
                           <CharacterAvatar
-                            characterKey={m.characterKey}
+                            characterKey={m.characterKey} name={m.name} login={m.login}
                             imageUrl={m.avatarUrl}
                             size={24}
                           />
@@ -502,7 +512,7 @@ function TeamEditor({
                       className="w-4 h-4 accent-[var(--m-accent)]"
                     />
                     <CharacterAvatar
-                      characterKey={m.characterKey}
+                      characterKey={m.characterKey} name={m.name} login={m.login}
                       imageUrl={m.avatarUrl}
                       size={26}
                     />

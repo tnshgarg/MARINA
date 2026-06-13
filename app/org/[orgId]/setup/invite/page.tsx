@@ -27,7 +27,7 @@ export default async function InviteSetupPage({
   if (!Number.isInteger(orgId)) notFound()
 
   try {
-    await requireMembership(orgId, 'owner')
+    await requireMembership(orgId, 'admin')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
     if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)

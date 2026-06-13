@@ -98,7 +98,7 @@ export default async function ShiftsPage({
                 key={s.id}
                 className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3"
               >
-                <CharacterAvatar characterKey={u.characterKey} size={32} />
+                <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={32} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-medium text-slate-900 truncate">
                     {u.name ?? `@${u.login}`}
@@ -205,7 +205,7 @@ function ShiftRow({
   return (
     <li className="px-5 py-4">
       <div className="flex items-start gap-3">
-        <CharacterAvatar characterKey={u.characterKey} size={32} />
+        <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={32} />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <p className="text-[13.5px] font-medium text-slate-900">{u.name ?? `@${u.login}`}</p>

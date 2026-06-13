@@ -55,7 +55,7 @@ export default function DevLoginClient({
               className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
               <div className="flex items-center gap-3 mb-2">
-                <CharacterAvatar characterKey={u.characterKey} size={42} />
+                <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={42} />
                 <div className="min-w-0">
                   <p className="text-[14px] font-medium text-slate-900 truncate">
                     {u.name ?? `@${u.login}`}
@@ -76,7 +76,7 @@ export default function DevLoginClient({
                     <span
                       key={`${o.orgName}-${o.role}`}
                       className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        o.role === 'owner'
+                        o.role === 'admin'
                           ? 'bg-[var(--m-clay-soft)] text-[var(--m-clay-deep)]'
                           : o.role === 'manager'
                             ? 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]'

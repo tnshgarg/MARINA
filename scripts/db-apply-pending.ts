@@ -19,7 +19,12 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { sql } from 'drizzle-orm'
 
-async function main() {
+/**
+ * Exported so `scripts/db-migrate.ts` can await this work without spawning
+ * a subprocess. Also runs as a standalone CLI via the `main()` call at the
+ * bottom — both invocation styles are supported.
+ */
+export async function applyPending(): Promise<void> {
   const url = process.env.DATABASE_URL
   if (!url) {
     console.error('[apply] DATABASE_URL not set; aborting.')
@@ -118,6 +123,11 @@ async function main() {
   `)
   console.log('  · 0007 announcements OK')
 
+  // 0008 — Role rename: owner → admin. Multiple admins per org is now the
+  // model. Re-running this is a no-op once every row has been flipped.
+  await db.execute(sql`UPDATE "memberships" SET "role" = 'admin' WHERE "role" = 'owner'`)
+  console.log('  · 0008 role rename owner→admin OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'
@@ -147,7 +157,16 @@ async function main() {
   console.log('[apply] journal patched — future `pnpm db:migrate` will be a no-op until you add a new schema change.')
 }
 
-main().catch((err) => {
-  console.error('[apply] failed:', err)
-  process.exit(1)
-})
+// CLI entrypoint — runs when invoked directly via `pnpm tsx scripts/db-apply-pending.ts`.
+// When imported by `db-migrate.ts`, this `if` branch is skipped and the caller
+// is expected to `await applyPending()` instead.
+const isMain =
+  typeof process !== 'undefined' &&
+  process.argv[1] &&
+  process.argv[1].endsWith('db-apply-pending.ts')
+if (isMain) {
+  applyPending().catch((err) => {
+    console.error('[apply] failed:', err)
+    process.exit(1)
+  })
+}

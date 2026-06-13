@@ -27,13 +27,27 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
   const session = await auth()
   if (!session?.appUserId) redirect('/')
 
-  const isOwner = roleAtLeast(viewer.membership.role, 'owner')
+  const isOwner = roleAtLeast(viewer.membership.role, 'admin')
 
-  const rawMembers = await db
+  // Scope: managers only see their reports + members of teams they manage.
+  // Admins see everyone. Invitation form is gated on the manage_members cap
+  // which is admin-only by default.
+  const { getVisibleScope } = await import('@/lib/auth/scope')
+  const scope = await getVisibleScope(orgId, {
+    userId: session.appUserId,
+    membershipId: viewer.membership.id,
+    role: viewer.membership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
+
+  const allMemberRows = await db
     .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
+
+  const rawMembers = scope.isAdminScope
+    ? allMemberRows
+    : allMemberRows.filter((r) => scope.userIds.has(r.u.id))
 
   const pendingInvites = await db
     .select()
