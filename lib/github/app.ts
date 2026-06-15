@@ -29,26 +29,55 @@ function b64url(input: Buffer | string): string {
     .replace(/\//g, '_')
 }
 
+/**
+ * Coerce whatever is in GITHUB_APP_PRIVATE_KEY into a PEM that Node's crypto can
+ * actually parse. We've been bitten by three real-world manglings:
+ *   1. A filesystem path to the .pem (local-dev convenience) — read the file.
+ *   2. Literal "\n" escapes instead of real newlines (common in .env) — unescape.
+ *   3. Structural newlines replaced by SPACES or stripped entirely — what
+ *      happens when a multi-line PEM is pasted into many env-var UIs (Vercel
+ *      included). A PEM with no newlines fails to parse with the opaque
+ *      "DECODER routines::unsupported", which is exactly what silently broke
+ *      sync. We rebuild it: pull the base64 body from between the header and
+ *      footer, strip ALL whitespace, and re-wrap at 64 columns.
+ */
+function normalizePrivateKey(raw: string): string {
+  let k = raw.trim()
+  if (!k.includes('BEGIN') && existsSync(k)) k = readFileSync(k, 'utf8')
+  if (k.includes('\\n')) k = k.replace(/\\n/g, '\n')
+  const m = k.match(/-----BEGIN ([A-Z0-9 ]+?)-----([\s\S]*?)-----END \1-----/)
+  if (m) {
+    const label = m[1].trim()
+    const body = m[2].replace(/\s+/g, '')
+    const wrapped = body.match(/.{1,64}/g)?.join('\n') ?? ''
+    k = `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----\n`
+  }
+  return k
+}
+
 /** Short-lived (10 min) App JWT, signed RS256 with the App private key. */
 function appJwt(): string {
   const appId = process.env.GITHUB_APP_ID
-  let privateKey = process.env.GITHUB_APP_PRIVATE_KEY
-  if (!appId || !privateKey) throw new Error('GitHub App not configured (GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY)')
-  // Accept EITHER the PEM contents OR (for local dev convenience) a path to the
-  // .pem file. On Vercel there's no filesystem, so set the contents there.
-  if (!privateKey.includes('BEGIN') && existsSync(privateKey.trim())) {
-    privateKey = readFileSync(privateKey.trim(), 'utf8')
-  }
-  // Env vars often store PEMs with literal "\n" — normalise to real newlines.
-  if (privateKey.includes('\\n')) privateKey = privateKey.replace(/\\n/g, '\n')
+  const rawKey = process.env.GITHUB_APP_PRIVATE_KEY
+  if (!appId || !rawKey) throw new Error('GitHub App not configured (GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY)')
+  const privateKey = normalizePrivateKey(rawKey)
 
   const now = Math.floor(Date.now() / 1000)
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
   // iat backdated 60s to tolerate clock skew; exp 9 min (GitHub max is 10).
   const payload = b64url(JSON.stringify({ iat: now - 60, exp: now + 9 * 60, iss: appId }))
   const unsigned = `${header}.${payload}`
-  const signature = createSign('RSA-SHA256').update(unsigned).sign(privateKey)
-  return `${unsigned}.${b64url(signature)}`
+  try {
+    const signature = createSign('RSA-SHA256').update(unsigned).sign(privateKey)
+    return `${unsigned}.${b64url(signature)}`
+  } catch (e) {
+    // Make the most common misconfiguration legible instead of a 0-repos mystery.
+    throw new Error(
+      `GitHub App private key could not be parsed (${(e as Error).message}). ` +
+        `Set GITHUB_APP_PRIVATE_KEY to the full contents of the .pem file ` +
+        `(BEGIN/END lines included).`,
+    )
+  }
 }
 
 /** Exchange the App JWT for a short-lived installation access token. */

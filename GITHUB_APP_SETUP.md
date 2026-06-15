@@ -48,8 +48,15 @@ GITHUB_APP_SLUG=marina-tracker          # from the App's URL: github.com/apps/<s
 GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n....\n-----END RSA PRIVATE KEY-----\n"
 ```
 
-> The private key is multi-line. In a `.env` file or Vercel, either paste it with real
-> newlines (quote it) or replace newlines with `\n` (the code accepts both).
+> The private key is multi-line. Paste the **whole** `.pem` (BEGIN/END lines included).
+> MARINA self-heals the formatting at runtime: real newlines, literal `\n` escapes, **and**
+> the case where an env-var UI (Vercel included) flattens the newlines into spaces — all are
+> repaired before signing. Locally you may also point `GITHUB_APP_PRIVATE_KEY` at a path to
+> the `.pem` file.
+>
+> ⚠️ **This was the bug.** A PEM whose newlines got stripped fails to parse with the opaque
+> `DECODER routines::unsupported`, the App JWT is never made, and every sync silently reports
+> "0 repos · 0 events". If you see that, it's almost always the key — run the diagnostic below.
 
 No redeploy logic needed — the app reads these at runtime.
 
@@ -90,6 +97,17 @@ commits from `marina-dummy/test-web` and they'll appear in the org's Activity fe
 ---
 
 ### Troubleshooting
+
+**"Sync says 0 repos · 0 events" (the most common one).**
+Run the diagnostic — it talks to GitHub directly and tells you exactly where it breaks
+(key won't parse / App not installed / which account / how many repos):
+```bash
+pnpm tsx scripts/gh-app-diag.ts                 # uses .env
+ENV_FILE=.env.production pnpm tsx scripts/gh-app-diag.ts
+```
+If it prints `JWT sign : FAILED` your private key is malformed — re-check it's the full PEM.
+If it lists repos but **Sync now** still inserts 0, the commit authors aren't linked to MARINA
+users yet (the sync result now names the unlinked authors — have them click **Link my GitHub**).
 
 **"It only lets me select personal repos / my orgs aren't listed."**
 The App is set to *"Only on this account"*. Switch it to **"Any account"** (App settings →

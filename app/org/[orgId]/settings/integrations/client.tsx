@@ -36,23 +36,41 @@ export default function IntegrationsClient({
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
-  const [appSyncMsg, setAppSyncMsg] = useState<string | null>(null)
+  const [appSync, setAppSync] = useState<
+    { kind: 'ok' | 'warn' | 'error'; text: string; details?: string[] } | null
+  >(null)
 
   async function syncApp() {
     setBusy('app-sync')
-    setAppSyncMsg(null)
+    setAppSync(null)
     try {
       const res = await fetch(`/api/orgs/${orgId}/github-app/sync`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'failed')
-      const unmatched = Array.isArray(data.unmatchedAuthors) ? data.unmatchedAuthors.length : 0
-      setAppSyncMsg(
-        `Pulled from ${data.repos} repo(s) · ${data.inserted} new event(s)` +
-          (unmatched > 0 ? ` · ${unmatched} author(s) not yet linked to a teammate` : ''),
-      )
+      const errors: string[] = Array.isArray(data.errors) ? data.errors : []
+      const unmatched: string[] = Array.isArray(data.unmatchedAuthors) ? data.unmatchedAuthors : []
+      const base = `Pulled from ${data.repos} repo(s) · ${data.inserted} new event(s)`
+      if (errors.length > 0) {
+        // GitHub itself returned errors — the most useful thing to show.
+        setAppSync({ kind: 'error', text: `${base} — GitHub returned errors:`, details: errors })
+      } else if (data.repos === 0) {
+        setAppSync({
+          kind: 'warn',
+          text: 'The installation reported 0 repositories. Open “Manage repos / reinstall” and make sure repos are selected for this workspace.',
+        })
+      } else {
+        setAppSync({
+          kind: unmatched.length > 0 ? 'warn' : 'ok',
+          text: base + (unmatched.length > 0 ? ` · ${unmatched.length} author(s) not yet linked` : ''),
+          details:
+            unmatched.length > 0
+              ? [`Unlinked authors: ${unmatched.join(', ')} — ask each to “Link my GitHub”, then sync again.`]
+              : undefined,
+        })
+      }
       router.refresh()
     } catch (e) {
-      setAppSyncMsg(String(e))
+      setAppSync({ kind: 'error', text: e instanceof Error ? e.message : String(e) })
     } finally {
       setBusy(null)
     }
@@ -101,7 +119,25 @@ export default function IntegrationsClient({
                 {busy === 'app-sync' ? 'Syncing…' : 'Sync now'}
               </button>
             )}
-            {appSyncMsg && <span className="text-[12px] text-slate-600">{appSyncMsg}</span>}
+          </div>
+        )}
+        {appSync && (
+          <div
+            className={
+              'mt-3 rounded-lg border px-3 py-2 text-[12px] ' +
+              (appSync.kind === 'error'
+                ? 'border-red-200 bg-red-50 text-red-800'
+                : appSync.kind === 'warn'
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800')
+            }
+          >
+            <p className="font-medium">{appSync.text}</p>
+            {appSync.details?.map((d, i) => (
+              <p key={i} className="mt-1 text-[11.5px] opacity-90 break-words">
+                {d}
+              </p>
+            ))}
           </div>
         )}
         {/* Identity link — teammates connect their GitHub so commits/PRs map to
