@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
 import { seatCapError } from '@/lib/billing/seats'
@@ -50,6 +50,26 @@ export async function POST(req: Request) {
     // An active membership means they're already in — no-op. A soft-deleted
     // (endedAt-set) membership from a prior removal must be REACTIVATED rather
     // than left dead (otherwise a re-invited ex-member silently stays out).
+    // One account = one workspace: refuse if the user is already active in a
+    // DIFFERENT org. Keyed on appUserId, so it's the same regardless of whether
+    // they signed in via GitHub / Google / magic-link.
+    const otherActive = await db.query.memberships.findFirst({
+      where: and(
+        eq(schema.memberships.userId, session.appUserId),
+        isNull(schema.memberships.endedAt),
+        ne(schema.memberships.orgId, invite.orgId),
+      ),
+    })
+    if (otherActive) {
+      return NextResponse.json(
+        {
+          error:
+            'Your account already belongs to another workspace. Each account can be in only one — leave it first to accept this invite.',
+        },
+        { status: 409 },
+      )
+    }
+
     const existingAny = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.orgId, invite.orgId),

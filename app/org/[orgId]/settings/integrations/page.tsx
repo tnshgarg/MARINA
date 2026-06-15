@@ -3,6 +3,7 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { NoAccess } from '@/components/no-access'
+import { appInstallUrl, githubAppConfigured } from '@/lib/github/app'
 import IntegrationsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -102,6 +103,11 @@ export default async function IntegrationsPage({
           githubLinked,
           calendarLinked,
           teamSize,
+          githubApp: {
+            configured: githubAppConfigured(),
+            installationId: (org as { githubInstallationId?: number | null }).githubInstallationId ?? null,
+            installUrl: appInstallUrl(orgId),
+          },
         }}
       />
     </>

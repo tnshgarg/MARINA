@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { Modal } from '@/components/modal'
@@ -72,6 +72,7 @@ export default function AttendanceClient({
   const router = useRouter()
   const [pickedDay, setPickedDay] = useState<DayCell | null>(null)
   const [memberQuery, setMemberQuery] = useState('')
+  const [isPending, startTransition] = useTransition()
 
   const selectedMember = useMemo(
     () => members.find((m) => m.userId === selectedUserId) ?? null,
@@ -90,14 +91,21 @@ export default function AttendanceClient({
     year: 'numeric',
   })
 
+  // Wrap navigations in a transition so the server round-trip (switching member
+  // / month re-fetches the calendar) shows a loading state instead of a frozen
+  // UI that feels like the site is lagging.
   function changeMonth(delta: number) {
     const d = new Date(yy, mm - 1 + delta, 1)
     const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    router.push(`/org/${orgId}/attendance?month=${next}${selectedUserId ? `&member=${selectedUserId}` : ''}`)
+    startTransition(() => {
+      router.push(`/org/${orgId}/attendance?month=${next}${selectedUserId ? `&member=${selectedUserId}` : ''}`)
+    })
   }
 
   function selectMember(userId: number) {
-    router.push(`/org/${orgId}/attendance?month=${month}&member=${userId}`)
+    startTransition(() => {
+      router.push(`/org/${orgId}/attendance?month=${month}&member=${userId}`)
+    })
   }
 
   return (
@@ -154,7 +162,17 @@ export default function AttendanceClient({
       </aside>
 
       {/* Right: calendar */}
-      <main className="col-span-12 md:col-span-9">
+      <main className="col-span-12 md:col-span-9 relative">
+        {/* Loading veil while the new member/month renders — so switching
+            doesn't feel like a frozen page. */}
+        {isPending && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/60 backdrop-blur-[1px]">
+            <span className="inline-flex items-center gap-2 text-[12.5px] text-slate-600 font-medium">
+              <span className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-[var(--m-accent)] animate-spin" />
+              Loading…
+            </span>
+          </div>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">

@@ -157,6 +157,10 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "cost_per_hour_inr" integer`)
   console.log('  · 0010 orgs.leave_policy + cost_per_hour_inr OK')
 
+  // 0013 — GitHub App installation id on the org (App-based repo tracking).
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "github_installation_id" integer`)
+  console.log('  · 0013 orgs.github_installation_id OK')
+
   // 0011 — Attendance regularizations (employee disputes an auto-absent day).
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS "attendance_regularizations" (

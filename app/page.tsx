@@ -104,10 +104,10 @@ export default async function Home({
       {/* <Pricing /> */}
       <EarlyAccess />
       {/*<ResourceCards />*/}
-      <FinalCTA
+      {/*<FinalCTA
         githubSignIn={githubSignIn}
         googleSignIn={googleEnabled ? googleSignIn : null}
-      />
+      />*/}
       <Footer />
     </main>
   );
@@ -226,7 +226,8 @@ function Hero({
             <p className="mt-6 max-w-xl text-[17px] md:text-[19px] leading-snug text-[var(--m-ink-2)] font-medium">
               The AI Chief of Staff for remote managers.
               <span className="block mt-1 text-[var(--m-ink-3)] font-normal text-[15px] md:text-[16px]">
-                Clarity, alignment, and control &mdash; without becoming the bottleneck.
+                Clarity, alignment, and control &mdash; without becoming the
+                bottleneck.
               </span>
             </p>
           </Reveal>
@@ -301,12 +302,32 @@ function Hero({
  * have to explain. Just the bottom line.
  */
 function ProofStrip() {
-  const stats: Array<{ value: string; suffix?: string; label: string; tone: 'sage' | 'clay' | 'gold' | 'ink' }> = [
-    { value: '5+', suffix: 'hrs', label: 'Saved per manager / week', tone: 'sage' },
-    { value: '0', label: 'Status meetings needed', tone: 'clay' },
-    { value: '78', suffix: '%', label: 'Faster blocker resolution', tone: 'gold' },
-    { value: '1', suffix: 'min', label: 'To know how your team is doing', tone: 'ink' },
-  ]
+  const stats: Array<{
+    value: string;
+    suffix?: string;
+    label: string;
+    tone: "sage" | "clay" | "gold" | "ink";
+  }> = [
+    {
+      value: "5+",
+      suffix: "hrs",
+      label: "Saved per manager / week",
+      tone: "sage",
+    },
+    { value: "0", label: "Status meetings needed", tone: "clay" },
+    {
+      value: "78",
+      suffix: "%",
+      label: "Faster blocker resolution",
+      tone: "gold",
+    },
+    {
+      value: "1",
+      suffix: "min",
+      label: "To know how your team is doing",
+      tone: "ink",
+    },
+  ];
   return (
     <section className="relative bg-[var(--m-ink)] text-white overflow-hidden">
       <div
@@ -314,7 +335,7 @@ function ProofStrip() {
         className="absolute inset-0 opacity-30"
         style={{
           background:
-            'radial-gradient(40% 60% at 50% 50%, rgba(63,107,84,0.5), transparent 70%)',
+            "radial-gradient(40% 60% at 50% 50%, rgba(63,107,84,0.5), transparent 70%)",
         }}
       />
       <div className="relative max-w-7xl mx-auto px-6 py-14 md:py-20">
@@ -336,7 +357,7 @@ function ProofStrip() {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function ProofStat({
@@ -345,27 +366,34 @@ function ProofStat({
   label,
   tone,
 }: {
-  value: string
-  suffix?: string
-  label: string
-  tone: 'sage' | 'clay' | 'gold' | 'ink'
+  value: string;
+  suffix?: string;
+  label: string;
+  tone: "sage" | "clay" | "gold" | "ink";
 }) {
   const color =
-    tone === 'sage' ? '#a8d3b9' :
-    tone === 'clay' ? '#e8b89a' :
-    tone === 'gold' ? '#f5d488' :
-    '#ffffff'
+    tone === "sage"
+      ? "#a8d3b9"
+      : tone === "clay"
+        ? "#e8b89a"
+        : tone === "gold"
+          ? "#f5d488"
+          : "#ffffff";
   return (
     <div className="text-center md:text-left">
       <p className="font-display tracking-tight leading-none" style={{ color }}>
         <span className="text-[64px] md:text-[88px]">{value}</span>
-        {suffix && <span className="text-[24px] md:text-[32px] ml-0.5 opacity-90">{suffix}</span>}
+        {suffix && (
+          <span className="text-[24px] md:text-[32px] ml-0.5 opacity-90">
+            {suffix}
+          </span>
+        )}
       </p>
       <p className="mt-3 text-[13px] md:text-[14px] text-white/70 leading-snug max-w-[200px] mx-auto md:mx-0">
         {label}
       </p>
     </div>
-  )
+  );
 }
 
 /* ============================ PAIN ============================ */
@@ -389,9 +417,7 @@ function PainSection() {
           <h2 className="font-display text-[40px] md:text-[60px] leading-[1.02] tracking-tight text-center max-w-3xl mx-auto text-[var(--m-ink)]">
             Stop being the
             <br />
-            <span className="italic brand-gradient-text">
-              human dashboard.
-            </span>
+            <span className="italic brand-gradient-text">human dashboard.</span>
           </h2>
         </Reveal>
 
@@ -407,12 +433,30 @@ function PainSection() {
                 </p>
               </div>
               <ul className="space-y-4">
-                <PainRow headline="3 standups a week" sub="Mostly &ldquo;catching up.&rdquo;" />
-                <PainRow headline="20+ status pings / day" sub="Just to know what shipped." />
-                <PainRow headline="5 tabs always open" sub="Slack, GitHub, calendar, Notion, Linear." />
-                <PainRow headline="Blockers found on Friday" sub="Should have surfaced Tuesday." />
-                <PainRow headline="Silent underperformers" sub="Hide for weeks. Surprise you in reviews." />
-                <PainRow headline="Reviews written from memory" sub="Not from evidence." />
+                <PainRow
+                  headline="3 standups a week"
+                  sub="Mostly &ldquo;catching up.&rdquo;"
+                />
+                <PainRow
+                  headline="20+ status pings / day"
+                  sub="Just to know what shipped."
+                />
+                <PainRow
+                  headline="5 tabs always open"
+                  sub="Slack, GitHub, calendar, Notion, Linear."
+                />
+                <PainRow
+                  headline="Blockers found on Friday"
+                  sub="Should have surfaced Tuesday."
+                />
+                <PainRow
+                  headline="Silent underperformers"
+                  sub="Hide for weeks. Surprise you in reviews."
+                />
+                <PainRow
+                  headline="Reviews written from memory"
+                  sub="Not from evidence."
+                />
               </ul>
               <p className="mt-7 text-[15px] text-[var(--m-bad)] font-semibold tracking-tight">
                 The team works. You worry.
@@ -427,8 +471,19 @@ function PainSection() {
               </span>
               <div className="flex items-center gap-2 mb-6">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--m-accent)] text-white">
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8}>
-                    <path d="M5 13l4 4 10-10" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg
+                    width={16}
+                    height={16}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.8}
+                  >
+                    <path
+                      d="M5 13l4 4 10-10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </span>
                 <p className="text-[12px] uppercase tracking-[0.18em] text-[var(--m-accent)] font-semibold">
@@ -436,12 +491,30 @@ function PainSection() {
                 </p>
               </div>
               <ul className="space-y-4">
-                <GainRow headline="1 brief / morning" sub="No standup needed." />
-                <GainRow headline="Blockers auto-detected" sub="The moment they appear." />
-                <GainRow headline="1 calm dashboard" sub="Ships, focus, meetings, risk." />
-                <GainRow headline="Ask MARINA anything" sub="Grounded answers in 2 seconds." />
-                <GainRow headline="Weekly digests written for you" sub="1:1 prep, too." />
-                <GainRow headline="Reviews from real evidence" sub="No memory required." />
+                <GainRow
+                  headline="1 brief / morning"
+                  sub="No standup needed."
+                />
+                <GainRow
+                  headline="Blockers auto-detected"
+                  sub="The moment they appear."
+                />
+                <GainRow
+                  headline="1 calm dashboard"
+                  sub="Ships, focus, meetings, risk."
+                />
+                <GainRow
+                  headline="Ask MARINA anything"
+                  sub="Grounded answers in 2 seconds."
+                />
+                <GainRow
+                  headline="Weekly digests written for you"
+                  sub="1:1 prep, too."
+                />
+                <GainRow
+                  headline="Reviews from real evidence"
+                  sub="No memory required."
+                />
               </ul>
               <p className="mt-7 text-[15px] text-[var(--m-accent-2)] font-semibold tracking-tight">
                 The team works. You lead.
@@ -471,7 +544,9 @@ function PainRow({ headline, sub }: { headline: string; sub: string }) {
         className="mt-2 shrink-0 inline-block w-2 h-2 rounded-full bg-[var(--m-bad)]"
       />
       <div className="leading-snug">
-        <p className="text-[16px] font-semibold text-[var(--m-ink)] tracking-tight">{headline}</p>
+        <p className="text-[16px] font-semibold text-[var(--m-ink)] tracking-tight">
+          {headline}
+        </p>
         <p
           className="text-[12.5px] text-[var(--m-ink-3)] mt-0.5"
           dangerouslySetInnerHTML={{ __html: sub }}
@@ -492,10 +567,16 @@ function GainRow({ headline, sub }: { headline: string; sub: string }) {
         strokeWidth={2.6}
         className="mt-1.5 shrink-0 text-[var(--m-accent)]"
       >
-        <path d="M5 13l4 4 10-10" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M5 13l4 4 10-10"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
       <div className="leading-snug">
-        <p className="text-[16px] font-semibold text-[var(--m-ink)] tracking-tight">{headline}</p>
+        <p className="text-[16px] font-semibold text-[var(--m-ink)] tracking-tight">
+          {headline}
+        </p>
         <p
           className="text-[12.5px] text-[var(--m-ink-3)] mt-0.5"
           dangerouslySetInnerHTML={{ __html: sub }}
@@ -541,7 +622,7 @@ function ValueProps() {
             metric="2 sec"
             metricSub="to any answer"
             title="Ask MARINA anything."
-            body='&ldquo;What did Sneha ship?&rdquo; &ldquo;Who&rsquo;s burning out?&rdquo; Grounded. Cited. Done.'
+            body="&ldquo;What did Sneha ship?&rdquo; &ldquo;Who&rsquo;s burning out?&rdquo; Grounded. Cited. Done."
             tone="clay"
           />
         </Reveal>
@@ -606,7 +687,9 @@ function ValueCard({
         className="mt-5 font-display leading-none relative flex items-baseline gap-2"
         style={{ color: dot }}
       >
-        <span className="text-[52px] md:text-[64px] tracking-tight">{metric}</span>
+        <span className="text-[52px] md:text-[64px] tracking-tight">
+          {metric}
+        </span>
         <span className="text-[12.5px] text-[var(--m-ink-3)] font-sans font-normal lowercase">
           {metricSub}
         </span>
@@ -1162,7 +1245,11 @@ function Integrations() {
  * <EarlyAccess/> back to <Pricing/> in the page composition above.
  */
 function EarlyAccess() {
-  const perks: Array<{ title: string; body: string; tone: "sage" | "clay" | "gold" }> = [
+  const perks: Array<{
+    title: string;
+    body: string;
+    tone: "sage" | "clay" | "gold";
+  }> = [
     {
       tone: "sage",
       title: "Free while you're in the cohort",
@@ -1213,9 +1300,9 @@ function EarlyAccess() {
               <span className="italic">Help shape it.</span>
             </h2>
             <p className="mt-5 text-[15px] md:text-[17px] text-white/85 leading-relaxed max-w-xl mx-auto">
-              We&apos;re hand-picking a small group of remote teams to go live on
-              MARINA before anyone else &mdash; completely free. You get the full
-              product and a direct hand in where it goes next.
+              We&apos;re hand-picking a small group of remote teams to go live
+              on MARINA before anyone else &mdash; completely free. You get the
+              full product and a direct hand in where it goes next.
             </p>
           </div>
         </Reveal>
@@ -1223,16 +1310,34 @@ function EarlyAccess() {
         <div className="mt-14 grid md:grid-cols-3 gap-4">
           {perks.map((p, i) => {
             const accent =
-              p.tone === "sage" ? "#a8d3b9" : p.tone === "clay" ? "#e8b89a" : "#f5d488";
+              p.tone === "sage"
+                ? "#a8d3b9"
+                : p.tone === "clay"
+                  ? "#e8b89a"
+                  : "#f5d488";
             return (
               <Reveal key={p.title} delay={i * 100} className="h-full">
                 <div className="h-full rounded-2xl bg-white/[0.07] border border-white/15 backdrop-blur-sm p-6">
                   <span
                     className="inline-flex w-9 h-9 rounded-xl items-center justify-center mb-4"
-                    style={{ background: "rgba(255,255,255,0.12)", color: accent }}
+                    style={{
+                      background: "rgba(255,255,255,0.12)",
+                      color: accent,
+                    }}
                   >
-                    <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4}>
-                      <path d="M5 13l4 4 10-10" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      width={17}
+                      height={17}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.4}
+                    >
+                      <path
+                        d="M5 13l4 4 10-10"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </span>
                   <h3 className="font-display text-[20px] leading-tight text-white">
@@ -1255,8 +1360,19 @@ function EarlyAccess() {
                 className="inline-flex items-center gap-2 bg-white text-[var(--m-ink)] hover:bg-white/95 px-6 py-3 rounded-lg text-[14.5px] font-semibold shadow-lg transition"
               >
                 Apply for early access
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                <svg
+                  width={15}
+                  height={15}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    d="M5 12h14M13 5l7 7-7 7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </a>
               <a

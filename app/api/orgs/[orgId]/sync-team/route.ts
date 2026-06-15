@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import { syncUserActivity } from '@/lib/github/sync'
+import { syncOrgViaApp } from '@/lib/github/app-sync'
 import { audit, requestMeta } from '@/lib/audit/log'
 
 export const runtime = 'nodejs'
@@ -48,6 +49,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
       }
     }
 
+    // Also pull via the GitHub App installation (the reliable path for the
+    // org's selected repos, incl. private). Best-effort — never fail the whole
+    // sync if the App isn't installed.
+    let appSync: { repos: number; inserted: number } | null = null
+    try {
+      const r = await syncOrgViaApp(orgId)
+      if (r.installationId) appSync = { repos: r.repos, inserted: r.inserted }
+    } catch (e) {
+      console.error('[sync-team] app sync failed', e)
+    }
+
     void audit({
       action: 'org.settings_changed',
       orgId,
@@ -65,6 +77,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
     return NextResponse.json({
       ok: true,
       summary: { total: results.length, succeeded, skipped, failed },
+      appSync,
       results,
     })
   } catch (err) {

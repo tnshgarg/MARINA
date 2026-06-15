@@ -43,7 +43,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
-      authorization: { params: { scope: 'read:user user:email repo' } },
+      // `repo` → read private repos the user can access (incl. org repos);
+      // `read:org` → enumerate the org's repos so we can pull commits from a
+      // tracked org's PRIVATE repos directly (the reliable sync path).
+      authorization: { params: { scope: 'read:user user:email repo read:org' } },
       // Trust GitHub's verified email so an existing email/Google user can
       // click "Connect GitHub" from the dashboard and have the GitHub
       // identity merged into their account in one step, instead of being

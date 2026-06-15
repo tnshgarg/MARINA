@@ -695,17 +695,27 @@ export function OrgSidebar({
           guarantees they don't get cropped when the name is very long. */}
       <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
         <div className="nav-footer-row flex items-center gap-2 flex-nowrap min-h-[44px]">
-          <CharacterAvatar
-            name={userName ?? userLogin}
-            imageUrl={userAvatarUrl}
-            size={32}
-          />
-          <div className="nav-footer-name min-w-0 flex-1 leading-tight">
-            <p className="text-[12.5px] font-medium text-slate-900 truncate leading-tight">
-              {userName ?? `@${userLogin}`}
-            </p>
-            <p className="text-[11px] text-slate-500 truncate leading-tight">{role}</p>
-          </div>
+          {/* Your identity is also the way back to YOUR personal console
+              (punch in/out, your breaks, your leave) — a manager is an
+              employee too and would otherwise never find /dashboard. */}
+          <NavLink
+            href="/dashboard"
+            prefetch
+            title="Go to your personal dashboard"
+            className="flex items-center gap-2 min-w-0 flex-1 rounded-md -mx-1 px-1 py-1 hover:bg-slate-50 transition"
+          >
+            <CharacterAvatar
+              name={userName ?? userLogin}
+              imageUrl={userAvatarUrl}
+              size={32}
+            />
+            <div className="nav-footer-name min-w-0 flex-1 leading-tight">
+              <p className="text-[12.5px] font-medium text-slate-900 truncate leading-tight">
+                {userName ?? `@${userLogin}`}
+              </p>
+              <p className="text-[11px] text-slate-500 truncate leading-tight">My dashboard ↗</p>
+            </div>
+          </NavLink>
           <div className="nav-footer-actions shrink-0 flex items-center gap-1">
             <NotificationBell />
             <form action={signOutAction}>

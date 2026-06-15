@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 /**
  * Today's meetings panel. Fetches from /api/me/calendar/today, polls every
@@ -24,6 +25,9 @@ type Meeting = {
 }
 
 export function MeetingsPanel() {
+  // Return the user to wherever they connected FROM (e.g. the org dashboard)
+  // instead of dumping a manager on the personal /dashboard.
+  const pathname = usePathname()
   const [connected, setConnected] = useState<boolean | null>(null)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [, setNotified] = useState<Set<number>>(new Set())
@@ -102,7 +106,7 @@ export function MeetingsPanel() {
           Connect Google Calendar to see today's schedule and get notified before each meeting.
         </p>
         <a
-          href="/api/connect/google/start?return_to=/dashboard"
+          href={`/api/connect/google/start?return_to=${encodeURIComponent(pathname || '/dashboard')}`}
           className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium transition"
         >
           Connect Google Calendar

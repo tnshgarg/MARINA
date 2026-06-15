@@ -171,6 +171,80 @@ export async function syncUserActivity(
     errors.push(`Commits: ${(err as Error).message}`)
   }
 
+  // ── Org-repo commit discovery (the reliable path) ───────────────────────────
+  // The Events/Search APIs above only surface what GitHub has *indexed* for the
+  // user, which lags badly for brand-new repos and never includes a private org
+  // repo the user just created. So when specific orgs are tracked, we go
+  // straight to the source: enumerate each tracked org's repos (including
+  // PRIVATE — the user's `repo` scope grants access), then list THIS user's
+  // commits in each recently-pushed repo via the contents API, which is
+  // immediately consistent (no search-index delay). This is what makes
+  // "I just pushed to marina-dummy/test-web" actually show up.
+  if (trackedSet) {
+    let repoCommitCount = 0
+    for (const owner of trackedSet) {
+      // List repos under the owner. Try org first; fall back to user account.
+      type Repo = { name: string; pushed_at?: string | null }
+      let repos: Repo[] = []
+      try {
+        repos = (await octokit.paginate(octokit.repos.listForOrg, {
+          org: owner,
+          type: 'all',
+          sort: 'pushed',
+          per_page: 100,
+        })) as Repo[]
+      } catch {
+        try {
+          repos = (await octokit.paginate(octokit.repos.listForUser, {
+            username: owner,
+            type: 'all',
+            sort: 'pushed',
+            per_page: 100,
+          })) as Repo[]
+        } catch (e) {
+          errors.push(`Repos for ${owner}: ${(e as Error).message}`)
+          continue
+        }
+      }
+      for (const r of repos) {
+        // Skip repos that haven't been pushed within the window.
+        if (r.pushed_at && new Date(r.pushed_at) < since) continue
+        try {
+          const commits = await octokit.paginate(octokit.repos.listCommits, {
+            owner,
+            repo: r.name,
+            author: login, // attribute to THIS user (matches login or commit email)
+            since: since.toISOString(),
+            per_page: 100,
+          })
+          for (const c of commits) {
+            const repoFull = `${owner}/${r.name}`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const commit = (c as any).commit ?? {}
+            const when = commit.author?.date ?? commit.committer?.date
+            events.push({
+              userId,
+              type: 'commit',
+              repo: repoFull,
+              title: String(commit.message ?? '').split('\n')[0].slice(0, 280) || '(no message)',
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              url: (c as any).html_url ?? `https://github.com/${repoFull}/commit/${(c as any).sha}`,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              externalId: (c as any).sha,
+              occurredAt: when ? new Date(when) : new Date(),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              raw: { message: commit.message, sha: (c as any).sha, source: 'org-repo' },
+            })
+            repoCommitCount++
+          }
+        } catch {
+          // Empty repo / no access to this particular repo — skip quietly.
+        }
+      }
+    }
+    byType.commit = (byType.commit ?? 0) + repoCommitCount
+  }
+
   // Dedupe against existing rows
   let inserted = 0
   if (events.length > 0) {

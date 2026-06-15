@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq, gt, isNull, lt, or } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
+import { getAccessToken } from '@/lib/google/calendar'
 import { sendEmail } from '@/lib/email/send'
 import { afterResponse } from '@/lib/after'
 import { trackEvent } from '@/lib/analytics/track'
@@ -128,12 +129,10 @@ export async function POST(
     // Google Calendar is OPTIONAL. If the organiser has it connected we push
     // the event there too (with a Meet link); if not, the MARINA row + in-app
     // notification + email are the source of truth and scheduling still works.
-    const calendarAccount = await db.query.accounts.findFirst({
-      where: and(
-        eq(schema.accounts.userId, session.appUserId),
-        eq(schema.accounts.provider, 'google'),
-      ),
-    })
+    // Use getAccessToken() so an expired access token is REFRESHED via the
+    // refresh_token — the previous code used the raw stored token, which
+    // expires after ~1h, so every push failed once the token went stale.
+    const calendarToken = await getAccessToken(session.appUserId)
 
     // Insert the row first — it's the source of truth.
     const [row] = await db
@@ -154,13 +153,13 @@ export async function POST(
     let conferenceUrl: string | null = null
     let calendarViewUrl: string | null = null
     let googleError: string | null = null
-    if (calendarAccount?.access_token) try {
+    if (calendarToken) try {
       const insertRes = await fetch(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${calendarAccount.access_token}`,
+            Authorization: `Bearer ${calendarToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

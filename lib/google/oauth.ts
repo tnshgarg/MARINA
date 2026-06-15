@@ -9,7 +9,9 @@ import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events.readonly',
+  // WRITE scope on events — required to CREATE meetings. The previous
+  // `calendar.events.readonly` could only read, so every meeting push 403'd.
+  'https://www.googleapis.com/auth/calendar.events',
   'openid',
   'email',
   'profile',

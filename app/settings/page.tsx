@@ -50,6 +50,27 @@ export default async function SettingsPage() {
         </p>
       </div>
 
+      {/* Identity — people often don't know their own username; show it plainly. */}
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 max-w-3xl">
+        <h2 className="text-[13.5px] font-semibold text-slate-900">Your identity</h2>
+        <div className="mt-3 grid sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Name</p>
+            <p className="text-[13px] text-slate-900 mt-0.5">{me?.name ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Username</p>
+            <p className="text-[13px] text-slate-900 mt-0.5 font-mono">@{session.login}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Email</p>
+            <p className="text-[13px] text-slate-900 mt-0.5 truncate" title={me?.email ?? undefined}>
+              {me?.email ?? '—'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <SettingsClient
         initialSettings={{
           trackingPausedAt: settings.trackingPausedAt?.toISOString() ?? null,

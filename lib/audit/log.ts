@@ -21,6 +21,7 @@ export type AuditAction =
   | 'device.paired'
   | 'device.revoked'
   | 'org.settings_changed'
+  | 'org.ownership_transferred'
   | 'data.exported'
   | 'account.deleted'
 

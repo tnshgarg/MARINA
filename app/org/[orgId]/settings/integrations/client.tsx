@@ -20,6 +20,11 @@ type Initial = {
   githubLinked: number
   calendarLinked: number
   teamSize: number
+  githubApp: {
+    configured: boolean
+    installationId: number | null
+    installUrl: string
+  }
 }
 
 export default function IntegrationsClient({
@@ -30,108 +35,96 @@ export default function IntegrationsClient({
   initial: Initial
 }) {
   const router = useRouter()
-  const [trackedOrgs, setTrackedOrgs] = useState<string[]>(initial.trackedGithubOrgs)
-  const [ghInput, setGhInput] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [appSyncMsg, setAppSyncMsg] = useState<string | null>(null)
 
-  async function saveOrgs(next: string[]) {
-    setBusy('github-orgs')
-    setErr(null)
+  async function syncApp() {
+    setBusy('app-sync')
+    setAppSyncMsg(null)
     try {
-      const res = await fetch(`/api/orgs/${orgId}/settings`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackedGithubOrgs: next }),
-      })
+      const res = await fetch(`/api/orgs/${orgId}/github-app/sync`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'failed')
-      setTrackedOrgs(next)
-      setSavedAt(new Date())
+      const unmatched = Array.isArray(data.unmatchedAuthors) ? data.unmatchedAuthors.length : 0
+      setAppSyncMsg(
+        `Pulled from ${data.repos} repo(s) · ${data.inserted} new event(s)` +
+          (unmatched > 0 ? ` · ${unmatched} author(s) not yet linked to a teammate` : ''),
+      )
       router.refresh()
     } catch (e) {
-      setErr(String(e))
+      setAppSyncMsg(String(e))
     } finally {
       setBusy(null)
     }
   }
 
-  function addOrg() {
-    const o = ghInput.trim().toLowerCase()
-    if (!o) return
-    if (!/^[a-z0-9][a-z0-9-]{0,38}$/.test(o)) {
-      setErr("That doesn't look like a valid GitHub org login.")
-      return
-    }
-    if (trackedOrgs.includes(o)) {
-      setGhInput('')
-      return
-    }
-    void saveOrgs([...trackedOrgs, o])
-    setGhInput('')
-  }
-
-  function removeOrg(o: string) {
-    void saveOrgs(trackedOrgs.filter((x) => x !== o))
-  }
-
   return (
     <div className="space-y-4 max-w-3xl">
-      {/* GitHub */}
-      <IntegrationCard
-        glyphLetter="G"
-        glyphBg="bg-slate-900"
-        name="GitHub"
-        category="Engineering"
-        status={trackedOrgs.length > 0 ? 'configured' : initial.githubLinked > 0 ? 'partial' : 'not_connected'}
-        headline={
-          initial.teamSize > 0
-            ? `${initial.githubLinked} of ${initial.teamSize} teammate${initial.teamSize === 1 ? '' : 's'} signed in with GitHub`
-            : 'No teammates yet'
-        }
-        description={
-          <>
-            <p className="mb-2">
-              GitHub is connected <strong>per teammate</strong>, not per org. Each engineer signs in
-              with their GitHub account once — that authorises MARINA to read their PR, review and
-              commit activity. There's no separate "connect the org" step.
-            </p>
-            <p>
-              Below you can restrict which GitHub <em>organisations</em> count. Events from any
-              repo whose owner isn't on this list are filtered out, so a teammate's personal
-              open-source contributions stay private.
-            </p>
-          </>
-        }
-        actions={
-          <div className="flex flex-wrap items-center gap-2 text-[12px]">
-            {/* Use the link-account endpoint with an explicit callbackUrl so
-                the user lands back on the integrations page instead of the
-                generic /dashboard. */}
+      {/* GitHub App — the reliable, org-level repo tracking path. */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="w-7 h-7 rounded-md bg-slate-900 text-white inline-flex items-center justify-center text-[13px] font-semibold">G</span>
+          <h2 className="text-[14px] font-semibold text-slate-900">GitHub App — repo activity</h2>
+          {initial.githubApp.installationId ? (
+            <span className="pill pill-good text-[11px]">Installed</span>
+          ) : (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">Not installed</span>
+          )}
+        </div>
+        <p className="mt-2 text-[12.5px] text-slate-500 leading-snug max-w-2xl">
+          Install the MARINA GitHub App on your org and choose which repos to share. MARINA then reads
+          commits &amp; PRs from those repos directly — including <strong>private</strong> ones — and
+          attributes each to the teammate who authored it. No per-person repo access needed.
+        </p>
+        {!initial.githubApp.configured ? (
+          <p className="mt-4 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 max-w-2xl">
+            The GitHub App isn&apos;t set up on this deployment yet — an admin needs to create the App on
+            GitHub and set <code className="px-1 rounded bg-amber-100">GITHUB_APP_ID</code>,{' '}
+            <code className="px-1 rounded bg-amber-100">GITHUB_APP_PRIVATE_KEY</code> and{' '}
+            <code className="px-1 rounded bg-amber-100">GITHUB_APP_SLUG</code>.
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <a
-              href={`/api/auth/signin/github?callbackUrl=${encodeURIComponent(
-                `/org/${orgId}/settings/integrations`,
-              )}`}
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white font-medium transition"
+              href={initial.githubApp.installUrl}
+              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
             >
-              {initial.githubLinked > 0 ? 'Re-link my GitHub' : 'Link my GitHub'}
+              {initial.githubApp.installationId ? 'Manage repos / reinstall' : 'Install GitHub App'}
             </a>
-            <span className="text-slate-500">
-              Each teammate links their own GitHub — there's no separate "connect the org" step.
-            </span>
+            {initial.githubApp.installationId && (
+              <button
+                type="button"
+                onClick={syncApp}
+                disabled={busy === 'app-sync'}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+              >
+                {busy === 'app-sync' ? 'Syncing…' : 'Sync now'}
+              </button>
+            )}
+            {appSyncMsg && <span className="text-[12px] text-slate-600">{appSyncMsg}</span>}
           </div>
-        }
-      >
-        <GithubOrgsEditor
-          orgs={trackedOrgs}
-          input={ghInput}
-          onInput={setGhInput}
-          onAdd={addOrg}
-          onRemove={removeOrg}
-          saving={busy === 'github-orgs'}
-        />
-      </IntegrationCard>
+        )}
+        {/* Identity link — teammates connect their GitHub so commits/PRs map to
+            them. This replaces the old per-teammate GitHub card. */}
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <p className="text-[12px] text-slate-600">
+            <strong>Teammates:</strong> link your GitHub account so we can attribute each commit/PR to you.
+            {initial.teamSize > 0 && (
+              <span className="text-slate-400">
+                {' '}· {initial.githubLinked} of {initial.teamSize} linked
+              </span>
+            )}
+          </p>
+          <a
+            href={`/api/auth/signin/github?callbackUrl=${encodeURIComponent(
+              `/org/${orgId}/settings/integrations`,
+            )}`}
+            className="mt-2 inline-flex px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
+          >
+            {initial.githubLinked > 0 ? 'Re-link my GitHub' : 'Link my GitHub'}
+          </a>
+        </div>
+      </section>
 
       {/* Google Calendar */}
       <IntegrationCard
@@ -186,11 +179,6 @@ export default function IntegrationsClient({
           Request an integration
         </a>
       </section>
-
-      {err && <p className="text-[12px] text-rose-600">{err}</p>}
-      {savedAt && !err && (
-        <p className="text-[12px] text-emerald-600">Saved at {savedAt.toLocaleTimeString()}</p>
-      )}
     </div>
   )
 }
@@ -247,79 +235,6 @@ function IntegrationCard({
       </div>
       {children && <div className="mt-4">{children}</div>}
     </section>
-  )
-}
-
-function GithubOrgsEditor({
-  orgs,
-  input,
-  onInput,
-  onAdd,
-  onRemove,
-  saving,
-}: {
-  orgs: string[]
-  input: string
-  onInput: (s: string) => void
-  onAdd: () => void
-  onRemove: (o: string) => void
-  saving: boolean
-}) {
-  return (
-    <div className="border-t border-slate-100 pt-3">
-      <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1.5">
-        Tracked GitHub organisations
-      </label>
-      <p className="text-[11.5px] text-slate-500 leading-snug mb-2">
-        Only events from repos owned by these orgs are recorded. Find the org login at the top of
-        a GitHub URL: <code className="px-1 rounded bg-slate-100">github.com/<strong>acme</strong>/repo</code>.
-        Leave empty to track every repo a teammate touches.
-      </p>
-      <div className="flex gap-1.5">
-        <input
-          value={input}
-          onChange={(e) => onInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              onAdd()
-            }
-          }}
-          placeholder="acme"
-          disabled={saving}
-          className="flex-1 text-[12.5px] border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
-        <button
-          type="button"
-          onClick={onAdd}
-          disabled={saving || !input.trim()}
-          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
-        >
-          {saving ? 'Saving…' : 'Add'}
-        </button>
-      </div>
-      {orgs.length > 0 && (
-        <ul className="mt-2.5 flex flex-wrap gap-1.5">
-          {orgs.map((o) => (
-            <li
-              key={o}
-              className="inline-flex items-center gap-1 text-[11.5px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full"
-            >
-              {o}
-              <button
-                type="button"
-                onClick={() => onRemove(o)}
-                aria-label={`Remove ${o}`}
-                disabled={saving}
-                className="text-slate-400 hover:text-rose-600 disabled:opacity-50"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   )
 }
 

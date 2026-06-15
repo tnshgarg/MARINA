@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { TransferOwnership } from '@/components/transfer-ownership'
 
 type Settings = {
   trackingPausedAt: string | null
@@ -370,7 +371,11 @@ export default function SettingsClient({
         <p className="text-[12.5px] text-slate-500 mt-1">
           Your data is yours. Download or permanently delete it under your DPDP Act 2023 rights.
         </p>
-        <div className="mt-4 grid sm:grid-cols-2 gap-3">
+        {/* Transfer ownership (self-hides unless you own a workspace with members) */}
+        <div className="mt-4">
+          <TransferOwnership />
+        </div>
+        <div className="mt-3 grid sm:grid-cols-2 gap-3">
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-[13px] font-semibold text-slate-900">Export my data</h3>
             <p className="text-[12px] text-slate-500 mt-1 leading-snug">

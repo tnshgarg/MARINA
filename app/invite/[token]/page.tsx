@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, ne } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth, signIn } from '@/auth'
@@ -93,6 +93,19 @@ export default async function InvitePage({
 
       const inviteDiscipline = (invite as { discipline?: string }).discipline ?? 'other'
       const inviteJobTitle = (invite as { jobTitle?: string | null }).jobTitle ?? null
+      // One account = one workspace: if they're already active in a different
+      // org, don't auto-accept (the manual Accept button hits the API, which
+      // enforces the same rule and shows a clear message).
+      const otherActive = await db.query.memberships.findFirst({
+        where: and(
+          eq(schema.memberships.userId, session.appUserId),
+          isNull(schema.memberships.endedAt),
+          ne(schema.memberships.orgId, invite.orgId),
+        ),
+      })
+      if (otherActive) {
+        throw new Error('account already in another workspace')
+      }
       const existing = await db.query.memberships.findFirst({
         where: and(
           eq(schema.memberships.orgId, invite.orgId),

@@ -4,9 +4,9 @@ import { NavProgress } from "@/components/nav-progress";
 import { ToastProvider } from "@/components/toast";
 
 export const metadata: Metadata = {
-  title: "MARINA · AI Chief of Staff for engineering-led teams",
+  title: "MARINA · AI Chief of Staff for remote teams",
   description:
-    "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for product startups.",
+    "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for remote teams.",
   icons: {
     // /logo.svg is the brand mark (sage M with a gold triangle). SVG scales
     // perfectly across every device pixel ratio — no need for size variants.
@@ -35,7 +35,11 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         {/*
           - Inter (body): variable weight + cv* alternates
           - Instrument Serif (display): editorial serif, free Google font that

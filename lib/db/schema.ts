@@ -179,6 +179,13 @@ export const orgs = pgTable('orgs', {
    */
   trackedGithubOrgs: jsonb('tracked_github_orgs').$type<string[]>().notNull().default([]),
   /**
+   * GitHub App installation id for this workspace. When the org admin installs
+   * the MARINA GitHub App and selects repos, GitHub gives us an installation
+   * we authenticate as (server-side, no per-user token) to read those repos'
+   * commits + PRs. This is the RELIABLE path for private org repos.
+   */
+  githubInstallationId: integer('github_installation_id'),
+  /**
    * Slack workspace install state. We support TWO modes side by side:
    *   1. Legacy: `slackWebhookUrl` posts to one channel only (kept for orgs
    *      who configured it before we shipped the OAuth app).
