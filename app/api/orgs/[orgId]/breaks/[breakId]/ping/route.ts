@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireScope } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
 
@@ -23,7 +23,7 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
 
     const row = await db.query.breaks.findFirst({
       where: and(
@@ -35,6 +35,7 @@ export async function POST(
     if (!row) {
       return NextResponse.json({ error: 'pause not found or already ended' }, { status: 404 })
     }
+    ensureScopeUser(scope, row.userId)
     // Can't ping yourself — the in-app notification + Slack DM would just
     // bounce back to the manager who pressed the button.
     if (row.userId === session.appUserId) {

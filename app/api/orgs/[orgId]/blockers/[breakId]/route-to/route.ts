@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireScope } from '@/lib/auth/guards'
 import { sendEmail } from '@/lib/email/send'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { afterResponse } from '@/lib/after'
@@ -36,7 +36,7 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
     const body = (await req.json().catch(() => ({}))) as {
       helperUserId?: number
       note?: string
@@ -70,6 +70,10 @@ export async function POST(
     if (!blocker) {
       return NextResponse.json({ error: 'blocker not found or already resolved' }, { status: 404 })
     }
+    // RBAC scope: the blocked person AND the helper must both be in the
+    // manager's scope — no routing work to (or for) people they don't manage.
+    ensureScopeUser(scope, blocker.userId)
+    ensureScopeUser(scope, helperUserId)
     if (blocker.category !== 'blocked') {
       return NextResponse.json({ error: 'not a blocker' }, { status: 400 })
     }

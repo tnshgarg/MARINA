@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { and, eq, isNull, lt } from 'drizzle-orm'
+import { and, eq, isNull, isNotNull, lt, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { getBlobStore } from '@/lib/storage/blob'
 import { authorizeCron } from '@/lib/cron/auth'
+import { PLANS } from '@/lib/billing/plans'
 import { log } from '@/lib/log/log'
 
 export const runtime = 'nodejs'
@@ -87,6 +88,33 @@ async function sweep() {
     .where(lt(schema.notifications.createdAt, notifCutoff))
     .returning({ id: schema.notifications.id })
 
+  // Analytics events older than 90 days — keeps the table from accumulating
+  // forever. 90 days gives quarter-over-quarter comparisons without bloat.
+  const analyticsCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+  const expiredAnalytics = await db
+    .delete(schema.analyticsEvents)
+    .where(lt(schema.analyticsEvents.createdAt, analyticsCutoff))
+    .returning({ id: schema.analyticsEvents.id })
+    .catch(() => [])
+
+  // Downgrade expired NON-billed grants (e.g. early-bird codes) back to free.
+  // Razorpay-billed orgs (billingProvider set) are governed by the webhook, so
+  // we only touch manual grants whose trialEndsAt has lapsed. Without this an
+  // early-bird plan grant was effectively permanent. Also reset the AI budget.
+  const downgraded = await db
+    .update(schema.orgs)
+    .set({ plan: 'free', monthlyAiBudgetCents: PLANS.free.monthlyAiBudgetCents })
+    .where(
+      and(
+        isNull(schema.orgs.billingProvider),
+        isNotNull(schema.orgs.trialEndsAt),
+        lt(schema.orgs.trialEndsAt, now),
+        ne(schema.orgs.plan, 'free'),
+      ),
+    )
+    .returning({ id: schema.orgs.id })
+    .catch(() => [])
+
   log.info('cron.sweep.done', {
     examined: expired.length,
     deleted,
@@ -95,6 +123,8 @@ async function sweep() {
     pair: expiredPair.length,
     rl: expiredRl.length,
     notif: expiredNotif.length,
+    analytics: expiredAnalytics.length,
+    downgraded: downgraded.length,
   })
   return NextResponse.json({
     ok: true,
@@ -105,6 +135,8 @@ async function sweep() {
     pairingCodes: expiredPair.length,
     rateLimitEvents: expiredRl.length,
     notifications: expiredNotif.length,
+    analyticsEvents: expiredAnalytics.length,
+    downgraded: downgraded.length,
   })
 }
 

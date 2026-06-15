@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
@@ -18,13 +18,25 @@ export async function DELETE(req: Request) {
     const session = await requireSession()
     const userId = session.appUserId
 
-    // Owner-protection: refuse if user is the sole owner of any org with > 1 member.
+    // Require an explicit typed confirmation so a stray/forged call can't wipe
+    // an account. The client must send { confirm: "<login>" } matching the user.
+    const body = (await req.json().catch(() => ({}))) as { confirm?: string }
+    const me = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
+    if (!me || !body.confirm || body.confirm.trim().toLowerCase() !== me.login.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Type your username to confirm account deletion.' },
+        { status: 400 },
+      )
+    }
+
+    // Owner-protection: refuse if user is the sole owner of any org with > 1
+    // ACTIVE member (soft-deleted members don't count).
     const ownedOrgs = await db.select().from(schema.orgs).where(eq(schema.orgs.ownerId, userId))
     for (const org of ownedOrgs) {
       const members = await db
         .select({ count: schema.memberships.id })
         .from(schema.memberships)
-        .where(eq(schema.memberships.orgId, org.id))
+        .where(and(eq(schema.memberships.orgId, org.id), isNull(schema.memberships.endedAt)))
       if (members.length > 1) {
         return NextResponse.json(
           {

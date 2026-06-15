@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm'
+import { and, eq, gte, isNull, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 
 /**
@@ -44,7 +44,7 @@ export type CreateDeliverableResult =
         verificationStatus: 'unverified' | 'verified' | 'mismatch'
       }
     }
-  | { ok: false; error: string; status: 400 | 409 | 500; duplicateOf?: number }
+  | { ok: false; error: string; status: 400 | 403 | 409 | 500; duplicateOf?: number }
 
 const MIN_TITLE = 10
 const MAX_TITLE = 200
@@ -117,13 +117,29 @@ export async function createDeliverable(input: CreateDeliverableInput): Promise<
     }
   }
 
-  // Resolve org — explicit > user's primary membership.
+  // Resolve org — explicit > user's primary membership. SECURITY: an explicit
+  // orgId MUST be one the user actually belongs to, otherwise a caller could
+  // inject a deliverable into any org's feed (visible to that org's managers).
   let orgId: number | null = null
   if (typeof input.orgId === 'number') {
+    const member = await db.query.memberships.findFirst({
+      where: and(
+        eq(schema.memberships.userId, input.userId),
+        eq(schema.memberships.orgId, input.orgId),
+        isNull(schema.memberships.endedAt),
+      ),
+    })
+    if (!member) {
+      return {
+        ok: false,
+        status: 403,
+        error: 'You are not a member of that workspace.',
+      }
+    }
     orgId = input.orgId
   } else {
     const m = await db.query.memberships.findFirst({
-      where: eq(schema.memberships.userId, input.userId),
+      where: and(eq(schema.memberships.userId, input.userId), isNull(schema.memberships.endedAt)),
     })
     orgId = m?.orgId ?? null
   }

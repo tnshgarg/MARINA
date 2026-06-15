@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { audit } from '@/lib/audit/log'
 import { sendEmail } from '@/lib/email/send'
+import { PLANS, planFor } from '@/lib/billing/plans'
 
 export const runtime = 'nodejs'
 
@@ -71,11 +72,36 @@ export async function POST(req: Request) {
     'free'
 
   const ev = event.event ?? 'unknown'
-  if (
-    ev === 'subscription.activated' ||
-    ev === 'subscription.charged' ||
-    ev === 'subscription.resumed'
-  ) {
+  const isActivation = ev === 'subscription.activated' || ev === 'subscription.charged' || ev === 'subscription.resumed'
+  const isDowngrade = ev === 'subscription.cancelled' || ev === 'subscription.completed' || ev === 'subscription.paused'
+
+  // Load the org and BIND the event to its real subscription. A validly-signed
+  // but mis-targeted event (notes.orgId pointing at someone else, or a replay
+  // against a different sub) must NOT mutate an org whose stored subscription
+  // id doesn't match. First activation is the exception — that's when we record
+  // the binding.
+  const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
+  if (!org) return NextResponse.json({ ok: true, ignored: true, reason: 'org not found' })
+  if (!isActivation && org.billingSubscriptionId && sub.id && org.billingSubscriptionId !== sub.id) {
+    return NextResponse.json({ ok: true, ignored: true, reason: 'subscription mismatch' })
+  }
+
+  if (isActivation) {
+    // Guard against an env misconfig silently downgrading a paying customer to
+    // free: if a plan_id is present but maps to nothing we recognise, ignore
+    // rather than write plan:'free'.
+    if (sub.plan_id && planKey === 'free') {
+      console.error('[razorpay] unknown plan_id on activation — ignoring', { planId: sub.plan_id, orgId })
+      return NextResponse.json({ ok: true, ignored: true, reason: 'unknown plan_id' })
+    }
+
+    // Lightweight idempotency: if the org is already on this plan with this
+    // subscription id, this is a duplicate delivery of an activation — ack
+    // without re-sending the receipt. (`charged` still proceeds so each real
+    // charge gets a receipt.)
+    const alreadyActive =
+      org.plan === planKey && org.billingSubscriptionId === (sub.id ?? null)
+
     await db
       .update(schema.orgs)
       .set({
@@ -83,14 +109,16 @@ export async function POST(req: Request) {
         seatsPurchased: sub.quantity ?? 5,
         billingProvider: 'razorpay',
         billingSubscriptionId: sub.id ?? null,
-        // Clear trial — they're paying now.
+        // Sync the AI budget to the plan — otherwise paid orgs stay throttled
+        // at the default cap (the per-plan budgets were previously dead config).
+        monthlyAiBudgetCents: planFor(planKey).monthlyAiBudgetCents,
         trialEndsAt: null,
       })
       .where(eq(schema.orgs.id, orgId))
 
-    // Send a GST-style receipt email on activation / charge.
-    const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
-    if (org && (ev === 'subscription.activated' || ev === 'subscription.charged')) {
+    // Receipt on charge (every charge) or first activation (not duplicates).
+    const sendReceipt = ev === 'subscription.charged' || (ev === 'subscription.activated' && !alreadyActive)
+    if (sendReceipt) {
       const owner = await db.query.users.findFirst({ where: eq(schema.users.id, org.ownerId) })
       const amount = (event.payload?.payment?.entity?.amount ?? 0) / 100
       if (owner?.email && amount > 0) {
@@ -101,15 +129,16 @@ export async function POST(req: Request) {
         })
       }
     }
-  } else if (ev === 'subscription.cancelled' || ev === 'subscription.completed') {
-    // Drop back to free but keep seat count so historical data isn't blocked.
+  } else if (isDowngrade) {
+    const clearSub = ev === 'subscription.cancelled' || ev === 'subscription.completed'
     await db
       .update(schema.orgs)
-      .set({ plan: 'free', billingSubscriptionId: null })
+      .set({
+        plan: 'free',
+        monthlyAiBudgetCents: PLANS.free.monthlyAiBudgetCents,
+        ...(clearSub ? { billingSubscriptionId: null } : {}),
+      })
       .where(eq(schema.orgs.id, orgId))
-  } else if (ev === 'subscription.paused') {
-    // Treat as free until resumed.
-    await db.update(schema.orgs).set({ plan: 'free' }).where(eq(schema.orgs.id, orgId))
   }
 
   audit({

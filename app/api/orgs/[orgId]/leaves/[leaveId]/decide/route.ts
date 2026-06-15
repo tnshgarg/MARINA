@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireCapability } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireCapability } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { notify } from '@/lib/notify/send'
 import { inbox } from '@/lib/notify/inbox'
@@ -24,7 +25,12 @@ export async function POST(
 
   try {
     // Anyone with decide_leaves can act. Managers have it by default.
-    const { session } = await requireCapability(orgId, 'decide_leaves')
+    const { session, membership } = await requireCapability(orgId, 'decide_leaves')
+    const scope = await getVisibleScope(orgId, {
+      userId: session.appUserId,
+      membershipId: membership.id,
+      role: membership.role as 'admin' | 'manager' | 'lead' | 'member',
+    })
     const body = (await req.json().catch(() => ({}))) as {
       decision?: 'approve' | 'deny' | 'reopen'
       note?: string
@@ -43,6 +49,16 @@ export async function POST(
     })
     if (!existing) {
       return NextResponse.json({ error: 'leave not found' }, { status: 404 })
+    }
+    // RBAC scope: only decide leaves for people you manage.
+    ensureScopeUser(scope, existing.userId)
+    // A manager must not approve/deny their OWN leave — that's a conflict of
+    // interest. Their own leave goes up their reporting chain.
+    if (existing.userId === session.appUserId) {
+      return NextResponse.json(
+        { error: "You can't decide your own leave request." },
+        { status: 403 },
+      )
     }
     if (existing.status === 'cancelled') {
       return NextResponse.json(

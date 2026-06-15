@@ -36,13 +36,23 @@ export async function POST(req: Request) {
 
   try {
     // Find a matching pairing code that's unconsumed and unexpired.
-    const code = await db.query.pairingCodes.findFirst({
-      where: and(
-        eq(schema.pairingCodes.codeHash, hash),
-        isNull(schema.pairingCodes.consumedAt),
-        gt(schema.pairingCodes.expiresAt, new Date())
-      ),
-    })
+    // ATOMIC single-use claim: flip consumedAt only if it's still null AND
+    // unexpired, returning the row in the same statement. Two concurrent
+    // completes of the same code now race on one UPDATE — exactly one gets a
+    // row back; the other gets none (→ 410). The old find-then-update had a
+    // window where both reads saw an unconsumed code and both minted a token.
+    const claimed = await db
+      .update(schema.pairingCodes)
+      .set({ consumedAt: new Date() })
+      .where(
+        and(
+          eq(schema.pairingCodes.codeHash, hash),
+          isNull(schema.pairingCodes.consumedAt),
+          gt(schema.pairingCodes.expiresAt, new Date()),
+        ),
+      )
+      .returning()
+    const code = claimed[0]
     if (!code) {
       return NextResponse.json({ error: 'invalid or expired code' }, { status: 410 })
     }
@@ -53,14 +63,6 @@ export async function POST(req: Request) {
     }
 
     const { plaintext, hash: tokenHash, prefix } = generateAgentToken()
-
-    // Atomic-ish: mark code consumed first, then create token. If creating the
-    // token fails we accept the code is consumed — better than letting the same
-    // code create multiple tokens. The user can request a new code in seconds.
-    await db
-      .update(schema.pairingCodes)
-      .set({ consumedAt: new Date() })
-      .where(eq(schema.pairingCodes.id, code.id))
 
     const [token] = await db
       .insert(schema.agentTokens)

@@ -22,9 +22,11 @@ export async function POST(req: Request) {
       { status: 429, headers: { 'Retry-After': String(retryS) } },
     )
   }
-  const redirectTo = typeof body.redirectTo === 'string' && body.redirectTo.startsWith('/')
-    ? body.redirectTo
-    : '/'
+  // Open-redirect guard: must be a same-site absolute path. Reject `//evil.com`
+  // and `/\evil.com` (protocol-relative / backslash tricks browsers normalize).
+  const rt = typeof body.redirectTo === 'string' ? body.redirectTo : ''
+  const redirectTo =
+    rt.startsWith('/') && !rt.startsWith('//') && !rt.startsWith('/\\') ? rt : '/'
 
   // Generate the token + persist hash
   const { plaintext, hash } = generateMagicToken()
@@ -100,14 +102,20 @@ export async function POST(req: Request) {
     console.log(`\n[magic] sign-in link for ${email}:\n${link}\n`)
   }
 
-  // Decide whether to include the link in the response.
-  const showLink = !emailDispatched || ALWAYS_RETURN_LINK_REASONS.length > 0 || process.env.NODE_ENV !== 'production'
+  // SECURITY: the sign-in link is a bearer credential. NEVER return it in the
+  // HTTP response in production — doing so let anyone POST a victim's email and
+  // receive a one-click login for that account. The link is only ever returned
+  // in non-production (local dev / preview) to ease testing. In production, if
+  // email delivery isn't configured the user must fix RESEND_* — we surface the
+  // reason in `notes` but withhold the link itself.
+  const isProd = process.env.NODE_ENV === 'production'
+  const showLink = !isProd
 
   return NextResponse.json({
     ok: true,
     dispatched: emailDispatched,
     resendId,
-    providerError,
+    providerError: isProd ? null : providerError,
     notes: ALWAYS_RETURN_LINK_REASONS,
     devLink: showLink ? link : undefined,
   })

@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { CheckInButton } from './check-in-button'
 
@@ -12,11 +13,24 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  // Visibility scoping: admins see every active member; managers + leads see
+  // only their reports-to chain + members of teams they manage.
+  let scope
+  try {
+    ;({ scope } = await requireScope(orgId, 'manager'))
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 401) redirect('/')
+    if (err instanceof HttpError && err.status === 403) redirect('/dashboard')
+    throw err
+  }
+
   const memberRows = await db
     .select({ userId: schema.memberships.userId })
     .from(schema.memberships)
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
-  const userIds = memberRows.map((m) => m.userId)
+  const userIds = memberRows
+    .map((m) => m.userId)
+    .filter((id) => scope.isAdminScope || scope.userIds.has(id))
 
   const breaks = userIds.length
     ? await db

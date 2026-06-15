@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from 'crypto'
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 
 /**
  * Standalone Google OAuth helper for the optional Calendar integration.
@@ -72,7 +72,11 @@ export function encodeState(state: GoogleState): string {
 export function decodeState(raw: string): GoogleState | null {
   const [b64, sig] = raw.split('.')
   if (!b64 || !sig) return null
-  if (sign(b64) !== sig) return null
+  const expected = sign(b64)
+  // Constant-time comparison — avoid leaking the signature via timing.
+  const a = Buffer.from(sig)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null
   try {
     return JSON.parse(Buffer.from(b64, 'base64url').toString('utf8')) as GoogleState
   } catch {
@@ -80,9 +84,20 @@ export function decodeState(raw: string): GoogleState | null {
   }
 }
 
+function stateSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    // Fail CLOSED — never fall back to a public constant. A predictable secret
+    // would let anyone forge a valid OAuth `state` for any userId (CSRF /
+    // account-link hijack).
+    throw new Error('AUTH_SECRET (or NEXTAUTH_SECRET) must be set to sign OAuth state.')
+  }
+  return secret
+}
+
 function sign(s: string): string {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-secret'
-  return createHash('sha256').update(s + secret).digest('hex').slice(0, 16)
+  // Full-length HMAC-SHA256 (not a truncated plain hash).
+  return createHmac('sha256', stateSecret()).update(s).digest('hex')
 }
 
 export function makeNonce(): string {

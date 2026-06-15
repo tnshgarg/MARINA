@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { requireSessionOrRedirect } from '@/lib/auth/guards'
+import PersonalPageHeader from '@/components/personal-page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,17 +29,11 @@ export default async function MyShotsPage() {
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="app-eyebrow">My captures</p>
-            <h1 className="app-h2 mt-1">Last 48 hours of screenshots</h1>
-          </div>
-          <Link href="/settings" className="text-[13px] text-slate-600 hover:text-[var(--m-accent)]">
-            ← Settings
-          </Link>
-        </div>
-      </header>
+      <PersonalPageHeader
+        eyebrow="My captures"
+        title="Last 48 hours of screenshots"
+        current="shots"
+      />
 
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="app-card app-card-lg">

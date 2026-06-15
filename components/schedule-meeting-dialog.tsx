@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useToast } from '@/components/toast'
 
 /**
@@ -32,12 +33,20 @@ export function ScheduleMeetingDialog({
   const [durationMin, setDurationMin] = useState(30)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [conflict, setConflict] = useState<{ title: string; startAt: string; endAt: string } | null>(null)
+  // Portal to <body> so the overlay escapes any ancestor that creates a
+  // containing block for position:fixed (e.g. the page's `.fade-in` wrapper,
+  // whose lingering transform was pinning this dialog inside the content
+  // instead of the viewport — you'd see only the dim backdrop).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
-  if (!open) return null
+  if (!open || !mounted) return null
 
-  async function submit() {
+  async function submit(force = false) {
     setBusy(true)
     setErr(null)
+    if (force) setConflict(null)
     try {
       const res = await fetch(`/api/orgs/${orgId}/members/${membershipId}/schedule-meeting`, {
         method: 'POST',
@@ -47,10 +56,18 @@ export function ScheduleMeetingDialog({
           agenda: agenda || null,
           startAt: new Date(startAt).toISOString(),
           durationMin,
+          force,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
+      // 409 = the attendee already has something booked in that window. Show
+      // the clash and let the manager confirm with "Schedule anyway".
+      if (res.status === 409 && data?.error === 'conflict' && data.conflict) {
+        setConflict(data.conflict)
+        setBusy(false)
+        return
+      }
+      if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`)
       toast.push({
         kind: 'success',
         title: 'Meeting scheduled',
@@ -68,7 +85,7 @@ export function ScheduleMeetingDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[210] flex items-center justify-center px-4 bg-slate-900/40"
       onClick={onClose}
@@ -143,20 +160,41 @@ export function ScheduleMeetingDialog({
 
         {err && <p className="text-[12px] text-rose-600 mb-2">{err}</p>}
 
+        {conflict && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+            <p className="font-semibold">⚠ {attendeeName} already has something then</p>
+            <p className="mt-0.5">
+              “{conflict.title}” · {new Date(conflict.startAt).toLocaleString()} – {new Date(conflict.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p className="mt-1 text-amber-800">Pick another time, or schedule anyway.</p>
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-2">
           <button onClick={onClose} disabled={busy} className="btn-secondary">
             Cancel
           </button>
-          <button
-            onClick={submit}
-            disabled={busy || !title.trim() || !startAt}
-            className="btn-primary"
-          >
-            {busy ? 'Scheduling…' : 'Schedule meeting'}
-          </button>
+          {conflict ? (
+            <button
+              onClick={() => submit(true)}
+              disabled={busy || !title.trim() || !startAt}
+              className="btn-primary"
+            >
+              {busy ? 'Scheduling…' : 'Schedule anyway'}
+            </button>
+          ) : (
+            <button
+              onClick={() => submit()}
+              disabled={busy || !title.trim() || !startAt}
+              className="btn-primary"
+            >
+              {busy ? 'Scheduling…' : 'Schedule meeting'}
+            </button>
+          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

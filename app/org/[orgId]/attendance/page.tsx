@@ -1,7 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { PeopleTabs } from '@/components/org-tabs'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 import AttendanceClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +30,17 @@ export default async function AttendancePage({
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  // Visibility scoping: admins see every active member; managers + leads see
+  // only their reports-to chain + members of teams they manage.
+  let scope
+  try {
+    ;({ scope } = await requireScope(orgId, 'manager'))
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 401) redirect('/')
+    if (err instanceof HttpError && err.status === 403) redirect('/dashboard')
+    throw err
+  }
+
   // Resolve the month being viewed (YYYY-MM). Defaults to current month.
   const now = new Date()
   const monthStr = parseMonth(sp.month) ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -41,7 +52,7 @@ export default async function AttendancePage({
   // and the optional user-set `joinedOn` so the calendar can grey out days
   // before the employee actually joined — otherwise every historical day
   // would render as red "Absent", which is just noise.
-  const memberRows = await db
+  const allMemberRows = await db
     .select({
       userId: schema.memberships.userId,
       login: schema.users.login,
@@ -55,12 +66,22 @@ export default async function AttendancePage({
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
     .orderBy(desc(schema.memberships.createdAt))
 
+  const memberRows = scope.isAdminScope
+    ? allMemberRows
+    : allMemberRows.filter((m) => scope.userIds.has(m.userId))
+
   const memberByUserId = new Map(memberRows.map((m) => [m.userId, m]))
   const userIds = memberRows.map((m) => m.userId)
 
-  // The selected employee. If none, default to the first one.
+  // The selected employee. If none, default to the first one. A `?member=`
+  // pointing at someone outside the viewer's scope is ignored — memberByUserId
+  // is already scope-filtered, so the `.has(...)` check rejects it and we fall
+  // back to the first visible member.
   const selectedUserId =
-    sp.member && Number.isInteger(Number(sp.member)) && memberByUserId.has(Number(sp.member))
+    sp.member &&
+    Number.isInteger(Number(sp.member)) &&
+    memberByUserId.has(Number(sp.member)) &&
+    (scope.isAdminScope || scope.userIds.has(Number(sp.member)))
       ? Number(sp.member)
       : memberRows[0]?.userId ?? null
 
@@ -113,7 +134,6 @@ export default async function AttendancePage({
           Monthly attendance, computed from shifts and approved leaves. Click any day for the reason.
         </p>
       </div>
-      <PeopleTabs orgId={orgId} />
 
       <AttendanceClient
         orgId={orgId}

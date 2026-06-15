@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { buildStory } from '@/lib/engine/story'
+import { canSpend } from '@/lib/ai/budget'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -19,15 +20,26 @@ export async function POST(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
 
     const target = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.id, membershipId),
-        eq(schema.memberships.orgId, orgId)
+        eq(schema.memberships.orgId, orgId),
+        isNull(schema.memberships.endedAt),
       ),
     })
     if (!target) return NextResponse.json({ error: 'member not found' }, { status: 404 })
+    ensureScopeMembership(scope, membershipId)
+
+    // AI budget gate — story generation calls the LLM.
+    const decision = await canSpend(orgId, 'story')
+    if (!decision.allowed) {
+      return NextResponse.json(
+        { error: 'AI budget for this workspace is exhausted for the month.' },
+        { status: 402 },
+      )
+    }
 
     const url = new URL(req.url)
     const dayParam = url.searchParams.get('day')

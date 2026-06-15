@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
+import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { decodeState, exchangeCode } from '@/lib/google/oauth'
 import { afterResponse } from '@/lib/after'
@@ -31,11 +32,25 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL('/settings?calendar_error=invalid_state', req.url))
   }
 
+  // SECURITY: bind the callback to the signed-in user. Without this, a forged/
+  // replayed state (or a stolen auth code) could attach a Google account to the
+  // wrong MARINA user, or a victim's Google account to an attacker. The state
+  // is signed, but we still require a live session whose id matches it.
+  const session = await auth()
+  if (!session?.appUserId) {
+    return NextResponse.redirect(new URL('/?calendar_error=not_signed_in', req.url))
+  }
+  if (session.appUserId !== state.userId) {
+    return NextResponse.redirect(new URL('/settings?calendar_error=state_mismatch', req.url))
+  }
+
   try {
     const tokens = await exchangeCode(code, req)
 
-    // Resolve the Google account email so we can show it in settings + dedupe.
-    let providerAccountId = `${state.userId}` // fallback if userinfo fails
+    // Resolve the Google account id/email. If userinfo fails we ABORT rather
+    // than persist under a synthetic id (which would create orphan/duplicate
+    // account rows and confuse token dedup).
+    let providerAccountId: string | null = null
     let email: string | null = null
     try {
       const userinfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -44,7 +59,10 @@ export async function GET(req: Request) {
       if (userinfo.sub) providerAccountId = userinfo.sub
       if (userinfo.email) email = userinfo.email
     } catch {
-      // ignore — we'll still store tokens
+      // fall through to the null check below
+    }
+    if (!providerAccountId) {
+      return NextResponse.redirect(new URL('/settings?calendar_error=userinfo_failed', req.url))
     }
 
     // Upsert into accounts. NextAuth Drizzle adapter's "account" table is
@@ -113,9 +131,9 @@ export async function GET(req: Request) {
     const returnTo = state.returnTo.startsWith('/') ? state.returnTo : '/settings'
     return NextResponse.redirect(new URL(`${returnTo}?calendar=connected`, req.url))
   } catch (err) {
+    // Log the detail server-side; return a generic code to the browser (the
+    // raw error can echo Google token-endpoint internals / redirect_uri).
     console.error('google/callback failed', err)
-    return NextResponse.redirect(
-      new URL(`/settings?calendar_error=${encodeURIComponent(String(err).slice(0, 100))}`, req.url),
-    )
+    return NextResponse.redirect(new URL('/settings?calendar_error=exchange_failed', req.url))
   }
 }

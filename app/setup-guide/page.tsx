@@ -50,21 +50,15 @@ export default function SetupGuidePage() {
       <div className="bg-[var(--m-bg)] min-h-screen py-6">
         <article className="guide-page max-w-[820px] mx-auto bg-white border border-slate-200 rounded-md shadow-sm p-12 text-slate-900">
           {/* Letterhead */}
-          <div className="flex items-baseline justify-between gap-4 pb-5 mb-6 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" width={36} height={36} alt="" className="block object-contain" />
-              <div>
-                <p className="font-display text-[26px] leading-tight text-slate-900">
-                  MARINA
-                </p>
-                <p className="text-[11.5px] text-slate-500">AI Chief of Staff · Employee setup guide</p>
-              </div>
+          <div className="flex items-center gap-3 pb-5 mb-6 border-b border-slate-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" width={36} height={36} alt="" className="block object-contain" />
+            <div>
+              <p className="font-display text-[26px] leading-tight text-slate-900">
+                MARINA
+              </p>
+              <p className="text-[11.5px] text-slate-500">AI Chief of Staff · Employee setup guide</p>
             </div>
-            <p className="text-[11px] text-slate-500 text-right">
-              thetanishgarg@gmail.com<br />
-              thetanishgarg@gmail.com
-            </p>
           </div>
 
           <p className="font-display text-[26px] leading-tight">Welcome to MARINA.</p>

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireCapability } from '@/lib/auth/guards'
-import { SettingsTabs } from '@/components/org-tabs'
+import { NoAccess } from '@/components/no-access'
 import IntegrationsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -27,9 +27,14 @@ export default async function IntegrationsPage({
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
     if (err instanceof HttpError && err.status === 403) {
-      // Manager without integrations rights → send them to their personal
-      // settings instead of bouncing back to the dashboard with no message.
-      redirect('/settings')
+      return (
+        <NoAccess
+          title="You can't manage integrations"
+          message="Connecting GitHub, Slack and Google Calendar for the workspace is limited to people with the integrations permission. Ask an owner to grant it if you need to set these up."
+          backHref={`/org/${orgId}`}
+          backLabel="Back to dashboard"
+        />
+      )
     }
     throw err
   }
@@ -81,7 +86,6 @@ export default async function IntegrationsPage({
           per-person view without forcing engineering-shaped data on everyone.
         </p>
       </div>
-      <SettingsTabs orgId={orgId} />
 
       <IntegrationsClient
         orgId={orgId}

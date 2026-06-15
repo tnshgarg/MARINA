@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
+import { seatCapError } from '@/lib/billing/seats'
 
 export const runtime = 'nodejs'
 
@@ -22,19 +23,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'invite expired' }, { status: 410 })
     }
 
-    const existing = await db.query.memberships.findFirst({
+    // SECURITY: an invite is addressed to a specific email. Without this check
+    // anyone who obtains the link (forwarded email, leaked URL) could redeem it
+    // on their own unrelated account and join the org as the granted role.
+    const me = await db.query.users.findFirst({
+      where: eq(schema.users.id, session.appUserId),
+    })
+    const inviteEmail = invite.email?.trim().toLowerCase()
+    const myEmail = me?.email?.trim().toLowerCase()
+    if (!inviteEmail || !myEmail || inviteEmail !== myEmail) {
+      return NextResponse.json(
+        { error: 'This invite was sent to a different email address. Sign in with that address to accept it.' },
+        { status: 403 },
+      )
+    }
+
+    // Enforce the seat cap at accept time too (not just at invite creation) —
+    // pending invites created before a downgrade, or accepted concurrently,
+    // would otherwise push the org past its plan.
+    const capError = await seatCapError(invite.orgId)
+    if (capError) return NextResponse.json({ error: capError }, { status: 409 })
+
+    const inviteDiscipline = (invite as { discipline?: string }).discipline ?? 'other'
+    const inviteJobTitle = (invite as { jobTitle?: string | null }).jobTitle ?? null
+
+    // An active membership means they're already in — no-op. A soft-deleted
+    // (endedAt-set) membership from a prior removal must be REACTIVATED rather
+    // than left dead (otherwise a re-invited ex-member silently stays out).
+    const existingAny = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.orgId, invite.orgId),
-        eq(schema.memberships.userId, session.appUserId)
+        eq(schema.memberships.userId, session.appUserId),
       ),
     })
 
-    if (!existing) {
-      // Carry the invite's discipline + job title onto the new membership so
-      // the new teammate gets the role-appropriate UI from their first login.
-      // Older invites without these columns fall back to safe defaults.
-      const inviteDiscipline = (invite as { discipline?: string }).discipline ?? 'other'
-      const inviteJobTitle = (invite as { jobTitle?: string | null }).jobTitle ?? null
+    if (!existingAny) {
       await db.insert(schema.memberships).values({
         orgId: invite.orgId,
         userId: session.appUserId,
@@ -42,6 +65,11 @@ export async function POST(req: Request) {
         discipline: inviteDiscipline as never,
         jobTitle: inviteJobTitle,
       })
+    } else if (existingAny.endedAt) {
+      await db
+        .update(schema.memberships)
+        .set({ endedAt: null, role: invite.role })
+        .where(eq(schema.memberships.id, existingAny.id))
     }
 
     await db

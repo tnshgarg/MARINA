@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { buildPerformanceReport } from '@/lib/reports/performance'
+import { NoAccess } from '@/components/no-access'
 import PerformanceReportClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,16 @@ export default async function PerformanceReportPage({
     await requireCapability(orgId, 'view_all_data')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
-    if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)
+    if (err instanceof HttpError && err.status === 403) {
+      return (
+        <NoAccess
+          title="You can't open this report"
+          message="Individual performance reports are limited to people with full-data access (HR & owners). If you manage this person and need their report, ask an owner to grant you access."
+          backHref={`/org/${orgId}`}
+          backLabel="Back to dashboard"
+        />
+      )
+    }
     throw err
   }
 

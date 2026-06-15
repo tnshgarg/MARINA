@@ -3,7 +3,8 @@ import { and, desc, eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
-import { PeopleTabs } from '@/components/org-tabs'
+import { hasCap } from '@/lib/auth/capabilities'
+import { SetupGuideCard } from '@/components/setup-guide-card'
 import MembersClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -63,12 +64,20 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
           Manage the roster, invite teammates, and review punched-in shifts.
         </p>
       </div>
-      <PeopleTabs orgId={orgId} />
+
+      {/* Manager toolkit — onboarding handout + desktop-agent download links,
+          right where managers add and onboard people. */}
+      <SetupGuideCard />
 
       <MembersClient
         orgId={orgId}
         isOwner={isOwner}
         viewerMembershipId={viewer.membership.id}
+        canViewReports={hasCap(
+          viewer.membership.role,
+          (viewer.membership as { extraCaps?: string[] }).extraCaps ?? [],
+          'view_all_data',
+        )}
         members={rawMembers.map((r) => ({
           membershipId: r.m.id,
           userId: r.u.id,

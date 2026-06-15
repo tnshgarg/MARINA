@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { capabilitiesFor } from '@/lib/auth/capabilities'
 
 /**
  * Compute the set of `user_id`s a viewer is allowed to see inside an org.
@@ -42,8 +43,27 @@ export async function getVisibleScope(
   orgId: number,
   viewer: ViewerForScope,
 ): Promise<VisibleScope> {
-  // Admins see everyone (and the call is cheap — one query).
-  if (viewer.role === 'admin') {
+  // Full-org access: admins, AND anyone explicitly granted `view_all_data`
+  // (e.g. an HR head who's a "manager" role but needs to see everyone).
+  // Without this, an HR manager would be scoped to just their direct reports —
+  // which is exactly the "Aisha only sees 6 people" bug.
+  let fullAccess = viewer.role === 'admin'
+  if (!fullAccess) {
+    const meRow = await db
+      .select({ extraCaps: schema.memberships.extraCaps })
+      .from(schema.memberships)
+      .where(
+        and(
+          eq(schema.memberships.id, viewer.membershipId),
+          eq(schema.memberships.orgId, orgId),
+          isNull(schema.memberships.endedAt),
+        ),
+      )
+      .limit(1)
+    const extraCaps = (meRow[0]?.extraCaps as string[] | undefined) ?? []
+    fullAccess = capabilitiesFor(viewer.role, extraCaps).has('view_all_data')
+  }
+  if (fullAccess) {
     const rows = await db
       .select({
         userId: schema.memberships.userId,
@@ -83,10 +103,19 @@ export async function getVisibleScope(
     .from(schema.memberships)
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
-  const mgrEdges = await db
+  // membership_managers has no orgId column, so we MUST constrain it to this
+  // org ourselves. The old query loaded the ENTIRE table across all orgs;
+  // since membership ids are a global serial PK, a cross-org edge could leak
+  // into this org's scope graph. We only keep edges where BOTH endpoints are
+  // memberships of THIS org.
+  const orgMemIds = new Set(allMemberships.map((m) => m.id))
+  const mgrEdgesRaw = await db
     .select()
     .from(schema.membershipManagers)
     .catch(() => [])
+  const mgrEdges = mgrEdgesRaw.filter(
+    (e) => orgMemIds.has(e.managerMembershipId) && orgMemIds.has(e.membershipId),
+  )
 
   /** managerMembershipId → child membershipIds */
   const directReports = new Map<number, Set<number>>()

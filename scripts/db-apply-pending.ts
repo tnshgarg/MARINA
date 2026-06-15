@@ -128,6 +128,80 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`UPDATE "memberships" SET "role" = 'admin' WHERE "role" = 'owner'`)
   console.log('  · 0008 role rename owner→admin OK')
 
+  // 0009 — Product analytics events table.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "analytics_events" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "user_id" integer REFERENCES "users"("id") ON DELETE SET NULL,
+      "kind" text NOT NULL,
+      "payload" jsonb,
+      "surface" text,
+      "session_id" text,
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "analytics_events_kind_created_idx"
+    ON "analytics_events" USING btree ("kind","created_at")
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "analytics_events_org_created_idx"
+    ON "analytics_events" USING btree ("org_id","created_at")
+  `)
+  console.log('  · 0009 analytics_events OK')
+
+  // 0010 — Leave policy + blended people-cost on orgs (employee leave
+  // balances + CEO hours→cost). Both nullable; code falls back to defaults.
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "leave_policy" jsonb`)
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "cost_per_hour_inr" integer`)
+  console.log('  · 0010 orgs.leave_policy + cost_per_hour_inr OK')
+
+  // 0011 — Attendance regularizations (employee disputes an auto-absent day).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "attendance_regularizations" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "day" date NOT NULL,
+      "requested_kind" text NOT NULL DEFAULT 'present',
+      "note" text NOT NULL,
+      "status" text NOT NULL DEFAULT 'pending',
+      "decided_by_user_id" integer REFERENCES "users"("id") ON DELETE SET NULL,
+      "decided_at" timestamp with time zone,
+      "decided_note" text,
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "attendance_regularizations_org_status_idx"
+    ON "attendance_regularizations" USING btree ("org_id","status")
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "attendance_regularizations_user_day_idx"
+    ON "attendance_regularizations" USING btree ("user_id","day")
+  `)
+  console.log('  · 0011 attendance_regularizations OK')
+
+  // 0012 — Performance review cycles (HR review tracking + 1:1 cadence).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "review_cycles" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "name" text NOT NULL,
+      "period_start" date NOT NULL,
+      "period_end" date NOT NULL,
+      "status" text NOT NULL DEFAULT 'open',
+      "created_by_user_id" integer REFERENCES "users"("id") ON DELETE SET NULL,
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "review_cycles_org_idx"
+    ON "review_cycles" USING btree ("org_id","status")
+  `)
+  console.log('  · 0012 review_cycles OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

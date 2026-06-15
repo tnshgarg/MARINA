@@ -13,6 +13,7 @@ type Initial = {
   plan: 'free' | 'team' | 'scale'
   trialEndsAt: string | null
   logoUrl: string | null
+  leavePolicy: Record<string, number> | null
 }
 
 export default function OrgSettingsClient({
@@ -32,6 +33,9 @@ export default function OrgSettingsClient({
   const [avatarMode, setAvatarMode] = useState<'hero' | 'photo'>(initial.avatarMode)
   const [workStart, setWorkStart] = useState(initial.workdayStartHour)
   const [workEnd, setWorkEnd] = useState(initial.workdayEndHour)
+  const [casualDays, setCasualDays] = useState(initial.leavePolicy?.casual ?? 12)
+  const [sickDays, setSickDays] = useState(initial.leavePolicy?.sick ?? 12)
+  const [earnedDays, setEarnedDays] = useState(initial.leavePolicy?.earned ?? 15)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -158,6 +162,53 @@ export default function OrgSettingsClient({
             <option key={r.key} value={r.key}>{r.label}</option>
           ))}
         </select>
+      </section>
+
+      {/* Leave policy — annual paid-leave allowance per type. Drives the
+          balance shown to employees when they request leave. */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Leave policy</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">
+              Annual paid-leave allowance per type (in days). Employees see their remaining balance only when requesting leave.
+            </p>
+          </div>
+          <button
+            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            disabled={busy !== null}
+            onClick={() =>
+              save(
+                { leavePolicy: { casual: casualDays, sick: sickDays, earned: earnedDays } },
+                'leavePolicy',
+              )
+            }
+          >
+            {busy === 'leavePolicy' ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 max-w-md">
+          {([
+            ['Casual', casualDays, setCasualDays],
+            ['Sick', sickDays, setSickDays],
+            ['Earned', earnedDays, setEarnedDays],
+          ] as const).map(([label, val, setVal]) => (
+            <div key={label}>
+              <label className="text-[11px] uppercase tracking-wide text-slate-500 font-medium block mb-1">{label}</label>
+              <input
+                type="number"
+                min={0}
+                max={365}
+                value={val}
+                onChange={(e) => setVal(Math.max(0, Math.min(365, Number(e.target.value) || 0)))}
+                className="input w-full"
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[11.5px] text-slate-400">
+          This is the workspace default. Per-employee overrides are coming next.
+        </p>
       </section>
 
       {/* Avatar mode */}

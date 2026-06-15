@@ -10,6 +10,19 @@ import {
 } from '@/lib/slack/client'
 import { managerUserIdsForOrg, userIdsWithCapability } from '@/lib/notify/audiences'
 import { sendDigestMail } from '@/lib/email/send'
+import { signLeaveAction, leaveActionExpiry } from '@/lib/leave/action-link'
+
+/** Build signed one-click approve/deny URLs for a leave request (or null). */
+function leaveActionLinks(leaveId: number | undefined): { approve: string; deny: string } | null {
+  if (!leaveId || !(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET)) return null
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  if (!base) return null
+  const exp = leaveActionExpiry()
+  return {
+    approve: `${base}/leave-action/${signLeaveAction({ leaveId, decision: 'approve', exp })}`,
+    deny: `${base}/leave-action/${signLeaveAction({ leaveId, decision: 'deny', exp })}`,
+  }
+}
 
 /**
  * Every NotifyEvent carries two routing hints:
@@ -34,6 +47,8 @@ export type NotifyEvent =
       endDate: string
       leaveType: string
       reason: string
+      /** Enables the one-click approve/deny links in the notification. */
+      leaveId?: number
     }
   | {
       kind: 'leave.decided'
@@ -263,17 +278,23 @@ type Rendered = {
 
 function renderEvent(e: NotifyEvent): Rendered {
   switch (e.kind) {
-    case 'leave.requested':
+    case 'leave.requested': {
+      // One-click approve/deny links (signed). Managers can act straight from
+      // Slack / email without opening the app. The landing page re-checks RBAC.
+      const links = leaveActionLinks(e.leaveId)
+      const actionLine = links ? `Approve: ${links.approve}\nDeny: ${links.deny}` : ''
       return {
         title: `Leave requested · ${e.userName}`,
-        text: `*${e.leaveType}* from *${e.startDate}* to *${e.endDate}*\n${e.reason}`,
+        text: `*${e.leaveType}* from *${e.startDate}* to *${e.endDate}*\n${e.reason}${actionLine ? `\n\n${actionLine}` : ''}`,
         color: '#c19a4d',
         broadcast: false,
         blocks: simpleBlocks(`📅 *Leave requested · ${e.userName}*`, [
           `*${e.leaveType}* — ${e.startDate} → ${e.endDate}`,
           e.reason,
+          ...(links ? [`<${links.approve}|✅ Approve>   ·   <${links.deny}|❌ Deny>`] : []),
         ]),
       }
+    }
     case 'leave.decided':
       return {
         title: `Leave ${e.decision} · ${e.userName}`,

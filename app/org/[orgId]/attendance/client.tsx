@@ -71,6 +71,7 @@ export default function AttendanceClient({
 }) {
   const router = useRouter()
   const [pickedDay, setPickedDay] = useState<DayCell | null>(null)
+  const [memberQuery, setMemberQuery] = useState('')
 
   const selectedMember = useMemo(
     () => members.find((m) => m.userId === selectedUserId) ?? null,
@@ -105,13 +106,30 @@ export default function AttendanceClient({
       <aside className="col-span-12 md:col-span-3">
         <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-3 py-2.5 border-b border-slate-100">
-            <p className="text-[11.5px] uppercase tracking-wider font-semibold text-slate-500">Team</p>
+            <p className="text-[11.5px] uppercase tracking-wider font-semibold text-slate-500 mb-2">Team</p>
+            <input
+              type="search"
+              value={memberQuery}
+              onChange={(e) => setMemberQuery(e.target.value)}
+              placeholder="Search people…"
+              aria-label="Search team members"
+              className="input w-full !py-1.5 text-[12.5px]"
+            />
           </div>
           {members.length === 0 ? (
             <p className="px-3 py-6 text-[12.5px] text-slate-500">No members yet.</p>
           ) : (
             <ul className="max-h-[420px] overflow-y-auto">
-              {members.map((m) => {
+              {members
+                .filter((m) => {
+                  const q = memberQuery.trim().toLowerCase()
+                  if (!q) return true
+                  return (
+                    (m.name ?? '').toLowerCase().includes(q) ||
+                    m.login.toLowerCase().includes(q)
+                  )
+                })
+                .map((m) => {
                 const active = m.userId === selectedUserId
                 return (
                   <li key={m.userId}>

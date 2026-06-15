@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
+import { capabilitiesFor } from '@/lib/auth/capabilities'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
 
@@ -69,7 +70,20 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         userLogin={session.login}
         characterKey={me.characterKey}
         userName={me.name}
+        userAvatarUrl={me.image ?? me.avatarUrl ?? null}
         role={managerMembership.role}
+        caps={[
+          ...capabilitiesFor(
+            managerMembership.role,
+            (managerMembership as { extraCaps?: string[] }).extraCaps ?? [],
+          ),
+        ]}
+        orgs={memberships.map((m) => ({
+          id: m.orgId,
+          name: m.org.name,
+          role: m.role,
+          logoUrl: (m.org as { logoUrl?: string | null }).logoUrl ?? null,
+        }))}
         pendingLeaveCount={pendingRows.length}
         signOutAction={signOutAction}
       />

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireCapability } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireCapability } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 
 export const runtime = 'nodejs'
 
@@ -27,7 +28,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
   }
 
   try {
-    await requireCapability(orgId, 'manage_members')
+    const { session, membership: actor } = await requireCapability(orgId, 'manage_members')
     const body = (await req.json().catch(() => ({}))) as { managerMembershipId?: number }
     const managerId = body.managerMembershipId
     if (typeof managerId !== 'number' || managerId === membershipId) {
@@ -42,6 +43,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
     const ids = new Set(both.map((b) => b.id))
     if (!ids.has(membershipId) || !ids.has(managerId)) {
       return NextResponse.json({ error: 'memberships not in this org' }, { status: 400 })
+    }
+
+    // SECURITY: a non-admin must not wire a reporting edge to gain visibility
+    // they don't already have. Both the subordinate AND the new manager must
+    // already be within the actor's scope. (Admins manage the whole org.)
+    if (actor.role !== 'admin') {
+      const scope = await getVisibleScope(orgId, {
+        userId: session.appUserId,
+        membershipId: actor.id,
+        role: actor.role as 'admin' | 'manager' | 'lead' | 'member',
+      })
+      ensureScopeMembership(scope, membershipId)
+      ensureScopeMembership(scope, managerId)
     }
 
     // Cycle guard: walk the manager's chain to make sure we don't create

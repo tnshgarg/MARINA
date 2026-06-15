@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, asc, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireScope } from '@/lib/auth/guards'
 import { afterResponse } from '@/lib/after'
 
 export const runtime = 'nodejs'
@@ -23,7 +23,7 @@ export async function GET(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
 
     // Fetch only the columns that exist in every version of the schema. The
     // resolution_* + resolved_by_user_id columns are read separately and
@@ -45,6 +45,7 @@ export async function GET(
       .then((rows) => rows[0])
 
     if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
+    ensureScopeUser(scope, row.userId)
     if (row.category !== 'blocked') {
       return NextResponse.json(
         { error: "This isn't a blocker — it's a regular break.", category: row.category },
@@ -152,7 +153,7 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
     const body = (await req.json().catch(() => ({}))) as {
       kind?: 'note' | 'suggestion'
       body?: string
@@ -169,6 +170,7 @@ export async function POST(
       where: and(eq(schema.breaks.id, breakId), eq(schema.breaks.orgId, orgId)),
     })
     if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
+    ensureScopeUser(scope, row.userId)
 
     try {
       await db.insert(schema.blockerThread).values({

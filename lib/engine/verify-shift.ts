@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, sum } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { generateWithFallback } from '@/lib/ai/registry'
+import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
 import type { ShiftVerificationStatus, Shift } from '@/lib/db/schema'
 
 export type VerifyResult = {
@@ -114,6 +115,14 @@ export async function verifyShiftSummary(
   shift: Shift,
   summary: string
 ): Promise<VerifyResult> {
+  // AI budget gate — every punch-out triggers this, so cap it. When the org's
+  // monthly allowance is spent we skip verification rather than spend.
+  const budgetOrgId = (shift as { orgId?: number | null }).orgId ?? null
+  const decision = await canSpend(budgetOrgId, 'verify_shift')
+  if (!decision.allowed) {
+    return { status: 'skipped', score: 0, notes: 'AI budget exhausted for the month.', provider: 'none', model: 'none' }
+  }
+
   const evidence = await buildEvidence(shift)
   const messages = buildVerifierMessages(summary, evidence)
 
@@ -124,6 +133,19 @@ export async function verifyShiftSummary(
       undefined
     )
     const parsed = parseVerifierResponse(result.text)
+    // Record spend so the per-org ledger reflects verification cost.
+    const inputTokens = Math.ceil(JSON.stringify(messages).length / 4)
+    const outputTokens = Math.ceil(result.text.length / 4)
+    recordSpend({
+      orgId: budgetOrgId,
+      userId: shift.userId,
+      kind: 'verify_shift',
+      provider: result.provider,
+      model: result.model,
+      inputTokens,
+      outputTokens,
+      costCents: estimateCostCents({ kind: 'verify_shift', provider: result.provider, model: result.model, inputTokens, outputTokens }),
+    })
     const status: ShiftVerificationStatus =
       parsed.score >= 70 ? 'verified' : parsed.score >= 40 ? 'unverified' : 'suspect'
     return {

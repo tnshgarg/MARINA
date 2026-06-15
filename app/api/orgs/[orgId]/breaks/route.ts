@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 
 export const runtime = 'nodejs'
 
-/** Manager+: ongoing breaks + recent breaks (last 24h), joined with user. */
+/** Manager+: ongoing breaks + recent breaks (last 24h), joined with user.
+ *  Scoped to the viewer's reports (admins see the whole org). */
 export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string }> }) {
   const { orgId: raw } = await ctx.params
   const orgId = Number(raw)
@@ -13,12 +14,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string 
     return NextResponse.json({ error: 'invalid orgId' }, { status: 400 })
   }
   try {
-    await requireMembership(orgId, 'manager')
-    const memberships = await db
-      .select({ userId: schema.memberships.userId })
-      .from(schema.memberships)
-      .where(eq(schema.memberships.orgId, orgId))
-    const userIds = memberships.map((m) => m.userId)
+    const { scope } = await requireScope(orgId, 'manager')
+    const userIds = Array.from(scope.userIds)
     if (userIds.length === 0) {
       return NextResponse.json({ ok: true, breaks: [] })
     }

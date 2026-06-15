@@ -56,9 +56,24 @@ export async function redeemEarlyBird({
     ? new Date(Date.now() + row.durationDays * 24 * 60 * 60 * 1000)
     : null
 
-  // The three writes form a unit. We do them sequentially because Drizzle's
-  // serverless driver doesn't support transactions; the unique index on
-  // (codeId, orgId) and the >= maxRedemptions check above keep us honest.
+  // ATOMIC slot claim. The earlier `usedCount >= maxRedemptions` read is just a
+  // fast-path; this conditional increment is the authoritative gate. Two
+  // DIFFERENT orgs redeeming a single-use code concurrently both passed the
+  // read, but only ONE can win this UPDATE (the WHERE re-checks the count in
+  // the same statement). If no row comes back, the code is exhausted. The
+  // (codeId, orgId) unique index separately blocks the SAME org double-spending.
+  const claimed = await db
+    .update(schema.earlyBirdCodes)
+    .set({ usedCount: sql`${schema.earlyBirdCodes.usedCount} + 1` })
+    .where(
+      and(
+        eq(schema.earlyBirdCodes.id, row.id),
+        sql`${schema.earlyBirdCodes.usedCount} < ${schema.earlyBirdCodes.maxRedemptions}`,
+      ),
+    )
+    .returning({ id: schema.earlyBirdCodes.id })
+  if (claimed.length === 0) return { ok: false, reason: 'exhausted' }
+
   await db.insert(schema.earlyBirdRedemptions).values({
     codeId: row.id,
     orgId,
@@ -66,11 +81,6 @@ export async function redeemEarlyBird({
     grantedPlan: row.plan,
     grantExpiresAt,
   })
-
-  await db
-    .update(schema.earlyBirdCodes)
-    .set({ usedCount: sql`${schema.earlyBirdCodes.usedCount} + 1` })
-    .where(eq(schema.earlyBirdCodes.id, row.id))
 
   // Flip the org to the granted plan. We use trialEndsAt as the lapse date
   // because the existing downgrade logic already respects it — when it falls

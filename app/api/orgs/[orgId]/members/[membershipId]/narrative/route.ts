@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { and, eq, gte } from 'drizzle-orm'
+import { and, eq, gte, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { buildNarrativeMessages, parseNarrative } from '@/lib/ai/narrative-prompt'
 import { generateWithFallback } from '@/lib/ai/registry'
+import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
 
 export const runtime = 'nodejs'
 
@@ -23,15 +24,27 @@ export async function POST(
   const preferred = providerParam === 'groq' || providerParam === 'openai' ? providerParam : undefined
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
 
     const target = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.id, membershipId),
-        eq(schema.memberships.orgId, orgId)
+        eq(schema.memberships.orgId, orgId),
+        isNull(schema.memberships.endedAt),
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    // RBAC scope: only generate for people the manager actually manages.
+    ensureScopeMembership(scope, membershipId)
+
+    // AI budget gate — refuse if the org has exhausted its monthly cap.
+    const decision = await canSpend(orgId, 'narrative')
+    if (!decision.allowed) {
+      return NextResponse.json(
+        { error: 'AI budget for this workspace is exhausted for the month.' },
+        { status: 402 },
+      )
+    }
 
     const user = await db.query.users.findFirst({ where: eq(schema.users.id, target.userId) })
     if (!user) return NextResponse.json({ error: 'user missing' }, { status: 404 })
@@ -57,6 +70,20 @@ export async function POST(
       preferred
     )
     const parsed = parseNarrative(result.text)
+
+    // Record spend so the per-org AI ledger stays accurate.
+    const inputTokens = Math.ceil(JSON.stringify(messages).length / 4)
+    const outputTokens = Math.ceil(result.text.length / 4)
+    recordSpend({
+      orgId,
+      userId: session.appUserId,
+      kind: 'narrative',
+      provider: result.provider,
+      model: result.model,
+      inputTokens,
+      outputTokens,
+      costCents: estimateCostCents({ kind: 'narrative', provider: result.provider, model: result.model, inputTokens, outputTokens }),
+    })
 
     const [saved] = await db
       .insert(schema.narratives)

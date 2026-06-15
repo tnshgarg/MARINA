@@ -1,9 +1,10 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
-import { hasCap } from '@/lib/auth/capabilities'
+import { HttpError, listMembershipsForCurrentUser, requireMembership, roleAtLeast } from '@/lib/auth/guards'
+import { capabilitiesFor } from '@/lib/auth/capabilities'
+import { getVisibleScope } from '@/lib/auth/scope'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
 import { AnnouncementBanner } from '@/components/announcement-banner'
@@ -41,15 +42,26 @@ export default async function OrgLayout({
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
   if (!org) notFound()
 
-  // Pending leave count for the sidebar badge.
+  // Pending leave count for the sidebar badge — scoped to the people this
+  // viewer can actually act on. A manager sees the count for their team only;
+  // an admin / HR (view_all_data) sees the whole org. Without this, every
+  // manager saw the org-wide number.
+  const scope = await getVisibleScope(orgId, {
+    userId: session.appUserId,
+    membershipId: viewer.membership.id,
+    role: viewer.membership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
   const pendingRows = await db
     .select({ id: schema.leaveRequests.id })
     .from(schema.leaveRequests)
     .where(
       and(
         eq(schema.leaveRequests.orgId, orgId),
-        eq(schema.leaveRequests.status, 'pending')
-      )
+        eq(schema.leaveRequests.status, 'pending'),
+        scope.isAdminScope
+          ? undefined
+          : inArray(schema.leaveRequests.userId, Array.from(scope.userIds)),
+      ),
     )
   const pendingLeaveCount = pendingRows.length
 
@@ -57,6 +69,15 @@ export default async function OrgLayout({
     'use server'
     await serverSignOut({ redirectTo: '/' })
   }
+
+  // Every workspace this user belongs to — powers the sidebar org switcher.
+  const myMemberships = await listMembershipsForCurrentUser()
+  const orgs = myMemberships.map((m) => ({
+    id: m.orgId,
+    name: m.org.name,
+    role: m.role,
+    logoUrl: (m.org as { logoUrl?: string | null }).logoUrl ?? null,
+  }))
 
   return (
     <div className="app-shell">
@@ -69,11 +90,13 @@ export default async function OrgLayout({
         userName={me.name}
         userAvatarUrl={me.image ?? me.avatarUrl ?? null}
         role={viewer.membership.role}
-        canManageWorkspace={hasCap(
-          viewer.membership.role,
-          (viewer.membership as { extraCaps?: string[] }).extraCaps ?? [],
-          'manage_workspace',
-        )}
+        caps={[
+          ...capabilitiesFor(
+            viewer.membership.role,
+            (viewer.membership as { extraCaps?: string[] }).extraCaps ?? [],
+          ),
+        ]}
+        orgs={orgs}
         pendingLeaveCount={pendingLeaveCount}
         signOutAction={signOutAction}
       />

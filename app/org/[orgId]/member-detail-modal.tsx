@@ -345,28 +345,6 @@ export function MemberDetailModal({
     }
   }
 
-  async function brief() {
-    if (!membershipId || !detail) return
-    setBusy(true)
-    try {
-      const res = await fetch(
-        `/api/orgs/${orgId}/members/${membershipId}/narrative?provider=groq`,
-        { method: 'POST' },
-      )
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
-      toast.push({ kind: 'success', title: `Brief generated` })
-      // Reload detail
-      const fresh = await fetch(`/api/orgs/${orgId}/members/${membershipId}/detail`)
-      if (fresh.ok) setDetail(await fresh.json())
-      router.refresh()
-    } catch (e) {
-      toast.push({ kind: 'error', title: 'Brief failed', body: e instanceof Error ? e.message : String(e) })
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <Modal
       open={open}
@@ -413,14 +391,9 @@ export function MemberDetailModal({
                 Schedule meeting
               </button>
             )}
-            <button
-              type="button"
-              onClick={brief}
-              disabled={busy}
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
-            >
-              {busy ? '…' : 'Regenerate brief'}
-            </button>
+            {/* "Regenerate brief" removed — the 1:1 prep brief lives in the
+                Today tab's own section; a second narrative button here just
+                duplicated it and confused people. */}
           </>
         ) : null
       }
@@ -430,13 +403,18 @@ export function MemberDetailModal({
 
       {detail && (
         <div>
-          {/* Always-on header (QuickRead) — visible across tabs */}
-          <div className="-mt-1 mb-4">
+          {/* Always-on header (QuickRead) — visible across tabs. mb-5 matches
+              the sticky strip's -mt-5 so they sit flush (no overlap at rest). */}
+          <div className="-mt-1 mb-5">
             <QuickRead detail={detail} />
           </div>
 
           {/* Sticky tab strip */}
-          <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-white border-b border-[var(--m-border)] flex items-center gap-1 mb-5">
+          {/* Sticky tab strip. `-mt-5 pt-5` pulls the opaque white background up
+              to cover the scroll container's top padding, so when it sticks
+              nothing from the QuickRead above peeks out behind it. z-20 keeps it
+              above any in-card layered content. */}
+          <div className="sticky top-0 z-20 -mx-6 -mt-5 px-6 pt-5 pb-2 bg-white border-b border-[var(--m-border)] flex items-center gap-1 mb-5">
             <TabBtn label="Today"  active={tab === 'today'}  onClick={() => setTab('today')} />
             <TabBtn label="Output" active={tab === 'output'} onClick={() => setTab('output')} />
             <TabBtn label="Time"   active={tab === 'time'}   onClick={() => setTab('time')} />

@@ -395,8 +395,8 @@ function BriefPane({
           it on this browser; we don't want it cluttering returning sessions. */}
       <div className="mb-5">
         <TutorialHint id="scrum-mode-keyboard" title="Drive this with your keyboard">
-          Press <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">←</kbd>{' '}
-          <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">→</kbd>{' '}
+          Press <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">↑</kbd>{' '}
+          <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">↓</kbd>{' '}
           to move between teammates,{' '}
           <kbd className="px-1 py-0.5 rounded bg-white border border-[var(--m-border)] font-mono text-[10.5px]">Space</kbd>{' '}
           to mark covered, and{' '}

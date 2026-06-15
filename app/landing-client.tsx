@@ -177,7 +177,7 @@ function SuccessCard({
       </p>
       <p className="text-[14px] text-[var(--m-ink)]">
         {dispatched
-          ? `We sent a one-click sign-in link to ${email}. It expires in 15 minutes.`
+          ? `We sent a one-click sign-in link to ${email}. It's good for an hour — open it and tap "Finish signing in".`
           : `Email delivery isn't fully configured — sign in with the link below.`}
       </p>
 

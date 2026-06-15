@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { INDIA_REGIONS } from '@/lib/holidays/india'
-import { SettingsTabs } from '@/components/org-tabs'
+import { NoAccess } from '@/components/no-access'
 import OrgSettingsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -18,9 +18,14 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
     if (err instanceof HttpError && err.status === 403) {
-      // Manager without workspace rights → bounce them to their personal
-      // /settings page where they can manage their own profile + agent.
-      redirect('/settings')
+      return (
+        <NoAccess
+          title="Workspace settings are owner-only"
+          message="Editing the workspace (name, logo, leave policy, holidays, cost rates) is limited to owners and admins. Your own preferences live under Settings → My settings."
+          backHref="/settings"
+          backLabel="Go to my settings"
+        />
+      )
     }
     throw err
   }
@@ -39,7 +44,6 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
           Workspace-wide configuration on the left, your personal preferences in Profile.
         </p>
       </div>
-      <SettingsTabs orgId={orgId} />
 
       <OrgSettingsClient
         orgId={orgId}
@@ -53,6 +57,7 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
           plan: org.plan,
           trialEndsAt: org.trialEndsAt?.toISOString() ?? null,
           logoUrl: (org as { logoUrl?: string | null }).logoUrl ?? null,
+          leavePolicy: (org as { leavePolicy?: Record<string, number> | null }).leavePolicy ?? null,
         }}
         regions={INDIA_REGIONS}
       />

@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
-import { desc, eq } from 'drizzle-orm'
+import { notFound, redirect } from 'next/navigation'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 import LeavesClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -11,11 +12,30 @@ export default async function LeavesPage({ params }: { params: Promise<{ orgId: 
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  // Visibility scoping: admins see every member's leave requests; managers +
+  // leads see only their reports-to chain + members of teams they manage.
+  let scope
+  try {
+    ;({ scope } = await requireScope(orgId, 'manager'))
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 401) redirect('/')
+    if (err instanceof HttpError && err.status === 403) redirect('/dashboard')
+    throw err
+  }
+
+  // Non-admins are constrained to leaves filed by people in their scope.
+  const scopeWhere = scope.isAdminScope
+    ? eq(schema.leaveRequests.orgId, orgId)
+    : and(
+        eq(schema.leaveRequests.orgId, orgId),
+        inArray(schema.leaveRequests.userId, Array.from(scope.userIds)),
+      )
+
   const rowsRaw = await db
     .select({ l: schema.leaveRequests, u: schema.users })
     .from(schema.leaveRequests)
     .innerJoin(schema.users, eq(schema.leaveRequests.userId, schema.users.id))
-    .where(eq(schema.leaveRequests.orgId, orgId))
+    .where(scopeWhere)
     .orderBy(desc(schema.leaveRequests.createdAt))
     .limit(200)
 

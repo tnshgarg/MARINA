@@ -91,6 +91,7 @@ export async function POST(req: Request) {
     const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
     void notify({
       kind: 'leave.requested',
+      leaveId: row.id,
       orgId: body.orgId,
       actorUserId: session.appUserId,
       userName: me?.name ?? `@${session.login}`,

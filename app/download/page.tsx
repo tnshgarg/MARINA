@@ -276,7 +276,7 @@ function Nav() {
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-[13.5px] text-[var(--m-ink-2)]">
           <Link href="/#product" className="hover:text-[var(--m-ink)] transition-colors">Product</Link>
-          <Link href="/#pricing" className="hover:text-[var(--m-ink)] transition-colors">Pricing</Link>
+          <Link href="/#pricing" className="hover:text-[var(--m-ink)] transition-colors">Early access</Link>
           <Link href="/download" className="text-[var(--m-ink)] font-medium">Download</Link>
           <Link href="/security" className="hover:text-[var(--m-ink)] transition-colors">Security</Link>
         </nav>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireScope } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { afterResponse } from '@/lib/after'
 
@@ -26,7 +26,7 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
     const body = (await req.json().catch(() => ({}))) as {
       note?: string
       resolutionType?: string
@@ -50,6 +50,8 @@ export async function POST(
     if (!row) {
       return NextResponse.json({ error: 'blocker not found or already resolved' }, { status: 404 })
     }
+    // RBAC scope: only act on blockers of people you manage.
+    ensureScopeUser(scope, row.userId)
     if (row.category !== 'blocked') {
       return NextResponse.json({ error: 'not a blocker' }, { status: 400 })
     }

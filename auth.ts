@@ -131,36 +131,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
 
-    // Dev-only sign in. Only enabled when NODE_ENV is not 'production'.
-    // Lets you sign in as any seeded user instantly for testing.
-    Credentials({
-      id: 'dev',
-      name: 'Dev login',
-      credentials: {
-        userId: { label: 'User ID', type: 'text' },
-      },
-      async authorize(credentials) {
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('[auth/dev] dev login attempted in production — refused')
-          return null
-        }
-        try {
-          const userId = Number(credentials?.userId)
-          if (!Number.isInteger(userId)) return null
-          const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
-          if (!user) return null
-          return {
-            id: String(user.id),
-            email: user.email ?? undefined,
-            name: user.name ?? null,
-            image: user.image ?? user.avatarUrl ?? null,
-          }
-        } catch (err) {
-          console.error('[auth/dev] authorize threw:', err)
-          return null
-        }
-      },
-    }),
+    // Dev-only sign in. The provider is EXCLUDED FROM THE ARRAY ENTIRELY in
+    // production (build-time), so the `/api/auth/callback/dev` endpoint does
+    // not exist in prod — not merely a runtime `authorize` guard. This removes
+    // the single-point-of-failure where a misconfigured NODE_ENV would expose
+    // an impersonate-any-user backdoor. Lets you sign in as any seeded user
+    // instantly for local testing.
+    ...(process.env.NODE_ENV !== 'production'
+      ? [
+          Credentials({
+            id: 'dev',
+            name: 'Dev login',
+            credentials: {
+              userId: { label: 'User ID', type: 'text' },
+            },
+            async authorize(credentials) {
+              try {
+                const userId = Number(credentials?.userId)
+                if (!Number.isInteger(userId)) return null
+                const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
+                if (!user) return null
+                return {
+                  id: String(user.id),
+                  email: user.email ?? undefined,
+                  name: user.name ?? null,
+                  image: user.image ?? user.avatarUrl ?? null,
+                }
+              } catch (err) {
+                console.error('[auth/dev] authorize threw:', err)
+                return null
+              }
+            },
+          }),
+        ]
+      : []),
   ],
   session: { strategy: 'jwt' },
   callbacks: {
@@ -270,11 +274,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 })
                 .returning()
               row = created
-            } else if (!row.avatarUrl && gProfile.picture) {
+            } else if (gProfile.picture && (!row.image || !row.avatarUrl)) {
+              // Returning user whose avatar was never captured (e.g. created via
+              // invite/magic-link first, or an older row): backfill whichever of
+              // image/avatarUrl is missing from Google's picture. We DON'T
+              // clobber a value that's already set, so a custom uploaded photo
+              // survives.
               await db
                 .update(schema.users)
-                .set({ avatarUrl: gProfile.picture, image: gProfile.picture, name: row.name ?? gProfile.name ?? null })
+                .set({
+                  image: row.image ?? gProfile.picture,
+                  avatarUrl: row.avatarUrl ?? gProfile.picture,
+                  name: row.name ?? gProfile.name ?? null,
+                })
                 .where(eq(schema.users.id, row.id))
+              row = { ...row, image: row.image ?? gProfile.picture, avatarUrl: row.avatarUrl ?? gProfile.picture }
             }
             if (row) {
               t.appUserId = row.id
@@ -327,7 +341,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       const t = token as typeof token & MarinaTokenFields
-      session.accessToken = t.accessToken
+      // NOTE: we deliberately DO NOT copy the GitHub access token onto the
+      // client-visible session. It's `repo`-scoped; exposing it via
+      // /api/auth/session would let any XSS exfiltrate full private-repo
+      // access. Server code that needs it reads users.accessToken from the DB.
       session.appUserId = t.appUserId
       session.login = t.login
       return session

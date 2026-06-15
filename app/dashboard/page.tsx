@@ -9,6 +9,7 @@ import { CharacterAvatar } from '@/components/character-avatar'
 import { getCharacter } from '@/lib/characters/data'
 import DashboardClient from './client'
 import { AnnouncementBanner } from '@/components/announcement-banner'
+import { computeSignalsForUser, type PersonSignals } from '@/lib/people/risk'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +71,13 @@ export default async function DashboardPage() {
   const primaryOrgId = primaryOrg?.orgId ?? null
   const canSeeTeam = primaryOrg ? roleAtLeast(primaryOrg.role, 'manager') : false
 
+  // Self-wellbeing snapshot (server-computed, rendered as a compact nudge above
+  // the console). Leave balance is intentionally NOT shown here — see below.
+  let wellbeing: PersonSignals | null = null
+  if (primaryOrgId) {
+    wellbeing = await computeSignalsForUser(primaryOrgId, session.appUserId)
+  }
+
   // For the welcome tour we need to know if this user has *ever* punched in.
   const anyShift = await db
     .select({ id: schema.shifts.id })
@@ -109,6 +117,18 @@ export default async function DashboardPage() {
               </Link>
             )}
             <Link
+              href="/me/regularizations"
+              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1 hidden md:inline"
+            >
+              Attendance
+            </Link>
+            <Link
+              href="/me/data"
+              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
+            >
+              My data
+            </Link>
+            <Link
               href="/settings"
               className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1"
             >
@@ -133,6 +153,39 @@ export default async function DashboardPage() {
           </nav>
         </div>
       </header>
+
+      {wellbeing && wellbeing.flags.length > 0 && wellbeing.level !== 'ok' ? (
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 space-y-3">
+          {wellbeing.flags.length > 0 && (
+            <div
+              className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
+                wellbeing.level === 'high'
+                  ? 'border-[var(--m-clay)]/40 bg-[var(--m-clay-soft)]/50'
+                  : 'border-[var(--m-gold)]/40 bg-[var(--m-gold-soft)]/40'
+              }`}
+            >
+              <span className="text-[18px] leading-none mt-0.5">🌱</span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-[var(--m-ink)]">
+                  A gentle wellbeing check-in
+                </p>
+                <p className="text-[12.5px] text-[var(--m-ink-2)] leading-snug mt-0.5">
+                  {wellbeing.weekHours >= 45
+                    ? `You've logged ${wellbeing.weekHours}h this week — it's okay to wrap up earlier. `
+                    : ''}
+                  {wellbeing.flags.join(' · ')}. Your wellbeing matters more than your hours.
+                </p>
+                <Link href="/me/data" className="text-[12px] text-[var(--m-accent-2)] underline underline-offset-2 mt-1 inline-block">
+                  See your data &amp; trends →
+                </Link>
+              </div>
+            </div>
+          )}
+          {/* Leave-balance card removed from the dashboard on purpose: showing
+              "you have 12 days left" every day nudges people to spend them.
+              The balance now appears only inside the leave-request flow. */}
+        </div>
+      ) : null}
 
       <DashboardClient
         orgId={primaryOrgId}

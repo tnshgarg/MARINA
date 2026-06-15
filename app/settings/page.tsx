@@ -1,7 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { listMembershipsForCurrentUser, requireSessionOrRedirect, roleAtLeast } from '@/lib/auth/guards'
-import { SettingsTabs } from '@/components/org-tabs'
+import { requireSessionOrRedirect } from '@/lib/auth/guards'
 import SettingsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -36,24 +35,20 @@ export default async function SettingsPage() {
     ),
   })
 
-  // Find an org we can scope the workspace tab to, if any.
-  const memberships = await listMembershipsForCurrentUser()
-  const managerOrg = memberships.find((m) => roleAtLeast(m.role, 'manager'))?.orgId ?? null
-
   return (
     <>
       <div className="mb-4 flex items-baseline justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="app-h1">Settings</h1>
+          <h1 className="app-h1">My settings</h1>
           <p className="mt-1.5 text-[13px] text-slate-600">
-            Workspace-wide configuration on the left, your personal preferences here.
+            Your personal preferences, paired devices, and calendar. Workspace
+            and integration settings live under Settings in the sidebar.
           </p>
         </div>
         <p className="text-[12px] text-slate-500">
           Signed in as <span className="text-slate-800 font-medium">{me?.name ?? `@${session.login}`}</span>
         </p>
       </div>
-      {managerOrg && <SettingsTabs orgId={managerOrg} />}
 
       <SettingsClient
         initialSettings={{

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { syncUserActivity } from '@/lib/github/sync'
 
 export const runtime = 'nodejs'
@@ -18,15 +18,17 @@ export async function POST(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
 
     const target = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.id, membershipId),
-        eq(schema.memberships.orgId, orgId)
+        eq(schema.memberships.orgId, orgId),
+        isNull(schema.memberships.endedAt),
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    ensureScopeMembership(scope, membershipId)
 
     const user = await db.query.users.findFirst({ where: eq(schema.users.id, target.userId) })
     if (!user?.accessToken) {

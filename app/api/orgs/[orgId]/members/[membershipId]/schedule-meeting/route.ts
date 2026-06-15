@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull, lt, or } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { sendEmail } from '@/lib/email/send'
 import { afterResponse } from '@/lib/after'
+import { trackEvent } from '@/lib/analytics/track'
 
 export const runtime = 'nodejs'
 
@@ -28,7 +29,7 @@ export async function POST(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, scope } = await requireScope(orgId, 'manager')
 
     const target = await db.query.memberships.findFirst({
       where: and(
@@ -38,6 +39,7 @@ export async function POST(
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    ensureScopeMembership(scope, membershipId)
     // Can't schedule a meeting with yourself — calendar APIs accept it but
     // the resulting "1:1" event is nonsense and clutters the calendar.
     if (target.userId === session.appUserId) {
@@ -60,6 +62,8 @@ export async function POST(
       agenda?: string
       startAt?: string
       durationMin?: number
+      /** Set true to schedule despite a detected calendar conflict. */
+      force?: boolean
     }
     const title = (body.title ?? '').trim().slice(0, 200) || `1:1 with ${attendee.name ?? attendee.login}`
     const agenda =
@@ -79,26 +83,57 @@ export async function POST(
         : 30
     const endAt = new Date(startAt.getTime() + durationMin * 60_000)
 
-    // GATE: the organiser MUST have Google Calendar connected. Without it
-    // we'd just create a row in our DB that nobody sees on a real calendar —
-    // and the attendee has no way to "add to my calendar". Make them connect
-    // first; the UI surfaces a clear CTA when this 412 is returned.
+    // CONFLICT CHECK — does the attendee already have something in this window?
+    // We look at both their synced Google Calendar events (`meetings`) and any
+    // MARINA-scheduled 1:1s (`scheduledMeetings`). Overlap = existing.start <
+    // new.end AND existing.end > new.start. If we find one and the caller
+    // hasn't forced it, return 409 with the clashing item so the dialog can
+    // say "Priya already has X then — schedule anyway?".
+    if (!body.force) {
+      const [calClash, mtgClash] = await Promise.all([
+        db.query.meetings.findFirst({
+          where: and(
+            eq(schema.meetings.userId, attendee.id),
+            lt(schema.meetings.startAt, endAt),
+            gt(schema.meetings.endAt, startAt),
+          ),
+        }),
+        db.query.scheduledMeetings.findFirst({
+          where: and(
+            or(
+              eq(schema.scheduledMeetings.attendeeUserId, attendee.id),
+              eq(schema.scheduledMeetings.organiserUserId, attendee.id),
+            ),
+            lt(schema.scheduledMeetings.startAt, endAt),
+            gt(schema.scheduledMeetings.endAt, startAt),
+          ),
+        }),
+      ])
+      const clash = calClash ?? mtgClash
+      if (clash) {
+        return NextResponse.json(
+          {
+            error: 'conflict',
+            conflict: {
+              title: clash.title,
+              startAt: clash.startAt.toISOString(),
+              endAt: clash.endAt.toISOString(),
+            },
+          },
+          { status: 409 },
+        )
+      }
+    }
+
+    // Google Calendar is OPTIONAL. If the organiser has it connected we push
+    // the event there too (with a Meet link); if not, the MARINA row + in-app
+    // notification + email are the source of truth and scheduling still works.
     const calendarAccount = await db.query.accounts.findFirst({
       where: and(
         eq(schema.accounts.userId, session.appUserId),
         eq(schema.accounts.provider, 'google'),
       ),
     })
-    if (!calendarAccount?.access_token) {
-      return NextResponse.json(
-        {
-          error: 'calendar_not_connected',
-          message:
-            'Connect Google Calendar from Settings → Integrations before scheduling. We need it to put the meeting on both of your calendars.',
-        },
-        { status: 412 },
-      )
-    }
 
     // Insert the row first — it's the source of truth.
     const [row] = await db
@@ -119,7 +154,7 @@ export async function POST(
     let conferenceUrl: string | null = null
     let calendarViewUrl: string | null = null
     let googleError: string | null = null
-    try {
+    if (calendarAccount?.access_token) try {
       const insertRes = await fetch(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
         {
@@ -205,6 +240,13 @@ export async function POST(
         }${agenda ? `\nAgenda: ${agenda}` : ''}`,
       })
     }
+
+    trackEvent({
+      kind: 'meeting.scheduled',
+      orgId,
+      userId: session.appUserId,
+      payload: { membershipId, durationMin, hasGoogleEvent: !!googleEventId },
+    })
 
     return NextResponse.json({
       ok: true,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 
 export const runtime = 'nodejs'
 
@@ -24,7 +24,11 @@ export async function GET(
   const windowDays = Math.max(7, Math.min(60, Number(url.searchParams.get('days') ?? 30)))
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
+    const scopedUserIds = Array.from(scope.userIds)
+    if (scopedUserIds.length === 0) {
+      return NextResponse.json({ items: [], windowDays })
+    }
 
     const team = await db
       .select({
@@ -41,6 +45,7 @@ export async function GET(
         and(
           eq(schema.memberships.orgId, orgId),
           isNull(schema.memberships.endedAt),
+          inArray(schema.memberships.userId, scopedUserIds),
         ),
       )
 

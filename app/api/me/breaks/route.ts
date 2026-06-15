@@ -71,10 +71,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'reason required' }, { status: 400 })
     }
 
-    // Default to the user's first org if not supplied so HR can see the pause.
-    let orgId: number | null = typeof body.orgId === 'number' ? body.orgId : null
-    if (!orgId) {
-      const memberships = await listMembershipsForCurrentUser()
+    // Resolve the org. If the client supplies an orgId we MUST verify the
+    // caller actually belongs to it — otherwise a user could inject a break
+    // (and a manager notification) into any org in the system. Falls back to
+    // the user's first membership when omitted.
+    const memberships = await listMembershipsForCurrentUser()
+    let orgId: number | null
+    if (typeof body.orgId === 'number') {
+      const member = memberships.find((m) => m.orgId === body.orgId)
+      if (!member) {
+        return NextResponse.json({ error: 'not a member of that org' }, { status: 403 })
+      }
+      orgId = body.orgId
+    } else {
       orgId = memberships[0]?.orgId ?? null
     }
 

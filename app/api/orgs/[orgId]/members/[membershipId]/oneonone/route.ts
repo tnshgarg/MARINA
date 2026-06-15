@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { buildOneOnOneBrief } from '@/lib/digest/oneonone'
 
 export const runtime = 'nodejs'
@@ -24,14 +24,16 @@ export async function GET(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
     const membership = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.id, membershipId),
         eq(schema.memberships.orgId, orgId),
+        isNull(schema.memberships.endedAt),
       ),
     })
     if (!membership) return NextResponse.json({ error: 'member not found' }, { status: 404 })
+    ensureScopeMembership(scope, membershipId)
 
     const brief = await buildOneOnOneBrief(membership.userId)
     if (!brief) return NextResponse.json({ error: 'user not found' }, { status: 404 })

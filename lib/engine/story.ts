@@ -1,6 +1,7 @@
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, isNull, lte } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { generateWithFallback } from '@/lib/ai/registry'
+import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
 import type { StoryScene } from '@/lib/db/schema'
 
 const BUCKET_MINUTES = 15
@@ -51,7 +52,7 @@ export async function buildStory(userId: number, day: Date = new Date()): Promis
   const { start, end, iso } = dayBounds(day)
   const evidence = await gatherEvidence(userId, start, end)
   const scenes = synthesiseScenes(evidence, start, end)
-  const { narrative, provider, model } = await generateNarrative(scenes, evidence, iso)
+  const { narrative, provider, model } = await generateNarrative(scenes, evidence, iso, userId)
   return { day: iso, scenes, narrative, provider, model }
 }
 
@@ -466,7 +467,8 @@ function classifyBucket(b: Bucket): StoryScene {
 async function generateNarrative(
   scenes: StoryScene[],
   evidence: Evidence,
-  dayIso: string
+  dayIso: string,
+  userId: number,
 ): Promise<{ narrative: string; provider: string; model: string }> {
   // Compact scenes for the LLM
   const compactScenes = scenes.map((s) => ({
@@ -527,8 +529,33 @@ async function generateNarrative(
     },
   ]
 
+  // AI budget gate. Resolve the user's primary org and check the monthly cap
+  // BEFORE the LLM call — when exhausted we degrade to the rules-based story
+  // instead of spending. This covers EVERY caller (punch-out, cron, /api/me/
+  // story, manager story route) in one place. Record spend after a real call.
+  const member = await db.query.memberships.findFirst({
+    where: and(eq(schema.memberships.userId, userId), isNull(schema.memberships.endedAt)),
+  })
+  const orgId = member?.orgId ?? null
+  const decision = await canSpend(orgId, 'story')
+  if (!decision.allowed) {
+    return { narrative: fallbackNarrative(scenes), provider: 'fallback', model: 'rules' }
+  }
+
   try {
     const res = await generateWithFallback(messages, { temperature: 0.4, maxTokens: 350 })
+    const inputTokens = Math.ceil(JSON.stringify(messages).length / 4)
+    const outputTokens = Math.ceil(res.text.length / 4)
+    recordSpend({
+      orgId,
+      userId,
+      kind: 'story',
+      provider: res.provider,
+      model: res.model,
+      inputTokens,
+      outputTokens,
+      costCents: estimateCostCents({ kind: 'story', provider: res.provider, model: res.model, inputTokens, outputTokens }),
+    })
     return { narrative: res.text.trim(), provider: res.provider, model: res.model }
   } catch (err) {
     console.error('[story] narrative gen failed', err)

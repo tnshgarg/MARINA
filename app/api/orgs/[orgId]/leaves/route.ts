@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 
 export const runtime = 'nodejs'
 
-/** Manager+: list leaves for the org, joined with the requesting user. */
+/** Manager+: list leaves for the org, joined with the requesting user.
+ *  Scoped to the viewer's reports (admins see the whole org). Leave reasons
+ *  are sensitive (medical/bereavement) so this must never be org-wide for a
+ *  team-scoped manager. */
 export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string }> }) {
   const { orgId: raw } = await ctx.params
   const orgId = Number(raw)
@@ -13,7 +16,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string 
     return NextResponse.json({ error: 'invalid orgId' }, { status: 400 })
   }
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
+    const userIds = Array.from(scope.userIds)
+    if (userIds.length === 0) {
+      return NextResponse.json({ ok: true, leaves: [] })
+    }
     const rows = await db
       .select({
         l: schema.leaveRequests,
@@ -21,7 +28,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string 
       })
       .from(schema.leaveRequests)
       .innerJoin(schema.users, eq(schema.leaveRequests.userId, schema.users.id))
-      .where(eq(schema.leaveRequests.orgId, orgId))
+      .where(
+        and(
+          eq(schema.leaveRequests.orgId, orgId),
+          inArray(schema.leaveRequests.userId, userIds),
+        ),
+      )
       .orderBy(desc(schema.leaveRequests.createdAt))
       .limit(200)
 

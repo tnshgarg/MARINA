@@ -54,6 +54,18 @@ export default async function InvitePage({
   const session = await auth()
   const signedIn = !!session?.appUserId
 
+  // Load the signed-in user's email so we can verify it matches the invite.
+  // An invite is addressed to a specific person — it must NOT be redeemable by
+  // whoever happens to hold the link on a different account.
+  const me = signedIn && session?.appUserId
+    ? await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
+    : null
+  const emailMatches =
+    !!me?.email &&
+    !!invite?.email &&
+    me.email.trim().toLowerCase() === invite.email.trim().toLowerCase()
+  const emailMismatch = signedIn && state === 'ready' && !emailMatches
+
   // Seamless re-entry: if the invite was already accepted AND the viewer is
   // signed in AND already has a membership for that org, just take them in.
   // This handles the common case where someone reopens an old invite link.
@@ -73,8 +85,14 @@ export default async function InvitePage({
   // Auto-accept: if the viewer is signed in AND the invite is ready, just
   // create the membership server-side and redirect into the org. Avoids the
   // extra "Accept and join" click after a fresh OAuth/magic-link sign-in.
-  if (signedIn && state === 'ready' && invite && org && session?.appUserId) {
+  if (signedIn && state === 'ready' && emailMatches && invite && org && session?.appUserId) {
     try {
+      const { seatCapError } = await import('@/lib/billing/seats')
+      const capError = await seatCapError(invite.orgId)
+      if (capError) throw new Error(capError)
+
+      const inviteDiscipline = (invite as { discipline?: string }).discipline ?? 'other'
+      const inviteJobTitle = (invite as { jobTitle?: string | null }).jobTitle ?? null
       const existing = await db.query.memberships.findFirst({
         where: and(
           eq(schema.memberships.orgId, invite.orgId),
@@ -86,7 +104,15 @@ export default async function InvitePage({
           orgId: invite.orgId,
           userId: session.appUserId,
           role: invite.role,
+          discipline: inviteDiscipline as never,
+          jobTitle: inviteJobTitle,
         })
+      } else if (existing.endedAt) {
+        // Re-invited ex-member: reactivate rather than leaving them removed.
+        await db
+          .update(schema.memberships)
+          .set({ endedAt: null, role: invite.role })
+          .where(eq(schema.memberships.id, existing.id))
       }
       await db
         .update(schema.invites)
@@ -136,6 +162,14 @@ export default async function InvitePage({
           <Message tone="error" title="That sign-in link expired">
             The magic link in your email is good for 60 minutes after we send it.
             Pick an option below to get a fresh one — your invite is still valid.
+          </Message>
+        )}
+
+        {emailMismatch && (
+          <Message tone="error" title="This invite is for a different email">
+            You&apos;re signed in as <strong>{me?.email}</strong>, but this invite was sent to{' '}
+            <strong>{invite?.email}</strong>. Sign out and sign back in with{' '}
+            <strong>{invite?.email}</strong> to accept it, or ask the inviter to re-send it to your address.
           </Message>
         )}
 

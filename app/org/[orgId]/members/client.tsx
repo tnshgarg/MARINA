@@ -48,19 +48,22 @@ export default function MembersClient({
   orgId,
   isOwner,
   viewerMembershipId,
+  canViewReports = false,
   members,
   pendingInvites,
 }: {
   orgId: number
   isOwner: boolean
   viewerMembershipId: number
+  /** Whether the viewer can open per-employee performance reports (view_all_data). */
+  canViewReports?: boolean
   members: Member[]
   pendingInvites: PendingInvite[]
 }) {
   const router = useRouter()
   const toast = useToast()
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'member' | 'manager'>('member')
+  const [role, setRole] = useState<'member' | 'manager' | 'admin'>('member')
   const [discipline, setDiscipline] = useState<
     'engineering' | 'design' | 'product' | 'sales' | 'support' |
     'marketing' | 'ops' | 'hr' | 'finance' | 'exec' | 'other'
@@ -230,13 +233,15 @@ export default function MembersClient({
           <div className="grid sm:grid-cols-3 gap-2">
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
+              onChange={(e) => setRole(e.target.value as 'member' | 'manager' | 'admin')}
               className="select"
               disabled={busy}
               aria-label="Org role"
             >
               <option value="member">Member</option>
               <option value="manager">Manager</option>
+              {/* Only an owner/admin can mint another admin. */}
+              {isOwner && <option value="admin">Admin (full access)</option>}
             </select>
             <select
               value={discipline}
@@ -438,13 +443,15 @@ export default function MembersClient({
 
                   {/* Actions — sticks right, never wraps. */}
                   <div className="flex items-center gap-1.5 justify-end shrink-0">
-                    <button
-                      onClick={() => setReportFor(m)}
-                      className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition whitespace-nowrap"
-                      title="Generate a performance review PDF for this employee"
-                    >
-                      Report
-                    </button>
+                    {canViewReports && (
+                      <button
+                        onClick={() => setReportFor(m)}
+                        className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition whitespace-nowrap"
+                        title="Generate a performance review PDF for this employee"
+                      >
+                        Report
+                      </button>
+                    )}
                     {isOwner && m.role !== 'admin' && m.membershipId !== viewerMembershipId && (
                       <button
                         onClick={() => removeMember(m.membershipId)}

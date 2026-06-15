@@ -8,6 +8,9 @@ export const runtime = 'nodejs'
 
 const REASON_MAX = 1000
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const VALID_LEAVE_TYPES = new Set([
+  'sick', 'casual', 'earned', 'maternity', 'paternity', 'bereavement', 'compoff', 'unpaid', 'other',
+])
 
 /**
  * Edit my own leave request — but only while it's still pending. Once a
@@ -43,7 +46,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
       update.endDate = body.endDate
     }
-    if (body.leaveType) update.leaveType = body.leaveType
+    if (body.leaveType !== undefined) {
+      // Validate against the enum — the POST handler does this but PATCH didn't,
+      // letting arbitrary strings corrupt the column (breaks label lookups).
+      if (typeof body.leaveType !== 'string' || !VALID_LEAVE_TYPES.has(body.leaveType)) {
+        return NextResponse.json({ error: 'invalid leaveType' }, { status: 400 })
+      }
+      update.leaveType = body.leaveType
+    }
     if (typeof body.reason === 'string') {
       update.reason = body.reason.trim().slice(0, REASON_MAX)
     }

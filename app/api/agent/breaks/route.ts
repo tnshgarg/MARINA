@@ -51,14 +51,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'reason required' }, { status: 400 })
   }
 
-  // Resolve org — explicit or first membership.
-  let orgId: number | null = typeof body.orgId === 'number' ? body.orgId : null
-  if (!orgId) {
-    const ms = await db
-      .select({ orgId: schema.memberships.orgId })
-      .from(schema.memberships)
-      .where(eq(schema.memberships.userId, agent.user.id))
-      .limit(1)
+  // Resolve org. A supplied orgId MUST be one this agent's user belongs to —
+  // never trust the body to attribute a break (and manager notification) to an
+  // arbitrary org. Falls back to the user's first membership when omitted.
+  const ms = await db
+    .select({ orgId: schema.memberships.orgId })
+    .from(schema.memberships)
+    .where(and(eq(schema.memberships.userId, agent.user.id), isNull(schema.memberships.endedAt)))
+  const memberOrgIds = new Set(ms.map((m) => m.orgId))
+  let orgId: number | null
+  if (typeof body.orgId === 'number') {
+    if (!memberOrgIds.has(body.orgId)) {
+      return NextResponse.json({ error: 'not a member of that org' }, { status: 403 })
+    }
+    orgId = body.orgId
+  } else {
     orgId = ms[0]?.orgId ?? null
   }
 

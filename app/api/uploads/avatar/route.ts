@@ -2,12 +2,11 @@ import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
-import { avatarKey, getBlobStore } from '@/lib/storage/blob'
+import { avatarKey, getBlobStore, sniffImage } from '@/lib/storage/blob'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
 
 /**
@@ -27,12 +26,6 @@ export async function POST(req: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'file field required' }, { status: 400 })
     }
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json(
-        { error: 'Use JPEG, PNG, WebP or GIF.' },
-        { status: 400 },
-      )
-    }
     if (file.size > MAX_BYTES) {
       return NextResponse.json(
         { error: 'File too big — keep avatars under 2 MB.' },
@@ -40,11 +33,19 @@ export async function POST(req: Request) {
       )
     }
 
-    const ext = extFromMime(file.type) ?? 'jpg'
-    const key = avatarKey(session.appUserId, ext)
+    // Validate by magic bytes, NOT the client-supplied file.type (spoofable).
     const buf = Buffer.from(await file.arrayBuffer())
+    const sniffed = sniffImage(buf)
+    if (!sniffed) {
+      return NextResponse.json(
+        { error: 'Use a real JPEG, PNG, WebP or GIF image.' },
+        { status: 400 },
+      )
+    }
+
+    const key = avatarKey(session.appUserId, sniffed.ext)
     const blob = getBlobStore()
-    await blob.put(key, buf, file.type)
+    await blob.put(key, buf, sniffed.mime)
 
     // We expose blobs via the /api/uploads/[...key] route so the local
     // driver works without a separate static server, AND so the URL is
@@ -84,15 +85,5 @@ export async function DELETE() {
       return NextResponse.json({ error: e.message }, { status: e.status })
     }
     return NextResponse.json({ error: 'internal' }, { status: 500 })
-  }
-}
-
-function extFromMime(mime: string): string | null {
-  switch (mime) {
-    case 'image/jpeg': return 'jpg'
-    case 'image/png': return 'png'
-    case 'image/webp': return 'webp'
-    case 'image/gif': return 'gif'
-    default: return null
   }
 }

@@ -40,9 +40,10 @@ export default function TermsPage() {
 
       <h2 className="text-[18px] font-semibold mt-8 mb-2">4. Fees and payment</h2>
       <p>
-        Pricing is published at <a href="/pricing">marina.in/pricing</a>. Invoices are issued by
-        Project MARINA Private Limited (GSTIN: TBD) at 18% GST. Annual prepay receives a discount.
-        Late payments accrue interest at 1.5% per month.
+        MARINA is currently offered free of charge to early-access customers. When paid plans
+        are introduced, pricing will be communicated directly to your workspace before any
+        charge applies. Invoices are issued by Project MARINA Private Limited (GSTIN: TBD) at
+        18% GST. Annual prepay receives a discount. Late payments accrue interest at 1.5% per month.
       </p>
 
       <h2 className="text-[18px] font-semibold mt-8 mb-2">5. Termination</h2>

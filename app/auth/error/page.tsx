@@ -4,8 +4,10 @@ export const dynamic = 'force-dynamic'
 
 const FRIENDLY: Record<string, { title: string; body: string; hint?: string }> = {
   Configuration: {
-    title: 'Server configuration issue',
-    body: "We couldn't complete the sign-in because of a server problem. This usually means a database migration hasn't been run.",
+    title: 'Something went wrong on our end',
+    body: "We couldn't complete the sign-in due to a temporary server problem. Please try again in a moment, or contact support if it persists.",
+    // Internal fix hint is shown ONLY in non-production (see render) — end
+    // users should never be told to run a migration command.
     hint: 'Run `pnpm db:push` in the marina/ folder, then try again.',
   },
   AccessDenied: {
@@ -35,6 +37,9 @@ export default async function AuthErrorPage({
   const sp = await searchParams
   const errorKey = sp.error ?? 'Default'
   const info = FRIENDLY[errorKey] ?? FRIENDLY.Default
+  // Only surface internal "how to fix" hints to developers, never to end users
+  // in production (they leak the stack / can't run server commands anyway).
+  const showHint = info.hint && (errorKey !== 'Configuration' || process.env.NODE_ENV !== 'production')
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
@@ -42,7 +47,7 @@ export default async function AuthErrorPage({
         <div className="text-[36px] mb-3">⚠️</div>
         <h1 className="text-[20px] font-semibold text-slate-900">{info.title}</h1>
         <p className="mt-2 text-[14px] text-slate-600 leading-relaxed">{info.body}</p>
-        {info.hint && (
+        {showHint && (
           <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-1">
               How to fix

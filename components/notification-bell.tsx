@@ -99,7 +99,7 @@ export function NotificationBell() {
           setOpen((v) => !v)
           if (!open) load()
         }}
-        className="relative p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+        className="relative w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
         aria-label={`${unread} unread notifications`}
       >
         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>

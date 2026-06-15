@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { and, desc, eq, gte, like, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, like, not, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { membershipWindow } from '@/lib/auth/tenant-scope'
 
 export const runtime = 'nodejs'
@@ -26,15 +26,18 @@ export async function GET(
   }
 
   try {
-    await requireMembership(orgId, 'manager')
+    const { scope } = await requireScope(orgId, 'manager')
 
     const membership = await db.query.memberships.findFirst({
       where: and(
         eq(schema.memberships.id, membershipId),
         eq(schema.memberships.orgId, orgId),
+        isNull(schema.memberships.endedAt),
       ),
     })
     if (!membership) return NextResponse.json({ error: 'member not found' }, { status: 404 })
+    // RBAC scope: a manager/lead may only drill into people they manage.
+    ensureScopeMembership(scope, membershipId)
 
     const user = await db.query.users.findFirst({
       where: eq(schema.users.id, membership.userId),
@@ -154,13 +157,24 @@ export async function GET(
     ])
 
     // Per-day attendance for the last 28 days, derived from real shifts + leaves.
+    // `pre_join` covers days before the user started — without this, fresh
+    // accounts get a sea of pink "absent" cells for the 28 days before they
+    // joined, which is both wrong AND a bad first impression on the profile.
     const attendance28d: Array<{
       date: string
-      kind: 'present' | 'absent' | 'leave' | 'weekend' | 'today' | 'future'
+      kind: 'present' | 'absent' | 'leave' | 'weekend' | 'today' | 'future' | 'pre_join'
       minutesWorked: number
       leaveType?: string
       leaveReason?: string
     }> = []
+    // Earliest day this person should be counted as working. Prefer the
+    // user-set `joinedOn` (filled via the dashboard prompt) and fall back to
+    // the membership's `createdAt` — the moment they accepted the invite.
+    const joinedOnStr =
+      (user as { joinedOn?: string | null }).joinedOn ??
+      (membership.createdAt
+        ? `${membership.createdAt.getFullYear()}-${String(membership.createdAt.getMonth() + 1).padStart(2, '0')}-${String(membership.createdAt.getDate()).padStart(2, '0')}`
+        : null)
     const approvedLeaves = recentLeaves.filter((l) => l.status === 'approved')
     const minutesByDay = new Map<string, number>()
     for (const s of shifts28d) {
@@ -192,7 +206,9 @@ export async function GET(
       const leave = approvedLeaves.find((l) => l.startDate <= iso && l.endDate >= iso)
       const mins = minutesByDay.get(iso) ?? 0
       let kind: typeof attendance28d[number]['kind']
-      if (leave) {
+      if (joinedOnStr && iso < joinedOnStr) {
+        kind = 'pre_join'
+      } else if (leave) {
         kind = 'leave'
       } else if (mins > 0) {
         kind = isToday ? 'today' : 'present'

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { and, eq, ne } from 'drizzle-orm'
+import { and, eq, isNull, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 
@@ -32,7 +32,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ orgId: string }
       })
       .from(schema.memberships)
       .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-      .where(and(eq(schema.memberships.orgId, orgId), ne(schema.users.id, session.appUserId)))
+      // Org-wide by design: this powers the "waiting on" picker where an
+      // employee may legitimately reference anyone. We only exclude the viewer
+      // and soft-deleted (ex-)members — never returning removed teammates.
+      .where(
+        and(
+          eq(schema.memberships.orgId, orgId),
+          isNull(schema.memberships.endedAt),
+          ne(schema.users.id, session.appUserId),
+        ),
+      )
 
     const filtered = q
       ? rows.filter((r) =>

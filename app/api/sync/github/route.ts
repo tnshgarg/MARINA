@@ -8,8 +8,16 @@ export const runtime = 'nodejs'
 
 export async function POST() {
   const session = await auth()
-  if (!session?.appUserId || !session.accessToken || !session.login) {
+  if (!session?.appUserId || !session.login) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  // Read the GitHub token from the DB (server-only) rather than the session —
+  // the token is `repo`-scoped and must never be exposed to the browser.
+  const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
+  const accessToken = me?.accessToken
+  if (!accessToken) {
+    return NextResponse.json({ error: 'github_not_connected' }, { status: 409 })
   }
 
   try {
@@ -38,10 +46,10 @@ export async function POST() {
       trackedOrgs.push(...list)
     }
     const filter = anyOrgFiltersOff ? [] : Array.from(new Set(trackedOrgs))
-    const result = await syncUserActivity(session.appUserId, session.login, session.accessToken, 7, filter)
+    const result = await syncUserActivity(session.appUserId, session.login, accessToken, 7, filter)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('sync failed', err)
-    return NextResponse.json({ error: 'sync failed', message: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'sync failed' }, { status: 500 })
   }
 }

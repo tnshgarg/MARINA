@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
+import { hasCap } from '@/lib/auth/capabilities'
 import { getVisibleScope } from '@/lib/auth/scope'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { ProfilePageClient } from './client'
@@ -111,7 +112,15 @@ export default async function EmployeeProfilePage({
       </header>
 
       <div className="px-4 sm:px-8 pt-5">
-        <ProfilePageClient orgId={orgId} membershipId={membershipId} />
+        <ProfilePageClient
+          orgId={orgId}
+          membershipId={membershipId}
+          canViewReports={hasCap(
+            viewer.membership.role,
+            (viewer.membership as { extraCaps?: string[] }).extraCaps ?? [],
+            'view_all_data',
+          )}
+        />
       </div>
     </div>
   )

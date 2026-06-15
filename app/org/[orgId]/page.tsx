@@ -213,6 +213,27 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     : []
   const waitingOnById = new Map(waitingOnUsers.map((u) => [u.id, u]))
 
+  // Most recent self-logged deliverable per member. This is a LIVE "what they
+  // last shipped" signal for the card — it replaces the stale AI narrative as
+  // the default body so the card never shows out-of-date prose.
+  const deliverableRows = userIds.length
+    ? await db
+        .select({
+          userId: schema.deliverables.userId,
+          title: schema.deliverables.title,
+          completedAt: schema.deliverables.completedAt,
+        })
+        .from(schema.deliverables)
+        .where(inArray(schema.deliverables.userId, userIds))
+        .orderBy(desc(schema.deliverables.completedAt))
+    : []
+  const recentDeliverableByUser = new Map<number, { title: string; completedAt: string }>()
+  for (const d of deliverableRows) {
+    if (!recentDeliverableByUser.has(d.userId)) {
+      recentDeliverableByUser.set(d.userId, { title: d.title, completedAt: d.completedAt.toISOString() })
+    }
+  }
+
   const members = rawMembers.map((r) => {
     const n = latestByUser.get(r.u.id)
     const c = compact.get(r.u.id)
@@ -272,6 +293,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
             createdAt: n.createdAt.toISOString(),
           }
         : null,
+      recentDeliverable: recentDeliverableByUser.get(r.u.id) ?? null,
     }
   })
 

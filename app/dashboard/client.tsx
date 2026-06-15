@@ -76,13 +76,6 @@ type Props = {
   myLeaves: LeaveDto[]
 }
 
-const SIGNAL_PILL: Record<NarrativeDto['signal'], string> = {
-  High: 'pill-good',
-  Steady: 'pill-info',
-  Low: 'pill-warn',
-  Blocked: 'pill-bad',
-}
-
 const TYPE_LABEL: Record<EventDto['type'], string> = {
   commit: 'commit',
   pr_opened: 'PR opened',
@@ -118,12 +111,12 @@ export default function DashboardClient({
   myLeaves,
 }: Props) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // AI provider is a server-side decision now — we don't surface which model
   // we're using to the user. They get the best available; the server picks.
-  const [narrative, setNarrative] = useState<NarrativeDto | null>(initialNarrative)
+  const [narrative] = useState<NarrativeDto | null>(initialNarrative)
 
   // Break modal state
   const [breakOpen, setBreakOpen] = useState(false)
@@ -135,6 +128,25 @@ export default function DashboardClient({
   const [leaveEnd, setLeaveEnd] = useState('')
   const [leaveReason, setLeaveReason] = useState('')
   const [leaveType, setLeaveType] = useState<string>('casual')
+  const [leaveBalance, setLeaveBalance] = useState<
+    { rows: { type: string; remaining: number; quota: number }[]; year: number } | null
+  >(null)
+
+  // Fetch the remaining allowance ONLY when the request-leave modal opens —
+  // we deliberately don't show it on the dashboard (it nudges leave-taking).
+  useEffect(() => {
+    if (!leaveOpen || !orgId) return
+    let cancelled = false
+    void fetch(`/api/me/leave-balance?orgId=${orgId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && Array.isArray(d.rows)) setLeaveBalance(d)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [leaveOpen, orgId])
 
   // Live timer for active break
   const [breakElapsed, setBreakElapsed] = useState(0)
@@ -161,20 +173,6 @@ export default function DashboardClient({
     }
   }
 
-  async function runNarrative() {
-    setBusy('narrative')
-    setError(null)
-    try {
-      const res = await fetch(`/api/narrative`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.message || data?.error || 'narrative failed')
-      setNarrative(data.narrative)
-    } catch (e) {
-      setError(String(e))
-    } finally {
-      setBusy(null)
-    }
-  }
 
   async function startBreak() {
     if (breakReason.trim().length === 0) return
@@ -375,37 +373,15 @@ export default function DashboardClient({
             agent does the same thing without leaving your workflow. */}
         <LogDeliverableCard />
 
-        {/* Deep dive — collapsed by default. Power-user details live below the
-            fold so the above-fold experience stays focused. */}
+        {/* Telemetry & activity — collapsed by default. Only REAL, live data
+            lives here now (today's tracked time + your recent GitHub). The old
+            on-demand "7-day narrative" generator was removed — it read as
+            gimmicky because it wasn't tied to anything happening right now. */}
         <details className="rounded-xl border border-slate-200 bg-white">
           <summary className="px-4 py-3 cursor-pointer text-[13px] font-medium text-slate-900 select-none">
-            Deep dive · narrative, telemetry, recent activity
+            Today&apos;s telemetry &amp; recent activity
           </summary>
           <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-4">
-            {/* Narrative */}
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                <p className="app-eyebrow">7-day narrative</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={runNarrative}
-                    disabled={busy !== null || isPending}
-                    className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
-                  >
-                    {busy === 'narrative' ? '…' : 'Generate'}
-                  </button>
-                </div>
-              </div>
-              {narrative ? (
-                <div className="space-y-2">
-                  <span className={`pill ${SIGNAL_PILL[narrative.signal]}`}>Signal · {narrative.signal}</span>
-                  <p className="text-[13px] text-slate-800 leading-relaxed whitespace-pre-line">{narrative.body}</p>
-                </div>
-              ) : (
-                <p className="text-[12px] text-slate-500">Hit Generate to summarise this week.</p>
-              )}
-            </div>
-
             {/* Today telemetry — single tight row */}
             {today.sampleCount > 0 && (
               <div>
@@ -603,6 +579,20 @@ export default function DashboardClient({
             <option value="unpaid">Unpaid Leave</option>
             <option value="other">Other</option>
           </select>
+          {leaveBalance && (() => {
+            const row = leaveBalance.rows.find((r) => r.type === leaveType)
+            return row ? (
+              <p className="mt-1.5 text-[12px] text-slate-500">
+                You have{' '}
+                <span className="font-semibold text-slate-800">{row.remaining}</span> of {row.quota}{' '}
+                {row.type} days left in {leaveBalance.year}.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[12px] text-slate-400">
+                This type has no fixed annual allowance.
+              </p>
+            )
+          })()}
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div>
               <label className="app-eyebrow block mb-1">From</label>

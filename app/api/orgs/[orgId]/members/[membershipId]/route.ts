@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireCapability, requireMembership } from '@/lib/auth/guards'
+import { HttpError, ensureScopeMembership, requireCapability, requireScope } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 import { audit, requestMeta } from '@/lib/audit/log'
 
 export const runtime = 'nodejs'
@@ -51,7 +52,7 @@ export async function PATCH(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, membership: actor, scope } = await requireScope(orgId, 'manager')
 
     const target = await db.query.memberships.findFirst({
       where: and(
@@ -61,6 +62,8 @@ export async function PATCH(
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    // RBAC scope: a manager/lead may only edit people they manage.
+    ensureScopeMembership(scope, membershipId)
 
     const patch: Record<string, unknown> = {}
     if (body.discipline !== undefined) {
@@ -80,7 +83,6 @@ export async function PATCH(
       // Only the org owner can grant or revoke capabilities — promoting one
       // manager to "see everyone's data" is the kind of thing that should
       // never be a peer-to-peer decision.
-      const { membership: actor } = await requireMembership(orgId, 'manager')
       if (actor.role !== 'admin') {
         return NextResponse.json({ error: 'only the owner can edit capabilities' }, { status: 403 })
       }
@@ -101,6 +103,30 @@ export async function PATCH(
     if (body.reportsToMembershipId !== undefined) {
       if (body.reportsToMembershipId !== null && typeof body.reportsToMembershipId !== 'number') {
         return NextResponse.json({ error: 'invalid reportsToMembershipId' }, { status: 400 })
+      }
+      // SECURITY: validate the manager being set is a REAL active membership in
+      // THIS org. Without this a manager could point a report's line at their
+      // own membership id (or a cross-org id) to silently grant themselves
+      // drill-down visibility via getVisibleScope. Also forbid self-reference.
+      if (body.reportsToMembershipId !== null) {
+        if (body.reportsToMembershipId === membershipId) {
+          return NextResponse.json({ error: 'a member cannot report to themselves' }, { status: 400 })
+        }
+        const mgr = await db.query.memberships.findFirst({
+          where: and(
+            eq(schema.memberships.id, body.reportsToMembershipId),
+            eq(schema.memberships.orgId, orgId),
+            isNull(schema.memberships.endedAt),
+          ),
+        })
+        if (!mgr) {
+          return NextResponse.json({ error: 'reportsToMembershipId is not an active member of this org' }, { status: 400 })
+        }
+        // Non-admins may only set a reporting line to someone already within
+        // their own scope — they can't wire a report under an arbitrary person.
+        if (actor.role !== 'admin') {
+          ensureScopeMembership(scope, body.reportsToMembershipId)
+        }
       }
       patch.reportsToMembershipId = body.reportsToMembershipId
     }
@@ -194,6 +220,13 @@ export async function DELETE(
   try {
     // Anyone with `manage_members` can remove. Owner always has it implicitly.
     const { session, membership: actor } = await requireCapability(orgId, 'manage_members')
+    // RBAC scope: a non-admin with manage_members may only remove people they
+    // manage — not arbitrary members of other teams.
+    const scope = await getVisibleScope(orgId, {
+      userId: session.appUserId,
+      membershipId: actor.id,
+      role: actor.role as 'admin' | 'manager' | 'lead' | 'member',
+    })
 
     const target = await db.query.memberships.findFirst({
       where: and(
@@ -203,6 +236,7 @@ export async function DELETE(
       ),
     })
     if (!target) return NextResponse.json({ error: 'membership not found' }, { status: 404 })
+    ensureScopeMembership(scope, membershipId)
     if (target.role === 'admin') {
       return NextResponse.json({ error: "can't remove the owner" }, { status: 409 })
     }

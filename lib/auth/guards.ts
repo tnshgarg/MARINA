@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import type { Membership, Role, User } from '@/lib/db/schema'
+import { getVisibleScope, type VisibleScope } from '@/lib/auth/scope'
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -10,6 +11,15 @@ export class HttpError extends Error {
   }
 }
 
+// NOTE on lead vs manager: they intentionally share read-rank 2. `lead` is a
+// lightweight manager (capabilities: view_reports_only + schedule_meetings)
+// that should see the SAME scoped console as a manager — just their own
+// reports. Tenant safety for reads comes from getVisibleScope (every list/
+// detail surface filters to the viewer's reports), and every sensitive
+// MUTATION is gated by a fine-grained capability (manage_members, decide_leaves,
+// manage_workspace, …) — NOT by this rank — so a lead cannot escalate. Do not
+// gate a destructive/admin action on `roleAtLeast(..,'manager')`; use
+// requireCapability instead.
 const ROLE_RANK: Record<Role, number> = { member: 1, lead: 2, manager: 2, admin: 3 }
 
 export function roleAtLeast(actual: Role, min: Role): boolean {
@@ -19,7 +29,6 @@ export function roleAtLeast(actual: Role, min: Role): boolean {
 export type ResolvedSession = {
   appUserId: number
   login: string
-  accessToken?: string
 }
 
 export async function requireSession(): Promise<ResolvedSession> {
@@ -30,7 +39,6 @@ export async function requireSession(): Promise<ResolvedSession> {
   return {
     appUserId: session.appUserId,
     login: session.login,
-    accessToken: session.accessToken,
   }
 }
 
@@ -40,7 +48,6 @@ export async function requireSessionOrRedirect(): Promise<ResolvedSession> {
   return {
     appUserId: session.appUserId,
     login: session.login,
-    accessToken: session.accessToken,
   }
 }
 
@@ -113,4 +120,44 @@ export async function requireCapability(orgId: number, cap: string): Promise<{
   const extra = (membership as { extraCaps?: string[] }).extraCaps ?? []
   if (extra.includes(cap)) return { session, membership }
   throw new HttpError(403, `missing capability: ${cap}`)
+}
+
+/**
+ * The scope-aware guard every teammate-touching endpoint should use.
+ *
+ * Combines requireMembership(minRole) with getVisibleScope so a manager/lead
+ * is limited to the people they actually manage (reports-to chain + teams they
+ * manage); admins get the whole org. Returns the resolved scope so the caller
+ * can filter lists (`scope.userIds`) or assert a single target is visible
+ * (use `ensureScopeUser` / `ensureScopeMembership` below).
+ *
+ * This is the single highest-leverage RBAC primitive — routing every
+ * `membershipId`/`breakId`/`leaveId`/`userId`-bearing handler through it closes
+ * the "any manager can see/act on the whole org" class of leaks.
+ */
+export async function requireScope(
+  orgId: number,
+  minRole: Role = 'manager',
+): Promise<{ session: ResolvedSession; membership: Membership; scope: VisibleScope }> {
+  const { session, membership } = await requireMembership(orgId, minRole)
+  const scope = await getVisibleScope(orgId, {
+    userId: session.appUserId,
+    membershipId: membership.id,
+    role: membership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
+  return { session, membership, scope }
+}
+
+/** Throw a 404 (don't leak existence) unless the target user is in scope. */
+export function ensureScopeUser(scope: VisibleScope, targetUserId: number): void {
+  if (!scope.isAdminScope && !scope.userIds.has(targetUserId)) {
+    throw new HttpError(404, 'not found')
+  }
+}
+
+/** Throw a 404 unless the target membership is in scope. */
+export function ensureScopeMembership(scope: VisibleScope, targetMembershipId: number): void {
+  if (!scope.isAdminScope && !scope.membershipIds.has(targetMembershipId)) {
+    throw new HttpError(404, 'not found')
+  }
 }

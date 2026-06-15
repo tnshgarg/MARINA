@@ -11,6 +11,7 @@ import { MeetingsPanel } from '@/components/meetings-panel'
 import { CelebrationsWidget } from '@/components/celebrations-widget'
 import { BlockerResolver } from '@/components/blocker-resolver'
 import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
+import { TeamChat } from '@/components/team-chat'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
 type DailyState = 'High' | 'Steady' | 'Blocked' | 'Disengaged' | 'PossiblyDummying' | 'NoData'
@@ -60,6 +61,7 @@ type MemberCard = {
     signal: Signal
     createdAt: string
   } | null
+  recentDeliverable: { title: string; completedAt: string } | null
 }
 
 type Blocker = {
@@ -293,29 +295,6 @@ export default function TeamDashboardClient({
     }
   }
 
-  async function briefMember(membershipId: number, label: string) {
-    setBusy(`brief-${membershipId}`)
-    try {
-      const res = await fetch(`/api/orgs/${orgId}/members/${membershipId}/narrative?provider=groq`, {
-        method: 'POST',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
-      toast.push({
-        kind: 'success',
-        title: `Brief generated for ${label}`,
-      })
-      router.refresh()
-    } catch (e) {
-      toast.push({
-        kind: 'error',
-        title: `Brief failed for ${label}`,
-        body: e instanceof Error ? e.message : String(e),
-      })
-    } finally {
-      setBusy(null)
-    }
-  }
 
   // "Things worth reviewing today" — up to 3 picks. We surface (in priority):
   //   1. Oldest pending leave request
@@ -564,7 +543,7 @@ export default function TeamDashboardClient({
                   : 'No members yet — invite teammates from the Members page.'}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
                 {filtered.map((m) => (
                   <MemberCardView
                     key={m.membershipId}
@@ -574,7 +553,6 @@ export default function TeamDashboardClient({
                     isSelf={m.userId === viewerUserId}
                     busy={busy}
                     onSchedule={() => setMeetingFor(m)}
-                    onBrief={() => briefMember(m.membershipId, m.name ?? `@${m.login}`)}
                     onOpen={() => openDetail(m)}
                     onResolveBlocker={(breakId) => setResolverBreakId(breakId)}
                   />
@@ -636,6 +614,10 @@ export default function TeamDashboardClient({
           onClose={() => setMeetingFor(null)}
         />
       )}
+
+      {/* Flagship: ask the AI about the whole team (scoped to who you can see).
+          Floating right-dock launcher; only managers/admins reach this page. */}
+      <TeamChat orgId={orgId} />
     </>
   )
 }
@@ -905,6 +887,8 @@ function ReviewCard({
       <div className="flex items-center gap-2.5">
         <CharacterAvatar
           characterKey={m?.characterKey ?? lv?.user.characterKey ?? null}
+          name={m?.name ?? lv?.user.name ?? null}
+          login={m?.login ?? lv?.user.login ?? null}
           size={32}
         />
         <div className="min-w-0 flex-1">
@@ -984,7 +968,6 @@ function MemberCardView({
   isSelf,
   busy,
   onSchedule,
-  onBrief,
   onOpen,
   onResolveBlocker,
 }: {
@@ -992,12 +975,11 @@ function MemberCardView({
   orgId: number
   isManager: boolean
   /** True when this card belongs to the logged-in user. Manager actions
-   * (schedule meeting, brief, nudge) are suppressed so the user doesn't
+   * (schedule meeting, nudge) are suppressed so the user doesn't
    * end up trying to nudge themselves. */
   isSelf: boolean
   busy: string | null
   onSchedule: () => void
-  onBrief: () => void
   onOpen: () => void
   /** Open the blocker-resolver flow for this member's active block. */
   onResolveBlocker: (breakId: number) => void
@@ -1010,7 +992,6 @@ function MemberCardView({
     ? (m.onLeaveToday ? 'On leave' : 'Off-clock')
     : status.label
 
-  const bullets = m.narrative ? narrativeBullets(m.narrative.body) : []
   const totalShiftSec = m.activity.activeSeconds + m.activity.idleSeconds
 
   return (
@@ -1025,7 +1006,7 @@ function MemberCardView({
       role="button"
       tabIndex={0}
       aria-label={`Open details for ${m.name ?? `@${m.login}`}`}
-      className="cursor-pointer text-left w-full rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/40 transition-all overflow-hidden"
+      className="cursor-pointer text-left w-full h-full flex flex-col rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/40 transition-all overflow-hidden"
     >
       {/* Header */}
       <div className="px-5 pt-4 pb-3 flex items-start gap-3">
@@ -1044,14 +1025,6 @@ function MemberCardView({
             {character ? `${character.name} · ${m.role}` : m.role}
           </p>
         </div>
-        {m.narrative && (
-          <span
-            className="text-[10.5px] text-slate-400 shrink-0"
-            title={new Date(m.narrative.createdAt).toLocaleString()}
-          >
-            {timeAgo(m.narrative.createdAt)}
-          </span>
-        )}
       </div>
 
       {/* Blocker badge — highest priority signal */}
@@ -1099,28 +1072,33 @@ function MemberCardView({
         </div>
       </div>
 
-      {/* Bullet summary */}
-      {bullets.length > 0 ? (
-        <div className="px-5 pb-3">
-          <ul className="space-y-1">
-            {bullets.map((b, i) => (
-              <li key={i} className="text-[12.5px] text-slate-700 leading-snug flex gap-2">
-                <span className="text-[var(--m-accent)] mt-0.5">•</span>
-                <span className="break-words">{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : m.dailyState?.reason ? (
-        <div className="px-5 pb-3">
-          <p className="text-[12.5px] text-slate-600 leading-snug">{m.dailyState.reason}</p>
-        </div>
-      ) : null}
+      {/* Live signal — what they LAST SHIPPED + today's rules-based status.
+          We deliberately do NOT render the AI narrative on the card: it can be
+          hours stale and showing it as the headline made the card lie. The
+          "Brief" action generates a fresh narrative on demand in the profile
+          when a manager wants the deeper write-up. */}
+      <div className="px-5 pb-3 space-y-1.5">
+        {m.recentDeliverable && (
+          <p className="text-[12.5px] text-slate-700 leading-snug flex items-start gap-1.5">
+            <span className="text-[var(--m-accent)] mt-0.5">✓</span>
+            <span className="min-w-0">
+              <span className="break-words">Shipped: {m.recentDeliverable.title}</span>
+              <span className="text-slate-400"> · {timeAgo(m.recentDeliverable.completedAt)}</span>
+            </span>
+          </p>
+        )}
+        {m.dailyState?.reason && (
+          <p className="text-[12px] text-slate-500 leading-snug">{m.dailyState.reason}</p>
+        )}
+        {!m.recentDeliverable && !m.dailyState?.reason && (
+          <p className="text-[12px] text-slate-400 italic">No recent activity logged today.</p>
+        )}
+      </div>
 
       {/* Action footer */}
       {isManager && (
         <div
-          className="border-t border-slate-100 bg-slate-50/40 px-5 py-2.5 flex items-center justify-between gap-2"
+          className="mt-auto border-t border-slate-100 bg-slate-50/40 px-5 py-2.5 flex items-center justify-between gap-2"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-1.5 min-w-0">
@@ -1158,7 +1136,14 @@ function MemberCardView({
             {isManager && !isSelf && (
               <button
                 type="button"
-                onClick={onSchedule}
+                onClick={(e) => {
+                  // The whole card is clickable (opens the member modal). Stop
+                  // propagation so "Schedule meeting" ONLY opens the dialog —
+                  // otherwise the modal also popped open behind it and the two
+                  // overlays stacked into a blank-looking mess.
+                  e.stopPropagation()
+                  onSchedule()
+                }}
                 disabled={busy !== null}
                 className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 title={`Schedule a 1:1 with ${m.name ?? `@${m.login}`}`}
@@ -1166,18 +1151,9 @@ function MemberCardView({
                 Schedule meeting
               </button>
             )}
-            {/* Brief is for managers reading a teammate — not for self-
-                reflection. Hide on own card. */}
-            {!isSelf && (
-              <button
-                type="button"
-                onClick={onBrief}
-                disabled={busy !== null}
-                className="px-2.5 py-1 rounded-md bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[11.5px] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                {busy === `brief-${m.membershipId}` ? 'Briefing…' : 'Brief'}
-              </button>
-            )}
+            {/* "Brief" button removed from the card — we don't surface a brief
+                on the card itself, so generating one here was confusing. The
+                brief lives inside the member modal's Today tab. */}
             {isSelf && (
               <span className="text-[10.5px] text-slate-400 italic px-2">This is you</span>
             )}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { roleAtLeast } from '@/lib/auth/guards'
 import { verifySlackRequest } from '@/lib/slack/verify'
 import { afterResponse } from '@/lib/after'
 import { createDeliverable } from '@/lib/deliverables/create'
@@ -85,6 +86,19 @@ export async function POST(req: Request) {
 
     case 'pulse':
     case 'blockers': {
+      // SECURITY: the team snapshot (who's working, who's blocked + reasons) is
+      // confidential. Only serve it to a Slack user who maps to an actual
+      // member of this org — never to any guest in the workspace. Managers+ get
+      // the full pulse; plain members are politely declined.
+      const caller = await findCallerMembership()
+      if (!caller) {
+        return ack(
+          "You're not linked to this MARINA workspace, so I can't share the team snapshot. Accept your invite (or ask an admin) first.",
+        )
+      }
+      if (!roleAtLeast(caller.role, 'lead')) {
+        return ack('The team snapshot is available to managers and team leads.')
+      }
       const out = await buildPulseText(org.id, sub === 'blockers')
       return NextResponse.json({ response_type: 'ephemeral', text: out })
     }
@@ -119,11 +133,22 @@ export async function POST(req: Request) {
           'That person isn\'t in MARINA yet — ask them to accept their invite first.',
         )
       }
+      // SECURITY: only a real member of this org may send a MARINA-branded DM.
+      // Without this, any Slack guest could spam/phish teammates through our
+      // bot with an arbitrary "from" name.
+      if (!me) {
+        return ack(
+          "You're not linked to this MARINA workspace, so you can't send nudges. Accept your invite first.",
+        )
+      }
 
       afterResponse(async () => {
         const install = await getSlackInstall(org.id)
         if (!install) return
-        const fromName = slackUserName
+        // Derive the sender name from the resolved member, NOT the Slack-supplied
+        // user_name (which is client-controllable / spoofable).
+        const fromUser = await db.query.users.findFirst({ where: eq(schema.users.id, me.userId) })
+        const fromName = fromUser?.name ?? `@${fromUser?.login ?? slackUserName}`
         await sendSlackDm(install, targetSlackId, {
           text: `${fromName} on MARINA: ${message || 'just checking in'}`,
           blocks: [

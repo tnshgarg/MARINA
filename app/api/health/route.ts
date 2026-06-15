@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
  * Plug this into an uptime monitor (UptimeRobot, BetterStack, Cronitor)
  * with a 1-minute check. Page on 2 consecutive failures.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const started = Date.now()
   let dbStatus: 'ok' | 'fail' = 'fail'
   let dbError: string | null = null
@@ -30,22 +30,31 @@ export async function GET() {
     dbError = err instanceof Error ? err.message : String(err)
   }
 
-  const aiKeys = {
-    openai: !!process.env.OPENAI_API_KEY,
-    groq: !!process.env.GROQ_API_KEY,
-  }
-  const aiStatus = aiKeys.openai || aiKeys.groq ? 'configured' : 'missing'
+  const aiStatus =
+    process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY ? 'configured' : 'missing'
+
+  // Log the real DB error server-side (where ops can see it) but NEVER return
+  // it to the caller — Neon/pg error strings routinely embed the connection
+  // string, host, role, and DB name. The public probe is intentionally terse.
+  if (dbError) console.error('[health] db ping failed:', dbError)
 
   const ok = dbStatus === 'ok'
-  const body = {
-    ok,
-    db: dbStatus,
-    dbError,
-    ai: aiStatus,
-    aiKeys,
-    env: process.env.NODE_ENV ?? 'unknown',
-    version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
-    durationMs: Date.now() - started,
+
+  // Detailed diagnostics are gated behind a shared secret so an uptime monitor
+  // can still see them, but anonymous callers only get { ok, db, ai }.
+  const url = new URL(req.url)
+  const probeSecret = process.env.HEALTH_PROBE_SECRET
+  const authorized =
+    !!probeSecret &&
+    (url.searchParams.get('token') === probeSecret ||
+      req.headers.get('authorization') === `Bearer ${probeSecret}`)
+
+  const body: Record<string, unknown> = { ok, db: dbStatus, ai: aiStatus }
+  if (authorized) {
+    body.env = process.env.NODE_ENV ?? 'unknown'
+    body.version = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'
+    body.durationMs = Date.now() - started
+    body.dbError = dbError
   }
   return NextResponse.json(body, { status: ok ? 200 : 503 })
 }

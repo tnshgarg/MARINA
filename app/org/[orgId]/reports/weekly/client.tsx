@@ -217,11 +217,17 @@ function CalloutBlock({
   rows: WeeklyRow[]
   orgId: number
 }) {
-  const accent = tone === 'good' ? 'border-[var(--m-good)]/30 bg-[var(--m-good-soft)]/40' : 'border-[var(--m-bad)]/30 bg-[var(--m-bad-soft)]/40'
+  // Calm neutral card — the tone is carried by a small dot + the eyebrow
+  // colour, not a loud red/green fill (which read as an alarm against the
+  // otherwise white report).
   const eyebrow = tone === 'good' ? 'text-[var(--m-good)]' : 'text-[var(--m-bad)]'
+  const dot = tone === 'good' ? 'bg-[var(--m-good)]' : 'bg-[var(--m-bad)]'
   return (
-    <div className={`rounded-xl border ${accent} px-4 py-3.5`}>
-      <p className={`app-eyebrow ${eyebrow}`}>{title}</p>
+    <div className="rounded-xl border border-[var(--m-border)] bg-[var(--m-bg-soft)] px-4 py-3.5">
+      <p className={`app-eyebrow flex items-center gap-1.5 ${eyebrow}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden />
+        {title}
+      </p>
       <p className="text-[12px] text-slate-600 mt-0.5">{sub}</p>
       <ul className="mt-2.5 space-y-1.5">
         {rows.map((r) => (

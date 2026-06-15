@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { buildWeeklyReport } from '@/lib/reports/weekly'
+import { NoAccess } from '@/components/no-access'
 import WeeklyReportClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,16 @@ export default async function WeeklyReportPage({
     await requireCapability(orgId, 'view_all_data')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
-    if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)
+    if (err instanceof HttpError && err.status === 403) {
+      return (
+        <NoAccess
+          title="Org-wide reports are for HR & owners"
+          message="The weekly performance report ranks everyone in the workspace, so it's limited to people with full-data access. You can still see your own team on the dashboard, Workload and Activity."
+          backHref={`/org/${orgId}`}
+          backLabel="Back to dashboard"
+        />
+      )
+    }
     throw err
   }
 

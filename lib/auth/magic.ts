@@ -21,19 +21,23 @@ export function hashMagicToken(token: string): string {
 export async function consumeMagicToken(token: string): Promise<string | null> {
   try {
     const hash = hashMagicToken(token)
-    const row = await db.query.magicLinks.findFirst({
-      where: and(
-        eq(schema.magicLinks.tokenHash, hash),
-        isNull(schema.magicLinks.consumedAt),
-        gt(schema.magicLinks.expiresAt, new Date())
-      ),
-    })
-    if (!row) return null
-    await db
+    // ATOMIC single-use: flip consumedAt only if it's still null AND unexpired,
+    // and return the row in the same statement. Two concurrent redemptions of
+    // the same link now race on one UPDATE — exactly one gets a row back, the
+    // other gets zero rows (→ null). The old find-then-update had a window
+    // where both reads saw an unconsumed token before either wrote.
+    const updated = await db
       .update(schema.magicLinks)
       .set({ consumedAt: new Date() })
-      .where(eq(schema.magicLinks.id, row.id))
-    return row.email
+      .where(
+        and(
+          eq(schema.magicLinks.tokenHash, hash),
+          isNull(schema.magicLinks.consumedAt),
+          gt(schema.magicLinks.expiresAt, new Date()),
+        ),
+      )
+      .returning({ email: schema.magicLinks.email })
+    return updated[0]?.email ?? null
   } catch (err) {
     // Most common cause: the `magic_links` table doesn't exist yet (forgot
     // to run `pnpm db:push`). Never let this propagate to NextAuth as a

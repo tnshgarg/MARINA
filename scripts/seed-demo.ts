@@ -49,7 +49,7 @@ type Seed = {
 // Today's date when this file ships: 2026-06-11. Birthdays + joining
 // dates are skewed so the celebrations widget, anniversaries pill,
 // blockers strip and reports KPIs all have content immediately.
-const SEED_HEROES: Seed[] = [
+const SEED_CORE: Seed[] = [
   // ─── Founders / Owners (multiple — tests "multi-root" org chart) ────────
   {
     login: 'tanish', name: 'Tanish Garg', characterKey: 'iron_knight', email: 'tanish@acmedemo.in',
@@ -207,6 +207,115 @@ const SEED_HEROES: Seed[] = [
     reportsTo: 'kavya',
   },
 ]
+
+// ─── Auto-generated filler roster ───────────────────────────────────────────
+// Pads the hand-crafted cast up to TARGET_HEADCOUNT so the demo org is big
+// enough to stress every list, grid, heatmap, org chart and manager-scope
+// filter. Fillers flow through the SAME downstream seeding as the core cast
+// (memberships, reports-to chain, 5-day shifts, GitHub events, narratives,
+// daily states) — they just don't carry the bespoke blockers/leaves that the
+// core cast uses for the scripted demo moments.
+const TARGET_HEADCOUNT = 50
+
+const FILLER_FIRST = [
+  'Aarav', 'Diya', 'Kabir', 'Ananya', 'Vivaan', 'Isha', 'Reyansh', 'Saanvi',
+  'Aditya', 'Myra', 'Kiaan', 'Anvika', 'Arnav', 'Riya', 'Vihaan', 'Navya',
+  'Dhruv', 'Paro', 'Krish', 'Aadhya', 'Yash', 'Kyra', 'Ishaan', 'Meera',
+  'Ayaan', 'Nisha', 'Rudra', 'Saira', 'Imran', 'Leela', 'Veer', 'Tanvi',
+]
+const FILLER_LAST = [
+  'Reddy', 'Gupta', 'Verma', 'Rao', 'Banerjee', 'Chopra', 'Desai',
+  'Malhotra', 'Ghosh', 'Saxena', 'Pillai', 'Bhat', 'Kulkarni', 'Nanda', 'Sinha',
+]
+// Reuse valid character keys from the core cast (column has no unique
+// constraint, so repeated avatars are fine for filler).
+const FILLER_AVATARS = [
+  'iron_knight', 'amazon', 'brightest', 'star_captain', 'web_crawler', 'outlaw',
+  'mogul', 'panther_king', 'behemoth', 'berserker', 'mercenary', 'fox_ninja',
+  'thunder_lord', 'bandit', 'chosen', 'spy', 'speedster', 'sorcerer',
+  'copy_ninja', 'scarlet_hex', 'detective', 'wild_card',
+]
+// IC discipline → job title, rotated across fillers for a realistic spread.
+const FILLER_ROLES: Array<{ discipline: Discipline; title: string }> = [
+  { discipline: 'engineering', title: 'Backend Engineer' },
+  { discipline: 'engineering', title: 'Frontend Engineer' },
+  { discipline: 'engineering', title: 'Full-stack Engineer' },
+  { discipline: 'engineering', title: 'QA Engineer' },
+  { discipline: 'engineering', title: 'Site Reliability Engineer' },
+  { discipline: 'design', title: 'Product Designer' },
+  { discipline: 'design', title: 'UX Researcher' },
+  { discipline: 'product', title: 'Product Manager' },
+  { discipline: 'product', title: 'Associate PM' },
+  { discipline: 'sales', title: 'Account Executive' },
+  { discipline: 'sales', title: 'Sales Development Rep' },
+  { discipline: 'support', title: 'Support Specialist' },
+  { discipline: 'support', title: 'Customer Success Manager' },
+  { discipline: 'marketing', title: 'Growth Marketer' },
+  { discipline: 'marketing', title: 'Content Marketer' },
+  { discipline: 'ops', title: 'Operations Analyst' },
+  { discipline: 'hr', title: 'HR Business Partner' },
+  { discipline: 'finance', title: 'Financial Analyst' },
+]
+// New mid-level managers (report to founders), each owning a slice of fillers —
+// gives the org chart real depth and gives managers real scopes to test.
+const FILLER_LEADS: Seed[] = [
+  {
+    login: 'meghna', name: 'Meghna Iyer', characterKey: 'scarlet_hex', email: 'meghna@acmedemo.in',
+    role: 'manager', discipline: 'engineering', jobTitle: 'Engineering Manager — Platform',
+    birthdayMmDd: '06-16', joinedOn: '2024-02-20', reportsTo: 'maya', extraCaps: ['manage_members'],
+  },
+  {
+    login: 'harish', name: 'Harish Menon', characterKey: 'mogul', email: 'harish@acmedemo.in',
+    role: 'manager', discipline: 'sales', jobTitle: 'Sales Manager — West',
+    birthdayMmDd: '06-20', joinedOn: '2024-06-14', reportsTo: 'tanish', extraCaps: ['manage_members'],
+  },
+  {
+    login: 'fatima', name: 'Fatima Ansari', characterKey: 'brightest', email: 'fatima@acmedemo.in',
+    role: 'manager', discipline: 'hr', jobTitle: 'People Operations Lead',
+    birthdayMmDd: '09-02', joinedOn: '2023-06-16', reportsTo: 'tanish', extraCaps: ['manage_members', 'decide_leaves'],
+  },
+]
+// Managers that fillers report to (core + new leads) so scopes overlap.
+const FILLER_MANAGERS = ['rahul', 'priya', 'kavya', 'meghna', 'harish', 'fatima']
+const FILLER_BIRTHDAYS = ['06-14', '06-15', '06-18', '01-22', '03-08', '08-30', '11-12', '02-14', '12-25', '07-04', '04-19', '10-10']
+const FILLER_JOINED = ['2024-06-14', '2023-06-16', '2025-01-10', '2024-11-03', '2023-09-21', '2025-03-15', '2024-08-08', '2022-06-15', '2025-05-02', '2024-04-12']
+
+function makeFillers(): Seed[] {
+  const out: Seed[] = [...FILLER_LEADS]
+  const need = Math.max(0, TARGET_HEADCOUNT - SEED_CORE.length - FILLER_LEADS.length)
+  for (let i = 0; i < need; i++) {
+    const first = FILLER_FIRST[i % FILLER_FIRST.length]
+    const last = FILLER_LAST[i % FILLER_LAST.length]
+    const role = FILLER_ROLES[i % FILLER_ROLES.length]
+    const login = `${first.toLowerCase()}${i + 1}`
+    // Vary working days for a few so per-person working-day + coverage logic
+    // has something to exercise: every 9th works a 6-day week, every 13th a
+    // 4-day week; the rest default to Mon–Fri.
+    const workingDays =
+      i % 9 === 0
+        ? [false, true, true, true, true, true, true]
+        : i % 13 === 0
+          ? [false, true, true, true, true, false, false]
+          : undefined
+    out.push({
+      login,
+      name: `${first} ${last}`,
+      characterKey: FILLER_AVATARS[i % FILLER_AVATARS.length],
+      email: `${login}@acmedemo.in`,
+      role: 'member',
+      discipline: role.discipline,
+      jobTitle: role.title,
+      birthdayMmDd: FILLER_BIRTHDAYS[i % FILLER_BIRTHDAYS.length],
+      joinedOn: FILLER_JOINED[i % FILLER_JOINED.length],
+      reportsTo: FILLER_MANAGERS[i % FILLER_MANAGERS.length],
+      workingDays,
+    })
+  }
+  return out
+}
+
+// Final roster = hand-crafted core cast + generated fillers, padded to 50.
+const SEED_HEROES: Seed[] = [...SEED_CORE, ...makeFillers()]
 
 async function main(): Promise<void> {
   const orgName = process.env.DEMO_ORG_NAME ?? 'Acme Demo Squad'

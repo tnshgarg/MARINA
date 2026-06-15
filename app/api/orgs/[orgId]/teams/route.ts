@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireCapability, requireMembership } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
@@ -81,6 +81,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
     }
     const name = (body.name ?? '').trim()
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
+
+    // Validate the team manager (if any) is a real active member of THIS org —
+    // never trust a raw membership id from the body (could be cross-org).
+    if (body.managerMembershipId != null) {
+      const mgr = await db.query.memberships.findFirst({
+        where: and(
+          eq(schema.memberships.id, body.managerMembershipId),
+          eq(schema.memberships.orgId, orgId),
+          isNull(schema.memberships.endedAt),
+        ),
+      })
+      if (!mgr) {
+        return NextResponse.json({ error: 'managerMembershipId is not an active member of this org' }, { status: 400 })
+      }
+    }
 
     const [team] = await db
       .insert(schema.teams)

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import { sendInviteEmail } from '@/lib/email/send'
 import type { Discipline, Role } from '@/lib/db/schema'
 
@@ -47,7 +47,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, membership } = await requireMembership(orgId, 'manager')
     const {
       email,
       role,
@@ -65,7 +65,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
     }
     const normalizedEmail = email.trim().toLowerCase()
     if (!isAllowedRole(role)) {
-      return NextResponse.json({ error: 'role must be member or manager' }, { status: 400 })
+      return NextResponse.json({ error: 'role must be member, manager, or admin' }, { status: 400 })
+    }
+    // Only an admin/owner can mint another admin. A manager inviting an admin
+    // would be a privilege-escalation path, so reject it explicitly.
+    if (role === 'admin' && !roleAtLeast(membership.role, 'admin')) {
+      return NextResponse.json(
+        { error: 'Only an owner/admin can invite another admin.' },
+        { status: 403 },
+      )
     }
     const inviteDiscipline: Discipline =
       typeof discipline === 'string' && VALID_DISCIPLINES.has(discipline as Discipline)
@@ -148,7 +156,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
 }
 
 function isAllowedRole(r: unknown): r is Role {
-  return r === 'member' || r === 'manager'
+  return r === 'member' || r === 'manager' || r === 'admin'
 }
 
 function buildInviteUrl(req: Request, token: string): string {

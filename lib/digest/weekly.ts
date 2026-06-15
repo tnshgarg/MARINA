@@ -61,6 +61,12 @@ export type Digest = {
     endDate: string
   }>
   topShipped: Array<{ title: string; url: string; type: string; repo: string }>
+  /** Hours → cost → capacity. Present when there are shifts in the week. */
+  workforce?: {
+    hoursLogged: number
+    estCostInr: number | null    // null when org hasn't set costPerHourInr
+    capacityPct: number | null   // logged vs expected full-time hours for the team
+  }
 }
 
 export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
@@ -241,6 +247,23 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
     }
   }
 
+  // Workforce: hours logged this week → estimated cost → capacity utilization.
+  const weekShifts = await db
+    .select({ punchedInAt: schema.shifts.punchedInAt, punchedOutAt: schema.shifts.punchedOutAt })
+    .from(schema.shifts)
+    .where(and(inArray(schema.shifts.userId, userIds), gte(schema.shifts.punchedInAt, weekStart)))
+  let hoursLogged = 0
+  for (const s of weekShifts) {
+    const end = s.punchedOutAt ?? now
+    hoursLogged += Math.max(0, (end.getTime() - s.punchedInAt.getTime()) / 3_600_000)
+  }
+  hoursLogged = Math.round(hoursLogged * 10) / 10
+  const costPerHour = (org as { costPerHourInr?: number | null }).costPerHourInr ?? null
+  const estCostInr = costPerHour ? Math.round(hoursLogged * costPerHour) : null
+  const expectedPerPerson = Math.max(1, org.workdayEndHour - org.workdayStartHour) * 5 // full-time week
+  const capacityPct =
+    memberRows.length > 0 ? Math.round((hoursLogged / (memberRows.length * expectedPerPerson)) * 100) : null
+
   // Out next week
   const today = isoDay(now)
   const nextWk = isoDay(nextWeekEnd)
@@ -281,6 +304,7 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
       type: e.type,
       repo: e.repo,
     })),
+    workforce: { hoursLogged, estCostInr, capacityPct },
   }
 }
 
@@ -381,6 +405,17 @@ export function renderDigestEmail(d: Digest): { subject: string; html: string; t
             </tr>
           </table>
         </td></tr>
+        ${d.workforce ? `
+        <!-- Workforce: hours → cost → capacity -->
+        <tr><td style="padding:8px 32px 0">
+          <table role="presentation" width="100%" style="background:#f4f1ea;border-radius:10px">
+            <tr>
+              ${stat(d.workforce.hoursLogged, 'hours logged')}
+              ${d.workforce.estCostInr != null ? statText(`₹${d.workforce.estCostInr.toLocaleString('en-IN')}`, 'people cost') : statText('—', 'set hourly cost')}
+              ${d.workforce.capacityPct != null ? statText(`${d.workforce.capacityPct}%`, 'capacity used') : ''}
+            </tr>
+          </table>
+        </td></tr>` : ''}
 
         <!-- Worth your attention -->
         <tr><td style="padding:24px 32px 0">
@@ -432,9 +467,14 @@ export function renderDigestEmail(d: Digest): { subject: string; html: string; t
 }
 
 function stat(n: number, label: string): string {
+  return statText(String(n), label)
+}
+
+/** Same visual as stat() but accepts a pre-formatted string value (₹, %, h). */
+function statText(value: string, label: string): string {
   return `<td align="center" style="padding:16px 8px">
-    <div style="font:600 28px Inter,sans-serif;color:#1a1f2e;letter-spacing:-0.02em">${n}</div>
-    <div style="font:12px Inter,sans-serif;color:#5e6678">${label}</div>
+    <div style="font:600 28px Inter,sans-serif;color:#1a1f2e;letter-spacing:-0.02em">${escapeHtml(value)}</div>
+    <div style="font:12px Inter,sans-serif;color:#5e6678">${escapeHtml(label)}</div>
   </td>`
 }
 

@@ -393,10 +393,16 @@ export default function SettingsClient({
             </p>
             <button
               onClick={async () => {
-                if (!confirm('Permanently delete your account and all data? This cannot be undone.')) return
-                if (!confirm('Final confirmation. Click OK to delete.')) return
+                const typed = prompt(
+                  'This permanently erases your account and all data — it cannot be undone.\n\nType your username to confirm:',
+                )
+                if (!typed) return
                 try {
-                  const res = await fetch('/api/me/account', { method: 'DELETE' })
+                  const res = await fetch('/api/me/account', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: typed.trim() }),
+                  })
                   const data = await res.json()
                   if (!res.ok) {
                     alert(data?.error || 'Failed to delete account')

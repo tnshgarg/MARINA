@@ -20,11 +20,19 @@ import { db, schema } from '@/lib/db/client'
  */
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false
-  const raw = process.env.MARINA_ADMIN_EMAILS ?? 'thetanishgarg@gmail.com'
+  // In production we REQUIRE MARINA_ADMIN_EMAILS to be set explicitly. The old
+  // fallback to a personal Gmail meant a missing env var silently granted the
+  // founder console to whoever controlled that account — a fail-open we don't
+  // want in prod. Dev keeps the convenience default so a fresh checkout works.
+  const configured = process.env.MARINA_ADMIN_EMAILS
+  const raw =
+    configured ??
+    (process.env.NODE_ENV === 'production' ? '' : 'thetanishgarg@gmail.com')
   const allow = raw
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
+  if (allow.length === 0) return false
   return allow.includes(email.toLowerCase())
 }
 

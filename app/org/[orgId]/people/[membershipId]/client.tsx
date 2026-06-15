@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/toast'
 import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 import { BlockerResolver } from '@/components/blocker-resolver'
+import { EmployeeChat } from '@/components/employee-chat'
 
 type Detail = {
   user: {
@@ -101,7 +102,7 @@ type Detail = {
   topRepos: Array<{ repo: string; events: number }>
   attendance28d: Array<{
     date: string
-    kind: 'present' | 'absent' | 'leave' | 'weekend' | 'today' | 'future'
+    kind: 'present' | 'absent' | 'leave' | 'weekend' | 'today' | 'future' | 'pre_join'
     minutesWorked: number
   }>
   last7Shifts: Array<{
@@ -137,9 +138,12 @@ type Detail = {
 export function ProfilePageClient({
   orgId,
   membershipId,
+  canViewReports = false,
 }: {
   orgId: number
   membershipId: number
+  /** Whether the viewer can open the per-employee performance report (view_all_data). */
+  canViewReports?: boolean
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -338,13 +342,15 @@ export function ProfilePageClient({
           >
             {busy === 'brief' ? 'Briefing…' : 'Brief'}
           </button>
-          <button
-            type="button"
-            onClick={openPerformanceReview}
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
-          >
-            Performance review
-          </button>
+          {canViewReports && (
+            <button
+              type="button"
+              onClick={openPerformanceReview}
+              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+            >
+              Performance review
+            </button>
+          )}
         </div>
       </section>
 
@@ -626,7 +632,9 @@ export function ProfilePageClient({
                           ? 'bg-rose-200'
                           : a.kind === 'today'
                             ? 'bg-[var(--m-accent)]'
-                            : 'bg-slate-100'
+                            : a.kind === 'pre_join'
+                              ? 'bg-slate-50'
+                              : 'bg-slate-100'
                   return (
                     <div
                       key={a.date}
@@ -706,6 +714,17 @@ export function ProfilePageClient({
           </Section>
         </div>
       </div>
+
+      {/* Ask MARINA — the USP. Full-width below the data sections so a
+          manager can scroll past the dashboards and "just ask" rather than
+          synthesising the answer from the tiles themselves. */}
+      <EmployeeChat
+        orgId={orgId}
+        membershipId={membershipId}
+        employeeFirstName={
+          (detail.user.name?.split(' ')[0] ?? `@${detail.user.login}`) || 'them'
+        }
+      />
 
       {/* Dialogs */}
       <ScheduleMeetingDialog

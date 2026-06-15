@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, not, like, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 import { withMembershipWindow } from '@/lib/auth/tenant-scope'
 import { CharacterAvatar } from '@/components/character-avatar'
-import { ActivityTabs } from '@/components/org-tabs'
 import { afterResponse } from '@/lib/after'
 import { syncUserActivity } from '@/lib/github/sync'
 
@@ -40,11 +40,25 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  // Visibility scoping: admins see every active member; managers + leads see
+  // only their reports-to chain + members of teams they manage. We filter the
+  // org-wide member list down to those before any downstream query runs.
+  let scope
+  try {
+    ;({ scope } = await requireScope(orgId, 'manager'))
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 401) redirect('/')
+    if (err instanceof HttpError && err.status === 403) redirect('/dashboard')
+    throw err
+  }
+
   const memberRows = await db
     .select({ userId: schema.memberships.userId })
     .from(schema.memberships)
     .where(and(eq(schema.memberships.orgId, orgId), sql`${schema.memberships.endedAt} IS NULL`))
-  const userIds = memberRows.map((m) => m.userId)
+  const userIds = memberRows
+    .map((m) => m.userId)
+    .filter((id) => scope.isAdminScope || scope.userIds.has(id))
 
   // We read the org separately so we can pass `trackedGithubOrgs` to the
   // auto-sync below (it filters out repos owned by orgs the workspace
@@ -179,7 +193,6 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
           {mostRecentSync ? <>Auto-sync · {timeAgo(mostRecentSync.toISOString())}</> : <>Syncing…</>}
         </p>
       </div>
-      <ActivityTabs orgId={orgId} />
 
       {/* Sync error strip — surface failed syncs so they don't silently rot */}
       {membersWithSyncErrors.length > 0 && (

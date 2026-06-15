@@ -1,8 +1,8 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, isNull, like, lt, not, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
+import { HttpError, requireScope } from '@/lib/auth/guards'
 import { CharacterAvatar } from '@/components/character-avatar'
-import { ActivityTabs } from '@/components/org-tabs'
 import { withMembershipWindow } from '@/lib/auth/tenant-scope'
 
 export const dynamic = 'force-dynamic'
@@ -30,8 +30,19 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  // Visibility scoping: admins see every active member; managers + leads see
+  // only their reports-to chain + members of teams they manage.
+  let scope
+  try {
+    ;({ scope } = await requireScope(orgId, 'manager'))
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 401) redirect('/')
+    if (err instanceof HttpError && err.status === 403) redirect('/dashboard')
+    throw err
+  }
+
   // ---- Members in this org -------------------------------------------------
-  const memberRows = await db
+  const allMemberRows = await db
     .select({
       userId: schema.memberships.userId,
       login: schema.users.login,
@@ -43,6 +54,10 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
+
+  const memberRows = scope.isAdminScope
+    ? allMemberRows
+    : allMemberRows.filter((m) => scope.userIds.has(m.userId))
 
   const userIds = memberRows.map((m) => m.userId)
   const userById = new Map(memberRows.map((m) => [m.userId, m]))
@@ -219,7 +234,6 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
         <h1 className="app-h1">Activity</h1>
         <p className="mt-1.5 text-[13px] text-slate-600">What to act on this week.</p>
       </div>
-      <ActivityTabs orgId={orgId} />
 
       <div className="grid grid-cols-12 gap-5">
         {/* Active blockers */}

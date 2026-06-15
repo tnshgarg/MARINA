@@ -159,6 +159,17 @@ export const orgs = pgTable('orgs', {
   // AI-cost ceiling per calendar month (cents-of-USD). 0 = no spend allowed.
   monthlyAiBudgetCents: integer('monthly_ai_budget_cents').notNull().default(5000),
   /**
+   * Annual paid-leave quota per leave type, in days. Drives the leave-balance
+   * UI (remaining = quota − approved-this-year). Null/empty = use
+   * DEFAULT_LEAVE_POLICY. HR edits this in Settings → Workspace.
+   */
+  leavePolicy: jsonb('leave_policy').$type<Record<string, number>>(),
+  /**
+   * Blended hourly people-cost in INR, used to turn logged hours into a rupee
+   * figure in the CEO digest / dashboard. Optional — cost cards hide when null.
+   */
+  costPerHourInr: integer('cost_per_hour_inr'),
+  /**
    * GitHub organisations whose activity the org wants to track. When set,
    * the sync filter EXCLUDES events from any repo whose owner isn't in this
    * list — so an employee's open-source contributions to unrelated orgs
@@ -1159,6 +1170,112 @@ export const announcements = pgTable(
 )
 export type Announcement = typeof announcements.$inferSelect
 export type NewAnnouncement = typeof announcements.$inferInsert
+
+/**
+ * Product analytics — every meaningful action a customer takes.
+ *
+ * Why a dedicated table (vs reusing audit logs): audit logs are
+ * privileged-action focused (decided, revoked, removed). Analytics covers
+ * *every* customer interaction — opened the dashboard, viewed a profile,
+ * generated a brief, clicked a deliverable, etc. — so we can answer
+ * "which features get adoption?" + "where do users drop off?" without
+ * mixing concerns.
+ *
+ * We store enough to do later cohort analysis (orgId, userId, timestamp)
+ * but never PII inside `payload` — that's a structured JSON for IDs and
+ * counts only. Free-form text from the user never lands here.
+ *
+ * 90-day rolling retention is enforced by `/api/cron/sweep` (cheap delete
+ * by timestamp) so the table stays under control.
+ */
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').references(() => orgs.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** A short dotted name like `dashboard.viewed`, `profile.opened`, `brief.regenerated`. */
+    kind: text('kind').notNull(),
+    /** Structured payload — never free text. e.g. `{ membershipId, fromDate, toDate }` */
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    /** Optional surface where it happened — `web`, `agent`, `slack`. */
+    surface: text('surface'),
+    sessionId: text('session_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    kindCreatedIdx: index('analytics_events_kind_created_idx').on(t.kind, t.createdAt),
+    orgCreatedIdx: index('analytics_events_org_created_idx').on(t.orgId, t.createdAt),
+  }),
+)
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect
+export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert
+
+/**
+ * Default annual paid-leave quota (days per type) when an org hasn't set its
+ * own `leavePolicy`. Sensible India-first baseline; HR can override per-org.
+ */
+export const DEFAULT_LEAVE_POLICY: Record<string, number> = {
+  casual: 12,
+  sick: 12,
+  earned: 15,
+  // The rest aren't capped by a numeric balance (statutory / case-by-case).
+}
+
+/**
+ * Attendance regularization requests. An employee disputes an auto-derived
+ * "absent" day (worked-but-didn't-punch, on approved travel, system glitch).
+ * A manager approves/denies; on approval the attendance computation treats
+ * the day as the requested kind.
+ */
+export const attendanceRegularizations = pgTable(
+  'attendance_regularizations',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** The day being regularized (YYYY-MM-DD). */
+    day: date('day').notNull(),
+    /** What the employee says the day actually was. */
+    requestedKind: text('requested_kind').$type<'present' | 'leave' | 'wfh' | 'holiday'>().notNull().default('present'),
+    note: text('note').notNull(),
+    status: text('status').$type<'pending' | 'approved' | 'denied'>().notNull().default('pending'),
+    decidedByUserId: integer('decided_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedNote: text('decided_note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgStatusIdx: index('attendance_regularizations_org_status_idx').on(t.orgId, t.status),
+    userDayIdx: index('attendance_regularizations_user_day_idx').on(t.userId, t.day),
+  }),
+)
+export type AttendanceRegularization = typeof attendanceRegularizations.$inferSelect
+export type NewAttendanceRegularization = typeof attendanceRegularizations.$inferInsert
+
+/**
+ * Performance review cycles. HR opens a cycle (e.g. "H1 2026"); MARINA tracks
+ * which members have a review on file (a performance report / narrative inside
+ * the window). 1:1 cadence is computed separately from scheduledMeetings.
+ */
+export const reviewCycles = pgTable(
+  'review_cycles',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    periodStart: date('period_start').notNull(),
+    periodEnd: date('period_end').notNull(),
+    status: text('status').$type<'open' | 'closed'>().notNull().default('open'),
+    createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('review_cycles_org_idx').on(t.orgId, t.status),
+  }),
+)
+export type ReviewCycle = typeof reviewCycles.$inferSelect
+export type NewReviewCycle = typeof reviewCycles.$inferInsert
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect

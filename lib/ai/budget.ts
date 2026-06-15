@@ -18,9 +18,7 @@ import { afterResponse } from '@/lib/after'
  * Spend is cents-of-USD (matching providers' billing units). 1 USD = 100c.
  */
 
-const MS_PER_MONTH = 31 * 24 * 60 * 60 * 1000
-
-export type SpendKind = 'vision' | 'story' | 'narrative' | 'verify_shift'
+export type SpendKind = 'vision' | 'story' | 'narrative' | 'verify_shift' | 'employee_chat'
 
 export type SpendDecision = {
   allowed: boolean
@@ -41,7 +39,9 @@ export async function canSpend(orgId: number | null, kind: SpendKind): Promise<S
   }
 
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
-  if (!org) return { allowed: true, monthSpentCents: 0, budgetCents: 0 }
+  // Fail CLOSED if the org can't be resolved — a missing/deleted org must
+  // never be treated as "unlimited budget".
+  if (!org) return { allowed: false, reason: 'org_not_found', monthSpentCents: 0, budgetCents: 0 }
 
   const spent = await monthSpendCents(orgId)
   if (spent >= org.monthlyAiBudgetCents) {
@@ -85,7 +85,11 @@ export function recordSpend(input: {
 }
 
 async function monthSpendCents(orgId: number | null): Promise<number> {
-  const since = new Date(Date.now() - MS_PER_MONTH)
+  // Spend resets on the 1st of the calendar month (matches what the schema +
+  // settings UI promise), not a rolling 31-day window that would bleed a
+  // day-1 burst across the boundary and never reset.
+  const now = new Date()
+  const since = new Date(now.getFullYear(), now.getMonth(), 1)
   const where = orgId
     ? and(eq(schema.aiSpend.orgId, orgId), gte(schema.aiSpend.createdAt, since))
     : gte(schema.aiSpend.createdAt, since)
