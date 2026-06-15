@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm db:migrate && next build",
+  "buildCommand": "pnpm db:apply:ci && next build",
   "crons": [
     {
       "path": "/api/cron/sweep",

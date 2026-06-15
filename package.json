@@ -17,6 +17,7 @@
     "db:apply":        "tsx --env-file=.env scripts/db-apply-pending.ts",
     "db:apply:dev":    "tsx --env-file=.env scripts/db-apply-pending.ts",
     "db:apply:prod":   "tsx --env-file=.env.production scripts/db-apply-pending.ts",
+    "db:apply:ci":     "tsx scripts/db-apply-pending.ts",
 
     "db:push":      "set -a && . ./.env && set +a && drizzle-kit push",
     "db:push:dev":  "set -a && . ./.env && set +a && drizzle-kit push",
