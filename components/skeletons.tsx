@@ -29,7 +29,7 @@ export function SkelStatTile() {
 
 export function SkelRow({ avatars = true }: { avatars?: boolean }) {
   return (
-    <div className="py-3 px-4 flex items-center gap-3 border-b border-slate-100 last:border-0">
+    <div className="py-3 px-4 flex items-center gap-3 border-b border-[var(--m-border-soft)] last:border-0">
       {avatars && <SkelCircle size={36} />}
       <div className="flex-1 space-y-1.5">
         <SkelBar w="60%" h={12} />

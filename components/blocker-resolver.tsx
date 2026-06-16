@@ -319,7 +319,7 @@ export function BlockerResolver({
                 type="button"
                 onClick={onClose}
                 disabled={busy !== null}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
               >
                 Close
               </button>
@@ -337,7 +337,7 @@ export function BlockerResolver({
       }
     >
       {loading && !detail && !loadError && (
-        <p className="text-[13px] text-slate-500">Loading blocker details…</p>
+        <p className="text-[13px] text-[var(--m-ink-3)]">Loading blocker details…</p>
       )}
 
       {loadError && (
@@ -345,10 +345,10 @@ export function BlockerResolver({
           <p className="text-[10.5px] uppercase tracking-wider font-semibold text-amber-700 mb-1">
             Couldn't open this blocker
           </p>
-          <p className="text-[13px] text-slate-800 leading-snug">{loadError}</p>
-          <p className="mt-2 text-[11.5px] text-slate-500">
+          <p className="text-[13px] text-[var(--m-ink)] leading-snug">{loadError}</p>
+          <p className="mt-2 text-[11.5px] text-[var(--m-ink-3)]">
             If you just deployed, the database may be missing the new blocker-thread
-            columns. Run <code className="px-1 rounded bg-slate-100 font-mono text-[11px]">pnpm db:push</code> and try again.
+            columns. Run <code className="px-1 rounded bg-[var(--m-bg-soft)] font-mono text-[11px]">pnpm db:push</code> and try again.
           </p>
         </div>
       )}
@@ -365,7 +365,7 @@ export function BlockerResolver({
 
           {/* Reason quote */}
           {detail.blocker.reason && (
-            <blockquote className="rounded-lg border-l-4 border-rose-300 bg-rose-50/40 px-3 py-2 text-[13px] text-slate-700 leading-snug italic">
+            <blockquote className="rounded-lg border-l-4 border-rose-300 bg-rose-50/40 px-3 py-2 text-[13px] text-[var(--m-ink-2)] leading-snug italic">
               "{detail.blocker.reason}"
             </blockquote>
           )}
@@ -376,7 +376,7 @@ export function BlockerResolver({
                 Resolved as {detail.blocker.resolutionType ?? 'unblocked'}
               </p>
               {detail.blocker.resolutionNote && (
-                <p className="text-[13px] text-slate-800 mt-1 leading-snug">
+                <p className="text-[13px] text-[var(--m-ink)] mt-1 leading-snug">
                   {detail.blocker.resolutionNote}
                 </p>
               )}
@@ -389,7 +389,7 @@ export function BlockerResolver({
                   <h3 className="text-[12px] uppercase tracking-wider font-semibold text-emerald-700">
                     Unblock them
                   </h3>
-                  <span className="text-[10.5px] text-slate-400">closes on their behalf</span>
+                  <span className="text-[10.5px] text-[var(--m-ink-4)]">closes on their behalf</span>
                 </div>
                 <div className="flex gap-1.5 mb-2 flex-wrap">
                   {(
@@ -406,7 +406,7 @@ export function BlockerResolver({
                       className={`text-[11.5px] font-medium px-2.5 py-1 rounded-md border transition ${
                         resolutionType === t.key
                           ? 'bg-emerald-600 border-emerald-600 text-white'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          : 'bg-white border-[var(--m-border)] text-[var(--m-ink-2)] hover:bg-[var(--m-bg-soft)]'
                       }`}
                     >
                       {t.label}
@@ -420,9 +420,9 @@ export function BlockerResolver({
                   placeholder='What changed? e.g. "Anil approved over Slack — PR is good to merge."'
                   rows={2}
                   maxLength={500}
-                  className="w-full text-[13px] border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 resize-none"
+                  className="w-full text-[13px] border border-[var(--m-border)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 resize-none"
                 />
-                <p className="mt-1 text-[10.5px] text-slate-400">
+                <p className="mt-1 text-[10.5px] text-[var(--m-ink-4)]">
                   {blockedName} gets a notification with this note.
                 </p>
               </section>
@@ -433,7 +433,7 @@ export function BlockerResolver({
                   inline so the first-time user knows when to reach for
                   which without reading the tutorial hint. */}
               <section>
-                <p className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 mb-2">
+                <p className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] mb-2">
                   Or take one of these actions
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -469,7 +469,7 @@ export function BlockerResolver({
                     <button
                       type="button"
                       onClick={() => setShowThread((s) => !s)}
-                      className="inline-flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-900 transition"
+                      className="inline-flex items-center gap-1.5 text-[12px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)] transition"
                     >
                       {showThread ? 'Hide' : 'Show'} history · {detail.thread.length} entr{detail.thread.length === 1 ? 'y' : 'ies'}
                     </button>
@@ -479,25 +479,25 @@ export function BlockerResolver({
 
               {/* Route-to-teammate form (collapsed) */}
               {showRoute && (
-                <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-                  <p className="text-[11.5px] text-slate-600">
+                <section className="rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)]/60 p-3 space-y-2">
+                  <p className="text-[11.5px] text-[var(--m-ink-2)]">
                     Pick a teammate who might be able to help unblock{' '}
                     <strong>{blockedName}</strong>. They'll get an in-app + email + Slack ping
                     {' '}plus a desktop notification if their MARINA agent is running.
                   </p>
                   {routePicked ? (
-                    <div className="flex items-center gap-2 rounded-md bg-white border border-slate-200 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-md bg-white border border-[var(--m-border)] px-2.5 py-1.5">
                       <CharacterAvatar characterKey={routePicked.characterKey} name={routePicked.name} login={routePicked.login} size={22} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                        <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                           {routePicked.name ?? `@${routePicked.login}`}
                         </p>
-                        <p className="text-[10.5px] text-slate-500 truncate">@{routePicked.login}</p>
+                        <p className="text-[10.5px] text-[var(--m-ink-3)] truncate">@{routePicked.login}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => { setRoutePicked(null); setRouteQuery('') }}
-                        className="text-[11px] text-slate-400 hover:text-slate-700"
+                        className="text-[11px] text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)]"
                       >
                         Change
                       </button>
@@ -510,23 +510,23 @@ export function BlockerResolver({
                         onChange={(e) => setRouteQuery(e.target.value)}
                         placeholder="Type a name or @login…"
                         disabled={busy !== null}
-                        className="w-full text-[13px] border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white"
+                        className="w-full text-[13px] border border-[var(--m-border)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white"
                         autoFocus
                       />
                       {routeQuery.trim() && routeOptions.length > 0 && (
-                        <ul className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg">
+                        <ul className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-[var(--m-border)] bg-white shadow-lg">
                           {routeOptions.slice(0, 6).map((u) => (
                             <li key={u.userId}>
                               <button
                                 type="button"
                                 onClick={() => { setRoutePicked(u); setRouteOptions([]); setRouteQuery('') }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-slate-50 transition"
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--m-bg-soft)] transition"
                               >
                                 <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={20} />
-                                <span className="text-[12.5px] text-slate-900 truncate">
+                                <span className="text-[12.5px] text-[var(--m-ink)] truncate">
                                   {u.name ?? `@${u.login}`}
                                 </span>
-                                <span className="ml-auto shrink-0 text-[10.5px] text-slate-400">
+                                <span className="ml-auto shrink-0 text-[10.5px] text-[var(--m-ink-4)]">
                                   @{u.login}
                                 </span>
                               </button>
@@ -543,14 +543,14 @@ export function BlockerResolver({
                     placeholder={'Optional note (e.g. "You set up the auth flow last sprint — got a minute?")'}
                     rows={2}
                     maxLength={500}
-                    className="w-full text-[13px] border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white resize-none"
+                    className="w-full text-[13px] border border-[var(--m-border)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white resize-none"
                   />
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => { setShowRoute(false); setRoutePicked(null); setRouteQuery(''); setRouteNote('') }}
                       disabled={busy !== null}
-                      className="text-[11.5px] text-slate-500 hover:text-slate-900"
+                      className="text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
                     >
                       Cancel
                     </button>
@@ -568,7 +568,7 @@ export function BlockerResolver({
 
               {/* Suggestion form (collapsed) */}
               {showSuggest && (
-                <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+                <section className="rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)]/60 p-3 space-y-2">
                   <textarea
                     value={suggestion}
                     onChange={(e) => setSuggestion(e.target.value)}
@@ -576,14 +576,14 @@ export function BlockerResolver({
                     placeholder='Path forward without the original dependency. Goes to the employee as a notification.'
                     rows={2}
                     maxLength={2000}
-                    className="w-full text-[13px] border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-200 resize-none bg-white"
+                    className="w-full text-[13px] border border-[var(--m-border)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-200 resize-none bg-white"
                   />
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => { setShowSuggest(false); setSuggestion('') }}
                       disabled={busy !== null}
-                      className="text-[11.5px] text-slate-500 hover:text-slate-900"
+                      className="text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
                     >
                       Cancel
                     </button>
@@ -603,8 +603,8 @@ export function BlockerResolver({
 
           {/* Thread (collapsed by default) */}
           {(showThread || isResolved) && detail.thread.length > 0 && (
-            <section className="border-t border-slate-100 pt-3">
-              <p className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 mb-2">
+            <section className="border-t border-[var(--m-border-soft)] pt-3">
+              <p className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] mb-2">
                 History
               </p>
               <ul className="space-y-2.5">
@@ -613,17 +613,17 @@ export function BlockerResolver({
                     <CharacterAvatar characterKey={t.author?.characterKey ?? null} size={22} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[12px] font-medium text-slate-900">
+                        <span className="text-[12px] font-medium text-[var(--m-ink)]">
                           {t.author?.name ?? t.author?.login ?? 'Unknown'}
                         </span>
                         <span className={`text-[9.5px] uppercase tracking-wider font-semibold ${KIND_COLOR[t.kind]}`}>
                           {t.kind}
                         </span>
-                        <span className="ml-auto shrink-0 text-[10.5px] text-slate-400 tabular-nums">
+                        <span className="ml-auto shrink-0 text-[10.5px] text-[var(--m-ink-4)] tabular-nums">
                           {timeAgoShort(t.createdAt)}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-[12.5px] text-slate-700 leading-snug whitespace-pre-line">
+                      <p className="mt-0.5 text-[12.5px] text-[var(--m-ink-2)] leading-snug whitespace-pre-line">
                         {t.body}
                       </p>
                     </div>
@@ -641,7 +641,7 @@ export function BlockerResolver({
 const KIND_COLOR: Record<string, string> = {
   nudge:       'text-amber-700',
   suggestion:  'text-sky-700',
-  note:        'text-slate-600',
+  note:        'text-[var(--m-ink-2)]',
   resolution:  'text-emerald-700',
 }
 
@@ -697,15 +697,15 @@ function ActionCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group relative text-left rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-[var(--m-shadow)] transition-all p-3 disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`group relative text-left rounded-xl border border-[var(--m-border)] bg-white hover:border-[var(--m-border)] hover:shadow-[var(--m-shadow)] transition-all p-3 disabled:opacity-50 disabled:cursor-not-allowed ${
         active ? `ring-2 ${palette.ring}` : ''
       }`}
     >
       <div className={`w-8 h-8 rounded-lg ${palette.bg} ${palette.icon} inline-flex items-center justify-center mb-2`}>
         {icon}
       </div>
-      <p className="text-[13px] font-semibold text-slate-900 leading-snug">{title}</p>
-      <p className="mt-0.5 text-[11.5px] text-slate-500 leading-snug">{sub}</p>
+      <p className="text-[13px] font-semibold text-[var(--m-ink)] leading-snug">{title}</p>
+      <p className="mt-0.5 text-[11.5px] text-[var(--m-ink-3)] leading-snug">{sub}</p>
     </button>
   )
 }

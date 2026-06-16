@@ -204,9 +204,9 @@ export default function MembersClient({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-[14px] font-semibold text-slate-900">Invite a teammate</h2>
-        <p className="text-[12px] text-slate-500 mt-0.5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
+        <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">Invite a teammate</h2>
+        <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5">
           Pick their team role and discipline so they land in the right view from day one.
         </p>
         <form onSubmit={invite} className="mt-3 space-y-2">
@@ -267,14 +267,14 @@ export default function MembersClient({
             <button
               type="submit"
               disabled={busy}
-              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+              className="px-4 py-2 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             >
               {busy ? 'Sending…' : 'Send invite'}
             </button>
           </div>
         </form>
         {lastInviteLink && (
-          <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700">
+          <div className="mt-3 rounded-lg bg-[var(--m-bg-soft)] border border-[var(--m-border)] px-3 py-2 text-[12px] text-[var(--m-ink-2)]">
             {linkSent === false && (
               <p className="mb-1 text-amber-700 font-medium">No email provider configured — copy this link to send manually:</p>
             )}
@@ -285,7 +285,7 @@ export default function MembersClient({
               <code className="break-all text-[11.5px]">{lastInviteLink}</code>
               <button
                 onClick={() => copyLink(lastInviteLink)}
-                className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11px] font-medium text-slate-700 transition"
+                className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11px] font-medium text-[var(--m-ink-2)] transition"
               >
                 {copied === lastInviteLink ? 'Copied' : 'Copy'}
               </button>
@@ -295,27 +295,27 @@ export default function MembersClient({
         {error && <p className="mt-3 text-[12px] text-rose-600">{error}</p>}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-          <h2 className="text-[13px] font-semibold text-slate-900">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold text-[var(--m-ink)]">
             Pending invites
-            <span className="ml-1.5 text-slate-400 tabular-nums">{pendingInvites.length}</span>
+            <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">{pendingInvites.length}</span>
           </h2>
         </div>
         {pendingInvites.length === 0 ? (
-          <p className="px-4 py-5 text-[12.5px] text-slate-500">No outstanding invites.</p>
+          <p className="px-4 py-5 text-[12.5px] text-[var(--m-ink-3)]">No outstanding invites.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {pendingInvites.map((i) => {
               const url = inviteUrl(i.token)
               return (
                 <li key={i.id} className="px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                    <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                       {i.email}
-                      {i.jobTitle && <span className="text-slate-400 font-normal"> · {i.jobTitle}</span>}
+                      {i.jobTitle && <span className="text-[var(--m-ink-4)] font-normal"> · {i.jobTitle}</span>}
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[var(--m-ink-3)]">
                       {i.role}
                       {i.discipline !== 'other' && <> · {DISCIPLINE_BADGE_LABEL[i.discipline] ?? i.discipline}</>}
                       {' · expires '}{new Date(i.expiresAt).toLocaleDateString()}
@@ -324,7 +324,7 @@ export default function MembersClient({
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => copyLink(url)}
-                      className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+                      className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition"
                     >
                       {copied === url ? 'Copied' : 'Copy link'}
                     </button>
@@ -350,11 +350,11 @@ export default function MembersClient({
           scroll. The header is sticky-ish (just a top divider) and the row
           truncates each cell so long emails never push the actions off
           screen. */}
-      <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-[13px] font-semibold text-slate-900">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-[13px] font-semibold text-[var(--m-ink)]">
             All members
-            <span className="ml-1.5 text-slate-400 tabular-nums">{members.length}</span>
+            <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">{members.length}</span>
           </h2>
           <input
             type="search"
@@ -371,7 +371,7 @@ export default function MembersClient({
             sits visually on top of the NAME, not the avatar.
             Hidden on mobile — the row layout below collapses to a stacked
             card and column headers don't make sense there. */}
-        <div className="hidden md:grid grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-2.5 border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+        <div className="hidden md:grid grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-2.5 border-b border-[var(--m-border-soft)] text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-medium">
           <span aria-hidden></span>
           <span>Member</span>
           <span>Role</span>
@@ -380,9 +380,9 @@ export default function MembersClient({
         </div>
 
         {filteredMembers.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-slate-500">No matching members.</p>
+          <p className="px-4 py-10 text-center text-[13px] text-[var(--m-ink-3)]">No matching members.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {filteredMembers.map((m) => {
               const hero = getCharacter(m.characterKey)
               const roleClass =
@@ -392,7 +392,7 @@ export default function MembersClient({
               return (
                 <li
                   key={m.membershipId}
-                  className="grid grid-cols-[44px_minmax(0,1fr)_auto] md:grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-3 hover:bg-slate-50/60 transition-colors"
+                  className="grid grid-cols-[44px_minmax(0,1fr)_auto] md:grid-cols-[44px_minmax(0,1.4fr)_minmax(0,160px)_minmax(0,1.2fr)_minmax(0,170px)] gap-3 items-center px-4 py-3 hover:bg-[var(--m-bg-soft)]/60 transition-colors"
                 >
                   {/* Avatar */}
                   <CharacterAvatar
@@ -409,17 +409,17 @@ export default function MembersClient({
                     href={`/org/${orgId}/people/${m.membershipId}`}
                     className="min-w-0 block hover:text-[var(--m-accent)] transition-colors"
                   >
-                    <p className="text-[13px] font-medium text-slate-900 truncate">
+                    <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
                       {m.name ?? `@${m.login}`}
                     </p>
-                    <p className="text-[11.5px] text-slate-500 truncate">
+                    <p className="text-[11.5px] text-[var(--m-ink-3)] truncate">
                       {m.jobTitle ?? (hero ? hero.name : `@${m.login}`)}
                     </p>
                     {/* Mobile-only mini meta row */}
                     <div className="md:hidden mt-1 flex items-center gap-1.5 min-w-0">
                       <span className={`pill ${roleClass}`}>{m.role}</span>
                       {m.email && (
-                        <span className="text-[10.5px] text-slate-500 truncate">
+                        <span className="text-[10.5px] text-[var(--m-ink-3)] truncate">
                           {m.email}
                         </span>
                       )}
@@ -430,14 +430,14 @@ export default function MembersClient({
                   <div className="hidden md:block min-w-0">
                     <span className={`pill ${roleClass}`}>{m.role}</span>
                     {m.discipline !== 'other' && (
-                      <p className="mt-0.5 text-[10.5px] uppercase tracking-wider text-slate-500 truncate">
+                      <p className="mt-0.5 text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] truncate">
                         {DISCIPLINE_BADGE_LABEL[m.discipline] ?? m.discipline}
                       </p>
                     )}
                   </div>
 
                   {/* Email — desktop only column */}
-                  <p className="hidden md:block text-[12.5px] text-slate-600 truncate min-w-0" title={m.email ?? undefined}>
+                  <p className="hidden md:block text-[12.5px] text-[var(--m-ink-2)] truncate min-w-0" title={m.email ?? undefined}>
                     {m.email ?? '—'}
                   </p>
 
@@ -446,7 +446,7 @@ export default function MembersClient({
                     {canViewReports && (
                       <button
                         onClick={() => setReportFor(m)}
-                        className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition whitespace-nowrap"
+                        className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition whitespace-nowrap"
                         title="Generate a performance review PDF for this employee"
                       >
                         Report
@@ -524,7 +524,7 @@ function ReportRangePicker({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium transition"
+            className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium transition"
           >
             Cancel
           </button>
@@ -535,8 +535,8 @@ function ReportRangePicker({
             aria-disabled={!valid}
             className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition ${
               valid
-                ? 'bg-slate-900 hover:bg-slate-700 text-white'
-                : 'bg-slate-200 text-slate-400 pointer-events-none'
+                ? 'bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white'
+                : 'bg-[var(--m-border)] text-[var(--m-ink-4)] pointer-events-none'
             }`}
           >
             Open report →
@@ -580,14 +580,14 @@ function ReportRangePicker({
               key={p.days}
               type="button"
               onClick={() => preset(p.days)}
-              className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+              className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition"
             >
               {p.label}
             </button>
           ))}
         </div>
 
-        <p className="text-[12px] text-slate-500 leading-relaxed">
+        <p className="text-[12px] text-[var(--m-ink-3)] leading-relaxed">
           The PDF combines hours worked, focus %, deliverables shipped, blockers, meetings
           and a short AI-written summary grounded on those numbers. Nothing else gets sent
           to the model — your team's privacy stays intact.

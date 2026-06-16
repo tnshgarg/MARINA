@@ -87,10 +87,10 @@ export default function RegularizationsQueueClient({
             {pending.length}
           </span>
         </h2>
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <ul className="divide-y divide-slate-100">
+        <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {pending.length === 0 && (
-              <li className="px-5 py-10 text-center text-[12.5px] text-slate-500">
+              <li className="px-5 py-10 text-center text-[12.5px] text-[var(--m-ink-3)]">
                 No pending requests. You’re all caught up.
               </li>
             )}
@@ -111,8 +111,8 @@ export default function RegularizationsQueueClient({
       {decided.length > 0 && (
         <section>
           <h2 className="app-h3 mb-2">Recently decided</h2>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <ul className="divide-y divide-slate-100">
+          <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+            <ul className="divide-y divide-[var(--m-border-soft)]">
               {decided.map((r) => (
                 <RegRow
                   key={r.id}
@@ -151,18 +151,18 @@ function RegRow({
       />
       <div className="flex-1 min-w-[200px]">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[13px] font-medium text-slate-900">
+          <p className="text-[13px] font-medium text-[var(--m-ink)]">
             {r.user.name ?? `@${r.user.login}`}
           </p>
           <span className="pill pill-slate">{KIND_LABELS[r.requestedKind]}</span>
           <span className={`pill ${STATUS_PILL[r.status]}`}>{r.status}</span>
         </div>
-        <p className="text-[11.5px] text-slate-500 mt-0.5">
+        <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
           {fmtDay(r.day)} · submitted {timeAgo(r.createdAt)}
         </p>
-        <p className="mt-1.5 text-[12.5px] text-slate-700 leading-snug">{r.note}</p>
+        <p className="mt-1.5 text-[12.5px] text-[var(--m-ink-2)] leading-snug">{r.note}</p>
         {r.status !== 'pending' && r.decidedNote && (
-          <p className="mt-1 text-[11.5px] text-slate-500">Manager note: {r.decidedNote}</p>
+          <p className="mt-1 text-[11.5px] text-[var(--m-ink-3)]">Manager note: {r.decidedNote}</p>
         )}
       </div>
       <DecisionActions reg={r} busy={busy} isSelf={isSelf} onDecide={onDecide} />
@@ -190,7 +190,7 @@ function DecisionActions({
 
   if (isSelf) {
     return (
-      <span className="self-center text-[11.5px] text-slate-400">Your request</span>
+      <span className="self-center text-[11.5px] text-[var(--m-ink-4)]">Your request</span>
     )
   }
 
@@ -198,14 +198,14 @@ function DecisionActions({
     return (
       <div className="flex gap-1.5 self-center">
         <button
-          className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
+          className="px-2.5 py-1 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium disabled:opacity-50 transition"
           disabled={busy === `${r.id}-approve`}
           onClick={() => onDecide('approve')}
         >
           {busy === `${r.id}-approve` ? '…' : 'Approve'}
         </button>
         <button
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium disabled:opacity-50 transition"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium disabled:opacity-50 transition"
           disabled={busy === `${r.id}-deny`}
           onClick={() => onDecide('deny')}
         >
@@ -224,14 +224,14 @@ function DecisionActions({
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11.5px] font-medium transition"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[11.5px] font-medium transition"
         >
           Change decision
         </button>
       ) : (
         <>
           <button
-            className="px-2.5 py-1 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-[11.5px] font-medium disabled:opacity-50 transition"
+            className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)] text-[11.5px] font-medium disabled:opacity-50 transition"
             disabled={busy === `${r.id}-${flipTo}`}
             onClick={() => onDecide(flipTo)}
           >
@@ -239,7 +239,7 @@ function DecisionActions({
           </button>
           <button
             onClick={() => setOpen(false)}
-            className="text-[11px] text-slate-400 hover:text-slate-600 px-1"
+            className="text-[11px] text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] px-1"
             aria-label="Close decision actions"
           >
             ×

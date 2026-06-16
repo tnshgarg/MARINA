@@ -64,7 +64,7 @@ export default async function OrgRegularizationsPage({
     <>
       <div className="mb-5">
         <h1 className="app-h1">Attendance Regularization</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Review and decide attendance corrections your team submits for days that
           were auto-marked absent.
         </p>

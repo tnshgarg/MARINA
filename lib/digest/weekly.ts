@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, inArray, like, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 
 /**
@@ -84,6 +85,8 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
       login: schema.users.login,
       name: schema.users.name,
       hasGithub: schema.users.accessToken,
+      githubId: schema.users.githubId,
+      githubLogin: schema.users.githubLogin,
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
@@ -109,7 +112,7 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
     }
   }
 
-  const NOT_SEED = not(like(schema.githubEvents.externalId, 'seed-%'))
+  const NOT_SEED = hideSeedRows(schema.githubEvents.externalId)
 
   const [eventsThis, eventsPrev, blockerRows, pendingLeavesCount, leavesNextWeek, topPRs] =
     await Promise.all([
@@ -233,8 +236,9 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
       detail: `Blocked since ${humanDuration(Date.now() - new Date(b.startedAt).getTime())} ago. ${b.reason ?? ''}`.trim(),
     })
   }
-  // Quiet members — no commits in last 7 days but have GitHub linked
-  const githubLinked = memberRows.filter((m) => !!m.hasGithub)
+  // Quiet members — no commits in last 7 days but have GitHub linked. "Linked"
+  // now includes an invite-supplied github username (the App attributes by it).
+  const githubLinked = memberRows.filter((m) => !!m.hasGithub || m.githubId != null || !!m.githubLogin)
   for (const m of githubLinked) {
     if (attention.length >= 5) break
     if (!byUserThis.has(m.userId) || (byUserThis.get(m.userId)?.commits ?? 0) === 0) {
@@ -292,7 +296,10 @@ export async function buildWeeklyDigest(orgId: number): Promise<Digest | null> {
       activeBlockers: blockerRows.length,
       pendingLeaves: pendingLeavesCount.length,
       onLeaveNextWeek: outNextWeek.length,
-      membersWithoutGithub: memberRows.filter((m) => !m.hasGithub).length,
+      // "Linked" means an OAuth token, a known githubId, OR a github username
+      // captured at invite — the App attributes by any of these without a
+      // per-user OAuth token.
+      membersWithoutGithub: memberRows.filter((m) => !m.hasGithub && m.githubId == null && !m.githubLogin).length,
     },
     velocity: { deltaPct },
     standouts,

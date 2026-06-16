@@ -88,7 +88,22 @@ function registerPairingIpc(onPaired) {
             return { ok: true, login: res.user.login };
         }
         catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
+            // Surface the server's friendly error (e.g. "invalid or expired code")
+            // rather than the raw "410 /api/agent/pair/complete". Network failures
+            // (status 0 — usually a wrong/unreachable server URL) keep their
+            // "network: …" message so a bad URL is obvious.
+            let msg;
+            if (err instanceof api_1.ApiError) {
+                const bodyErr = err.body && typeof err.body === 'object' && 'error' in err.body
+                    ? String(err.body.error)
+                    : null;
+                msg = bodyErr
+                    ? `${bodyErr}${err.status ? ` (${err.status})` : ''}`
+                    : err.message;
+            }
+            else {
+                msg = err instanceof Error ? err.message : String(err);
+            }
             return { ok: false, error: msg };
         }
     });

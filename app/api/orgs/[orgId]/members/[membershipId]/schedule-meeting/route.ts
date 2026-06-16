@@ -258,6 +258,9 @@ export async function POST(
         conferenceUrl,
       },
       googleError,
+      // false → organiser hasn't connected Google Calendar, so the meeting is
+      // in-app + email only (no Google event / Meet link). The UI nudges them.
+      calendarConnected: !!calendarToken,
     })
   } catch (err) {
     if (err instanceof HttpError) {

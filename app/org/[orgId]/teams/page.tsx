@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
 import { hasCap } from '@/lib/auth/capabilities'
+import { getVisibleScope } from '@/lib/auth/scope'
 import TeamsClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -45,35 +46,51 @@ export default async function TeamsPage({
     'manage_members',
   )
 
-  // Pull every active membership + user — used to populate the picker AND
-  // the org chart.
-  const memberRows = await db
+  // RBAC: a team-scoped manager must NOT see the whole org's people + org chart.
+  // Scope everything to the viewer's visible set (admins / view_all_data → all).
+  const scope = await getVisibleScope(orgId, {
+    userId: session.appUserId,
+    membershipId: viewerMembership.id,
+    role: viewerMembership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
+
+  const allMemberRows = await db
     .select({ m: schema.memberships, u: schema.users })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
     .orderBy(asc(schema.users.name))
+  const memberRows = scope.isAdminScope ? allMemberRows : allMemberRows.filter((r) => scope.membershipIds.has(r.m.id))
+  const visibleMemIds = new Set(memberRows.map((r) => r.m.id))
 
-  const teamRows = await db
+  const allTeamRows = await db
     .select()
     .from(schema.teams)
     .where(eq(schema.teams.orgId, orgId))
     .orderBy(asc(schema.teams.name))
-  const teamIds = teamRows.map((t) => t.id)
-  const teamMemberRows = teamIds.length
-    ? await db
-        .select()
-        .from(schema.teamMembers)
-        .where(inArray(schema.teamMembers.teamId, teamIds))
+  const allTeamIds = allTeamRows.map((t) => t.id)
+  const allTeamMemberRows = allTeamIds.length
+    ? await db.select().from(schema.teamMembers).where(inArray(schema.teamMembers.teamId, allTeamIds))
     : []
+  // Only teams the viewer manages or that contain someone they can see.
+  const teamRows = scope.isAdminScope
+    ? allTeamRows
+    : allTeamRows.filter(
+        (t) =>
+          (t.managerMembershipId != null && scope.membershipIds.has(t.managerMembershipId)) ||
+          allTeamMemberRows.some((tm) => tm.teamId === t.id && visibleMemIds.has(tm.membershipId)),
+      )
+  const teamIdSet = new Set(teamRows.map((t) => t.id))
+  const teamMemberRows = allTeamMemberRows.filter(
+    (tm) => teamIdSet.has(tm.teamId) && (scope.isAdminScope || visibleMemIds.has(tm.membershipId)),
+  )
 
-  // Multi-manager rows. We catch() so a missing table (fresh DB without
-  // the migration applied) degrades to "everyone has at most one manager"
-  // instead of crashing the whole page.
-  const managerRows = await db
-    .select()
-    .from(schema.membershipManagers)
-    .catch(() => [])
+  // Multi-manager rows. We catch() so a missing table (fresh DB without the
+  // migration applied) degrades gracefully. Only keep edges where BOTH endpoints
+  // are visible, so the chart never references a person outside scope.
+  const managerRows = (await db.select().from(schema.membershipManagers).catch(() => [])).filter(
+    (r) => scope.isAdminScope || (visibleMemIds.has(r.membershipId) && visibleMemIds.has(r.managerMembershipId)),
+  )
   const managerEdges = new Map<number, number[]>()
   for (const r of managerRows) {
     if (!managerEdges.has(r.membershipId)) managerEdges.set(r.membershipId, [])
@@ -87,11 +104,12 @@ export default async function TeamsPage({
       viewerMembershipId={viewerMembership.id}
       canEdit={canEdit}
       members={memberRows.map((r) => {
-        const fromTable = managerEdges.get(r.m.id) ?? []
-        // Legacy primary manager column also counts — include it so we
-        // don't lose edges while the live DB transitions to the m:n model.
+        const fromTable = (managerEdges.get(r.m.id) ?? []).filter((id) => scope.isAdminScope || visibleMemIds.has(id))
+        // Legacy primary manager column also counts — but only if that manager
+        // is in scope, so we never draw an edge to a hidden person.
         const legacy = r.m.reportsToMembershipId
-        const all = Array.from(new Set([...fromTable, ...(legacy ? [legacy] : [])]))
+        const legacyVisible = legacy != null && (scope.isAdminScope || visibleMemIds.has(legacy)) ? legacy : null
+        const all = Array.from(new Set([...fromTable, ...(legacyVisible ? [legacyVisible] : [])]))
         return {
           membershipId: r.m.id,
           userId: r.u.id,
@@ -102,7 +120,7 @@ export default async function TeamsPage({
           role: r.m.role,
           discipline: r.m.discipline,
           jobTitle: r.m.jobTitle ?? null,
-          reportsToMembershipId: legacy ?? null,
+          reportsToMembershipId: legacyVisible,
           managerMembershipIds: all,
         }
       })}

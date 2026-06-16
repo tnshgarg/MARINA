@@ -5,6 +5,7 @@ import { db, schema } from '@/lib/db/client'
 import { HttpError, listMembershipsForCurrentUser, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import { capabilitiesFor } from '@/lib/auth/capabilities'
 import { getVisibleScope } from '@/lib/auth/scope'
+import { isTestMode } from '@/lib/dev-state'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
 import { AnnouncementBanner } from '@/components/announcement-banner'
@@ -89,9 +90,9 @@ export default async function OrgLayout({
     ),
   })
   const integrations = {
-    github: (org as { githubInstallationId?: number | null }).githubInstallationId != null,
-    calendar: !!myCalendar,
-    slack: !!org.slackBotToken,
+    github: isTestMode() || (org as { githubInstallationId?: number | null }).githubInstallationId != null,
+    calendar: isTestMode() || !!myCalendar,
+    slack: isTestMode() || !!org.slackBotToken,
   }
 
   return (

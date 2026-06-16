@@ -47,7 +47,7 @@ export default function WeeklyReportClient({
       <div className="mb-3 flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Weekly report</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Last 7 days · {report.weekStart} → {report.weekEnd} · graded across focus, ship rate,
             on-time arrivals, and blocker tax.
           </p>
@@ -74,7 +74,7 @@ export default function WeeklyReportClient({
       {/* Headline KPIs — same typography-led treatment as the org dashboard
           so the two surfaces read as one product. Big number on the left,
           quiet label on the right, no boxes around them. */}
-      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-slate-200">
+      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-[var(--m-border)]">
         <Stat label="members" value={String(report.totals.members)} />
         <Stat
           label="avg focus"
@@ -90,7 +90,7 @@ export default function WeeklyReportClient({
       </div>
 
       {/* Filter strip */}
-      <div className="mb-3 inline-flex bg-white border border-slate-200 rounded-lg p-0.5">
+      <div className="mb-3 inline-flex bg-white border border-[var(--m-border)] rounded-lg p-0.5">
         {(['all', 'exceptional', 'steady', 'watch', 'struggling'] as const).map((b) => {
           const count = b === 'all' ? report.rows.length : report.rows.filter((r) => r.band === b).length
           return (
@@ -100,12 +100,12 @@ export default function WeeklyReportClient({
               onClick={() => setBand(b)}
               className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition ${
                 band === b
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'bg-[var(--m-ink)] text-white shadow-sm'
+                  : 'text-[var(--m-ink-2)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)]'
               }`}
             >
               {b === 'all' ? 'All' : BAND_LABEL[b]}
-              <span className="ml-1 text-slate-400 tabular-nums">{count}</span>
+              <span className="ml-1 text-[var(--m-ink-4)] tabular-nums">{count}</span>
             </button>
           )
         })}
@@ -137,7 +137,7 @@ export default function WeeklyReportClient({
 
       {/* Full grid */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+        <div className="rounded-xl border border-[var(--m-border)] bg-white px-6 py-10 text-center">
           <p className="font-display text-[20px] text-[var(--m-ink)] leading-tight">
             Nobody in this band this week.
           </p>
@@ -158,35 +158,35 @@ export default function WeeklyReportClient({
 function Row({ row, rank, orgId }: { row: WeeklyRow; rank: number | null; orgId: number }) {
   const reportUrl = `/org/${orgId}/reports/performance?userId=${row.userId}`
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex items-center gap-3 flex-wrap">
+    <div className="rounded-xl border border-[var(--m-border)] bg-white px-4 py-3 flex items-center gap-3 flex-wrap">
       {rank !== null && (
-        <span className="w-7 text-[13px] font-semibold tabular-nums text-slate-400 text-right">
+        <span className="w-7 text-[13px] font-semibold tabular-nums text-[var(--m-ink-4)] text-right">
           {rank}
         </span>
       )}
       <CharacterAvatar characterKey={row.characterKey} name={row.name} login={row.login} size={36} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <p className="text-[13.5px] font-medium text-slate-900 truncate">{row.name}</p>
+          <p className="text-[13.5px] font-medium text-[var(--m-ink)] truncate">{row.name}</p>
           <span className={`inline-flex items-center text-[10.5px] font-medium px-1.5 py-0.5 rounded-full ${BAND_TONE[row.band]}`}>
             {BAND_LABEL[row.band]}
           </span>
         </div>
-        <p className="text-[11.5px] text-slate-500 truncate">
+        <p className="text-[11.5px] text-[var(--m-ink-3)] truncate">
           {row.jobTitle ?? row.discipline} · {row.hours}h · {row.focusPct}% focus · {row.deliverables} shipped
           {row.blockersFaced > 0 && (
             <span className="text-[var(--m-bad)]"> · {row.blockersFaced} blocker{row.blockersFaced === 1 ? '' : 's'} ({row.blockersHours}h)</span>
           )}
         </p>
         {row.highlight && (
-          <p className="text-[11.5px] text-slate-700 truncate italic mt-0.5">
+          <p className="text-[11.5px] text-[var(--m-ink-2)] truncate italic mt-0.5">
             ✓ {row.highlight}
           </p>
         )}
       </div>
       <div className="shrink-0 flex items-center gap-3">
         <div className="text-right">
-          <p className="text-[11px] uppercase tracking-wider text-slate-400">Score</p>
+          <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-4)]">Score</p>
           <p className={`text-[22px] font-semibold leading-none tabular-nums tracking-tight ${scoreColor(row.score)}`}>
             {row.score}
           </p>
@@ -195,7 +195,7 @@ function Row({ row, rank, orgId }: { row: WeeklyRow; rank: number | null; orgId:
           href={reportUrl}
           target="_blank"
           rel="noreferrer"
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition whitespace-nowrap"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition whitespace-nowrap"
         >
           Report →
         </a>
@@ -228,18 +228,18 @@ function CalloutBlock({
         <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden />
         {title}
       </p>
-      <p className="text-[12px] text-slate-600 mt-0.5">{sub}</p>
+      <p className="text-[12px] text-[var(--m-ink-2)] mt-0.5">{sub}</p>
       <ul className="mt-2.5 space-y-1.5">
         {rows.map((r) => (
           <li key={r.userId} className="flex items-center gap-2.5">
             <CharacterAvatar characterKey={r.characterKey} name={r.name} login={r.login} size={24} />
-            <span className="text-[12.5px] font-medium text-slate-900 truncate flex-1">{r.name}</span>
-            <span className="text-[11.5px] text-slate-500">{r.score} pts</span>
+            <span className="text-[12.5px] font-medium text-[var(--m-ink)] truncate flex-1">{r.name}</span>
+            <span className="text-[11.5px] text-[var(--m-ink-3)]">{r.score} pts</span>
             <a
               href={`/org/${orgId}/reports/performance?userId=${r.userId}`}
               target="_blank"
               rel="noreferrer"
-              className="text-[11px] text-slate-600 hover:text-slate-900 underline"
+              className="text-[11px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] underline"
             >
               PDF
             </a>
@@ -266,11 +266,11 @@ function Stat({
     tone === 'good' ? 'text-[var(--m-good)]' :
     tone === 'warn' ? 'text-amber-700' :
     tone === 'bad' ? 'text-rose-700' :
-    'text-slate-900'
+    'text-[var(--m-ink)]'
   return (
     <div className="flex items-baseline gap-1.5">
       <span className={`text-[22px] font-semibold tabular-nums tracking-tight ${color}`}>{value}</span>
-      <span className="text-[12px] text-slate-500">{label}</span>
+      <span className="text-[12px] text-[var(--m-ink-3)]">{label}</span>
     </div>
   )
 }

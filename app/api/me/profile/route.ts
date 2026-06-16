@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
+import { normalizeGithubUsername } from '@/lib/github/username'
 
 export const runtime = 'nodejs'
 
@@ -15,6 +16,7 @@ export async function GET() {
     return NextResponse.json({
       birthdayMmDd: me?.birthdayMmDd ?? null,
       joinedOn: me?.joinedOn ?? null,
+      githubLogin: me?.githubLogin ?? null,
     })
   } catch (e) {
     if (e instanceof HttpError) {
@@ -36,7 +38,7 @@ export async function GET() {
  *     user can edit their own birthday and join date; HR sees it read-only.
  */
 export async function PATCH(req: Request) {
-  let body: { birthdayMmDd?: string | null; joinedOn?: string | null }
+  let body: { birthdayMmDd?: string | null; joinedOn?: string | null; githubLogin?: string | null }
   try {
     body = (await req.json()) ?? {}
   } catch {
@@ -47,6 +49,17 @@ export async function PATCH(req: Request) {
     const session = await requireSession()
 
     const patch: Record<string, string | null> = {}
+    if (body.githubLogin !== undefined) {
+      if (body.githubLogin === null || body.githubLogin.trim() === '') {
+        patch.githubLogin = null
+      } else {
+        const normalized = normalizeGithubUsername(body.githubLogin)
+        if (!normalized) {
+          return NextResponse.json({ error: "That doesn't look like a valid GitHub username." }, { status: 400 })
+        }
+        patch.githubLogin = normalized
+      }
+    }
     if (body.birthdayMmDd !== undefined) {
       if (body.birthdayMmDd === null || body.birthdayMmDd === '') {
         patch.birthdayMmDd = null

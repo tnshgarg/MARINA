@@ -599,46 +599,90 @@ async function main(): Promise<void> {
     'fix: prevent double-submit on leave form',
     'perf: memoize heavy avatar SVG',
   ]
-  const events = []
+  const DAY = 24 * 60 * 60 * 1000
+  const STATUSES = ['merged', 'merged', 'open', 'in_review', 'closed', 'draft'] as const
+  const VERDICTS = ['APPROVED', 'APPROVED', 'CHANGES_REQUESTED', 'COMMENTED']
+  const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)]!
+  const shuffle = <T,>(a: T[]): T[] => [...a].sort(() => Math.random() - 0.5)
+
+  const events: Array<typeof schema.githubEvents.$inferInsert> = []
+  let gseq = 0
+  // Track each engineer's PRs so others can review them → collaboration edges.
+  const prsByUser = new Map<number, Array<{ title: string; repo: string; url: string }>>()
   for (const u of userRows) {
-    const count = 3 + Math.floor(Math.random() * 12)
-    for (let i = 0; i < count; i++) {
-      const ago = Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)
-      const occurredAt = new Date(now.getTime() - ago)
-      const repo = REPOS[Math.floor(Math.random() * REPOS.length)]
-      const type =
-        Math.random() < 0.55
-          ? 'commit'
-          : Math.random() < 0.75
-            ? 'pr_opened'
-            : Math.random() < 0.9
-              ? 'pr_reviewed'
-              : 'issue_closed'
-      const title =
-        type === 'commit'
-          ? COMMIT_MSGS[Math.floor(Math.random() * COMMIT_MSGS.length)]
-          : type === 'pr_opened' || type === 'pr_reviewed'
-            ? PR_TITLES[Math.floor(Math.random() * PR_TITLES.length)]
-            : `Issue: ${COMMIT_MSGS[Math.floor(Math.random() * COMMIT_MSGS.length)].replace(/^[a-z]+: /, '')}`
+    const isEng = u.seed.discipline === 'engineering'
+    const commitN = isEng ? 4 + Math.floor(Math.random() * 12) : Math.floor(Math.random() * 4)
+    for (let i = 0; i < commitN; i++) {
+      const repo = pick(REPOS)
       events.push({
-        userId: u.id,
-        type: type as 'commit' | 'pr_opened' | 'pr_reviewed' | 'issue_closed',
-        repo,
-        title,
+        userId: u.id, type: 'commit', repo, title: pick(COMMIT_MSGS),
         url: `https://github.com/${repo}/commit/${Math.random().toString(36).slice(2, 10)}`,
-        externalId: `seed-${u.id}-${i}-${Date.now()}`,
-        occurredAt,
-        raw: null,
+        externalId: `seed-c-${gseq++}`, occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 13 * DAY)),
+        raw: { source: 'seed' },
+      })
+    }
+    if (isEng) {
+      const myPrs: Array<{ title: string; repo: string; url: string }> = []
+      const prN = 1 + Math.floor(Math.random() * 3)
+      for (let i = 0; i < prN; i++) {
+        const repo = pick(REPOS)
+        const title = pick(PR_TITLES)
+        const url = `https://github.com/${repo}/pull/${100 + gseq}`
+        const status = pick(STATUSES)
+        events.push({
+          userId: u.id, type: 'pr_opened', repo, title, url,
+          externalId: `seed-pr-${gseq++}`, occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 12 * DAY)),
+          raw: { status, requestedReviewers: status === 'in_review' ? 1 : 0, source: 'seed' },
+        })
+        myPrs.push({ title, repo, url })
+      }
+      prsByUser.set(u.id, myPrs)
+    }
+  }
+  // Cross-reviews: each engineer reviews 1-3 PRs authored by OTHER engineers.
+  const engRows = userRows.filter((u) => u.seed.discipline === 'engineering')
+  for (const reviewer of engRows) {
+    const targets = shuffle(engRows.filter((e) => e.id !== reviewer.id)).slice(0, 1 + Math.floor(Math.random() * 3))
+    for (const author of targets) {
+      const prs = prsByUser.get(author.id) ?? []
+      if (prs.length === 0) continue
+      const pr = pick(prs)
+      events.push({
+        userId: reviewer.id, type: 'pr_reviewed', repo: pr.repo, title: pr.title, url: pr.url,
+        externalId: `seed-rev-${reviewer.id}-${author.id}-${gseq++}`,
+        occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 10 * DAY)),
+        raw: { prAuthor: author.seed.login, verdict: pick(VERDICTS), source: 'seed' },
       })
     }
   }
   if (events.length > 0) {
-    // Batch insert in chunks of 50 to avoid hitting parameter limits
-    for (let i = 0; i < events.length; i += 50) {
-      await db.insert(schema.githubEvents).values(events.slice(i, i + 50))
+    for (let i = 0; i < events.length; i += 50) await db.insert(schema.githubEvents).values(events.slice(i, i + 50))
+  }
+  console.log(`[seed-demo] inserted ${events.length} GitHub events (PR statuses + cross-reviews)`)
+
+  // ─── Calendar meetings (powers the integrations Calendar + company map) ────
+  const MTG_TITLES = ['Sprint planning', 'Design review', 'Weekly 1:1', 'Eng sync', 'Product roadmap', 'Customer call', 'Sprint retro', 'Standup', 'Hiring loop', 'All-hands']
+  const meetingsToInsert: Array<typeof schema.meetings.$inferInsert> = []
+  let mseq = 0
+  for (const host of userRows.slice(0, Math.min(18, userRows.length))) {
+    const mN = 1 + Math.floor(Math.random() * 4)
+    for (let i = 0; i < mN; i++) {
+      const dayOffset = Math.floor(Math.random() * 29) - 14
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, 9 + Math.floor(Math.random() * 8), Math.random() < 0.5 ? 0 : 30)
+      const end = new Date(start.getTime() + (1 + Math.floor(Math.random() * 3)) * 30 * 60_000)
+      const guests = shuffle(userRows.filter((u) => u.id !== host.id)).slice(0, 2 + Math.floor(Math.random() * 3))
+      meetingsToInsert.push({
+        userId: host.id, provider: 'google', externalId: `seed-mtg-${mseq++}`, calendarId: 'primary',
+        title: pick(MTG_TITLES), startAt: start, endAt: end,
+        attendees: guests.map((g) => g.seed.email).filter((e): e is string => !!e),
+        rsvpStatus: 'accepted', conferenceUrl: 'https://meet.google.com/seed-demo',
+      })
     }
   }
-  console.log(`[seed-demo] inserted ${events.length} GitHub events`)
+  if (meetingsToInsert.length > 0) {
+    for (let i = 0; i < meetingsToInsert.length; i += 50) await db.insert(schema.meetings).values(meetingsToInsert.slice(i, i + 50))
+  }
+  console.log(`[seed-demo] inserted ${meetingsToInsert.length} calendar meetings`)
 
   // ─── Local activity samples (last 5 hours of "active shift" users) ─────────
   const APPS = [

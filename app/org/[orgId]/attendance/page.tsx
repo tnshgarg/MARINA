@@ -130,7 +130,7 @@ export default async function AttendancePage({
     <>
       <div className="mb-4">
         <h1 className="app-h1">People</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Monthly attendance, computed from shifts and approved leaves. Click any day for the reason.
         </p>
       </div>

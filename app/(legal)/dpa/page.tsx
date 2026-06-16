@@ -3,8 +3,8 @@ export const metadata = { title: 'Data Processing Agreement · MARINA' }
 export default function DPAPage() {
   return (
     <>
-      <h1 className="text-[28px] font-semibold text-slate-900 mb-2">Data Processing Agreement</h1>
-      <p className="text-[12px] text-slate-500 mb-8">
+      <h1 className="text-[28px] font-semibold text-[var(--m-ink)] mb-2">Data Processing Agreement</h1>
+      <p className="text-[12px] text-[var(--m-ink-3)] mb-8">
         Template · Last updated: 6 June 2026 · India (DPDP Act 2023) + EU/UK (Art. 28 GDPR)
       </p>
 
@@ -87,7 +87,7 @@ export default function DPAPage() {
         settings, automatic database backups with point-in-time recovery.
       </p>
 
-      <p className="mt-6 text-[13px] text-slate-500">
+      <p className="mt-6 text-[13px] text-[var(--m-ink-3)]">
         To execute this DPA, email <code>thetanishgarg@gmail.com</code> with your company details. A
         countersigned PDF will be returned within 2 business days.
       </p>

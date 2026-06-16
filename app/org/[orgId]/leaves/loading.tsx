@@ -8,7 +8,7 @@ export default function Loading() {
         <SkelBar w={420} h={12} />
       </div>
       <div className="app-card">
-        <div className="px-5 py-4 border-b border-slate-100 flex gap-2">
+        <div className="px-5 py-4 border-b border-[var(--m-border-soft)] flex gap-2">
           <SkelBar w={60} h={26} />
           <SkelBar w={80} h={26} />
           <SkelBar w={90} h={26} />

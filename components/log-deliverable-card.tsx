@@ -146,14 +146,14 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
           </select>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11.5px] text-slate-500">
-            Logging at <span className="font-medium text-slate-700">{new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>.
+          <p className="text-[11.5px] text-[var(--m-ink-3)]">
+            Logging at <span className="font-medium text-[var(--m-ink-2)]">{new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>.
             We'll pin the screenshot at that moment for honest verification.
           </p>
           <button
             type="submit"
             disabled={busy || !title.trim()}
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
           >
             {busy ? 'Logging…' : 'Mark as done'}
           </button>
@@ -164,13 +164,13 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
       <div className="mt-5">
         <p className="app-eyebrow mb-2">Recently logged</p>
         {loading ? (
-          <p className="text-[12px] text-slate-500">Loading…</p>
+          <p className="text-[12px] text-[var(--m-ink-3)]">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-[12px] text-slate-500 italic">
+          <p className="text-[12px] text-[var(--m-ink-3)] italic">
             Nothing logged yet. Mark your first piece of work above.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
+          <ul className="divide-y divide-[var(--m-border-soft)] border border-[var(--m-border-soft)] rounded-lg overflow-hidden">
             {items.slice(0, 6).map((d) => (
               <li key={d.id} className="px-3 py-2 flex items-start gap-3 text-[12.5px]">
                 <span
@@ -185,20 +185,20 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
                         href={d.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-slate-900 font-medium hover:text-[var(--m-accent)] truncate"
+                        className="text-[var(--m-ink)] font-medium hover:text-[var(--m-accent)] truncate"
                       >
                         {d.title}
                       </a>
                     ) : (
-                      <span className="text-slate-900 font-medium truncate">{d.title}</span>
+                      <span className="text-[var(--m-ink)] font-medium truncate">{d.title}</span>
                     )}
                     {d.kind && (
-                      <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                      <span className="text-[10px] uppercase tracking-wider text-[var(--m-ink-4)]">
                         {d.kind}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 tabular-nums">
+                  <p className="text-[11px] text-[var(--m-ink-3)] tabular-nums">
                     {new Date(d.completedAt).toLocaleString(undefined, {
                       hour: 'numeric',
                       minute: '2-digit',
@@ -211,7 +211,7 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
                   type="button"
                   onClick={() => remove(d.id)}
                   disabled={busy}
-                  className="shrink-0 text-[11px] text-slate-400 hover:text-rose-600 disabled:opacity-50"
+                  className="shrink-0 text-[11px] text-[var(--m-ink-4)] hover:text-rose-600 disabled:opacity-50"
                   aria-label="Remove"
                 >
                   ×

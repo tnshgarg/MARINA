@@ -79,7 +79,7 @@ export default function InviteAuthOptions({
           <form action={githubSignIn}>
             <button
               type="submit"
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-[14px] font-medium transition"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--m-ink)] text-white hover:bg-[var(--m-ink-2)] text-[14px] font-medium transition"
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
                 <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.36-3.88-1.36-.52-1.31-1.28-1.66-1.28-1.66-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18A11 11 0 0 1 12 6.8c.98.01 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.07.78 2.15v3.19c0 .31.21.67.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z" />
@@ -92,7 +92,7 @@ export default function InviteAuthOptions({
             <form action={googleSignIn}>
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[14px] font-medium transition"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-[var(--m-border)] hover:border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[14px] font-medium transition"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
                   <path fill="#4285F4" d="M21.6 12.227c0-.679-.06-1.336-.169-1.969H12.18v3.726h5.281c-.226 1.227-.92 2.265-1.962 2.961v2.461h3.171c1.85-1.703 2.93-4.215 2.93-7.18z" />
@@ -107,28 +107,28 @@ export default function InviteAuthOptions({
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+              <div className="w-full border-t border-[var(--m-border)]"></div>
             </div>
             <div className="relative flex justify-center text-[11px]">
-              <span className="bg-white px-2 text-slate-400">or</span>
+              <span className="bg-white px-2 text-[var(--m-ink-4)]">or</span>
             </div>
           </div>
 
           <button
             onClick={() => setEmailMode(true)}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[14px] font-medium transition"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-[var(--m-border)] hover:border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[14px] font-medium transition"
           >
             ✉️ Continue with email
           </button>
 
-          <p className="text-[11px] text-slate-500 text-center pt-2">
+          <p className="text-[11px] text-[var(--m-ink-3)] text-center pt-2">
             Non-engineer? Use email. Engineers, GitHub gives you live activity sync.
           </p>
         </>
       ) : (
         <>
           <label className="block">
-            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold mb-1.5">
+            <p className="text-[11px] uppercase tracking-widest text-[var(--m-ink-3)] font-semibold mb-1.5">
               Email
             </p>
             <input
@@ -149,7 +149,7 @@ export default function InviteAuthOptions({
           </button>
           <button
             onClick={() => setEmailMode(false)}
-            className="w-full text-[12px] text-slate-500 hover:text-slate-700"
+            className="w-full text-[12px] text-[var(--m-ink-3)] hover:text-[var(--m-ink-2)]"
           >
             ← Back to all options
           </button>

@@ -236,10 +236,10 @@ export function ProfilePageClient({
   if (!detail) {
     return (
       <div className="space-y-3">
-        <div className="h-12 rounded-xl bg-slate-100 animate-pulse" />
-        <div className="h-24 rounded-xl bg-slate-100 animate-pulse" />
-        <div className="h-40 rounded-xl bg-slate-100 animate-pulse" />
-        <div className="h-40 rounded-xl bg-slate-100 animate-pulse" />
+        <div className="h-12 rounded-xl bg-[var(--m-bg-soft)] animate-pulse" />
+        <div className="h-24 rounded-xl bg-[var(--m-bg-soft)] animate-pulse" />
+        <div className="h-40 rounded-xl bg-[var(--m-bg-soft)] animate-pulse" />
+        <div className="h-40 rounded-xl bg-[var(--m-bg-soft)] animate-pulse" />
       </div>
     )
   }
@@ -256,7 +256,7 @@ export function ProfilePageClient({
         ? { label: `Break · ${activeBreak.category}`, cls: 'bg-amber-50 text-amber-700 border-amber-200' }
         : isOnShift
           ? { label: 'Working', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
-          : { label: 'Off-clock', cls: 'bg-slate-100 text-slate-600 border-slate-200' }
+          : { label: 'Off-clock', cls: 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] border-[var(--m-border)]' }
 
   const todayIso = new Date().toISOString().slice(0, 10)
   const dayDeliverables = detail.recentDeliverables.filter((d) => d.completedAt.slice(0, 10) === day)
@@ -286,18 +286,18 @@ export function ProfilePageClient({
     <div className="space-y-5 pb-16">
       {/* Action bar — sticky behaviour so the actions are always within reach
           as the manager scrolls through the long page. */}
-      <section className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-slate-100">
+      <section className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-[var(--m-border-soft)]">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <span className={`text-[12px] font-medium px-2.5 py-1 rounded-full border ${status.cls}`}>
             {status.label}
           </span>
           {tenureStr && (
-            <span className="text-[11.5px] text-slate-500">
+            <span className="text-[11.5px] text-[var(--m-ink-3)]">
               with the team {tenureStr}
             </span>
           )}
           {detail.discipline !== 'other' && (
-            <span className="text-[11.5px] text-slate-500 capitalize">
+            <span className="text-[11.5px] text-[var(--m-ink-3)] capitalize">
               {detail.discipline}
             </span>
           )}
@@ -320,7 +320,7 @@ export function ProfilePageClient({
           <button
             type="button"
             onClick={() => setScheduleOpen(true)}
-            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[12.5px] font-medium text-slate-700 transition"
+            className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[12.5px] font-medium text-[var(--m-ink-2)] transition"
           >
             Schedule meeting
           </button>
@@ -329,7 +329,7 @@ export function ProfilePageClient({
               type="button"
               onClick={syncGitHub}
               disabled={busy !== null}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[12.5px] font-medium text-slate-700 disabled:opacity-50 transition"
+              className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[12.5px] font-medium text-[var(--m-ink-2)] disabled:opacity-50 transition"
             >
               {busy === 'sync' ? 'Syncing…' : 'Sync GitHub'}
             </button>
@@ -346,7 +346,7 @@ export function ProfilePageClient({
             <button
               type="button"
               onClick={openPerformanceReview}
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+              className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
             >
               Performance review
             </button>
@@ -398,7 +398,7 @@ export function ProfilePageClient({
                   ? 'bg-rose-50 text-rose-700 border-rose-200'
                   : r.severity === 'medium'
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] border-[var(--m-border)]'
               return (
                 <li key={i} className={`text-[11.5px] px-2 py-1 rounded-md border ${cls}`}>
                   {r.label}
@@ -414,7 +414,7 @@ export function ProfilePageClient({
         <div className="lg:col-span-2 space-y-5">
           {detail.story && (
             <Section title="Today's story" hint={fmtAgo(detail.story.generatedAt)}>
-              <p className="text-[13.5px] text-slate-700 leading-relaxed whitespace-pre-line">
+              <p className="text-[13.5px] text-[var(--m-ink-2)] leading-relaxed whitespace-pre-line">
                 {detail.story.narrative}
               </p>
             </Section>
@@ -426,7 +426,7 @@ export function ProfilePageClient({
               hint={fmtAgo(detail.narrative.createdAt)}
               chip={<SignalPill signal={detail.narrative.signal} />}
             >
-              <p className="text-[13px] text-slate-700 leading-relaxed whitespace-pre-line">
+              <p className="text-[13px] text-[var(--m-ink-2)] leading-relaxed whitespace-pre-line">
                 {detail.narrative.body}
               </p>
             </Section>
@@ -434,13 +434,13 @@ export function ProfilePageClient({
 
           {detail.todayMeetings.length > 0 && (
             <Section title="Today's meetings" hint={`${detail.todayMeetings.length} scheduled`}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {detail.todayMeetings.map((m) => (
                   <li key={m.id} className="py-2 flex items-center gap-3">
-                    <span className="text-[11px] text-slate-500 tabular-nums w-28 shrink-0">
+                    <span className="text-[11px] text-[var(--m-ink-3)] tabular-nums w-28 shrink-0">
                       {new Date(m.startAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – {new Date(m.endAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                     </span>
-                    <span className="text-[13px] text-slate-800 flex-1 truncate">{m.title}</span>
+                    <span className="text-[13px] text-[var(--m-ink)] flex-1 truncate">{m.title}</span>
                     {m.conferenceUrl && (
                       <a href={m.conferenceUrl} target="_blank" rel="noopener noreferrer" className="text-[11.5px] text-[var(--m-accent)] hover:underline shrink-0">
                         Join →
@@ -461,22 +461,22 @@ export function ProfilePageClient({
                 value={day}
                 onChange={(e) => setDay(e.target.value)}
                 max={todayIso}
-                className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[12px]"
+                className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] text-[12px]"
               />
             }
           >
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <p className="text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+                <p className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mb-2">
                   Deliverables ({dayDeliverables.length})
                 </p>
                 {dayDeliverables.length === 0 ? (
-                  <p className="text-[12.5px] text-slate-500 italic">Nothing logged on this day.</p>
+                  <p className="text-[12.5px] text-[var(--m-ink-3)] italic">Nothing logged on this day.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {dayDeliverables.map((d) => (
-                      <li key={d.id} className="text-[12.5px] text-slate-700">
-                        <span className="text-slate-400 text-[10.5px] tabular-nums mr-1.5">
+                      <li key={d.id} className="text-[12.5px] text-[var(--m-ink-2)]">
+                        <span className="text-[var(--m-ink-4)] text-[10.5px] tabular-nums mr-1.5">
                           {new Date(d.completedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                         </span>
                         {d.url ? (
@@ -492,16 +492,16 @@ export function ProfilePageClient({
                 )}
               </div>
               <div>
-                <p className="text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+                <p className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mb-2">
                   Breaks ({dayBreaks.length})
                 </p>
                 {dayBreaks.length === 0 ? (
-                  <p className="text-[12.5px] text-slate-500 italic">No breaks logged this day.</p>
+                  <p className="text-[12.5px] text-[var(--m-ink-3)] italic">No breaks logged this day.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {dayBreaks.map((b) => (
-                      <li key={b.id} className="text-[12.5px] text-slate-700">
-                        <span className={`text-[10px] uppercase tracking-wider mr-1.5 ${b.category === 'blocked' ? 'text-rose-700 font-semibold' : 'text-slate-500'}`}>
+                      <li key={b.id} className="text-[12.5px] text-[var(--m-ink-2)]">
+                        <span className={`text-[10px] uppercase tracking-wider mr-1.5 ${b.category === 'blocked' ? 'text-rose-700 font-semibold' : 'text-[var(--m-ink-3)]'}`}>
                           {b.category}
                         </span>
                         {b.reason || '(no reason)'}
@@ -515,19 +515,19 @@ export function ProfilePageClient({
 
           {detail.recentDeliverables.length > 0 && (
             <Section title="Recent deliverables" hint="last 14 days">
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {detail.recentDeliverables.slice(0, 12).map((d) => (
                   <li key={d.id} className="py-2 flex items-start gap-3">
-                    <span className="text-[11px] text-slate-500 tabular-nums w-20 shrink-0">
+                    <span className="text-[11px] text-[var(--m-ink-3)] tabular-nums w-20 shrink-0">
                       {new Date(d.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
                     <div className="min-w-0 flex-1">
                       {d.url ? (
-                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-slate-800 hover:underline">
+                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-[var(--m-ink)] hover:underline">
                           {d.title}
                         </a>
                       ) : (
-                        <span className="text-[13px] text-slate-800">{d.title}</span>
+                        <span className="text-[13px] text-[var(--m-ink)]">{d.title}</span>
                       )}
                     </div>
                     {d.verificationStatus === 'verified' && (
@@ -541,16 +541,16 @@ export function ProfilePageClient({
 
           {detail.githubEvents.length > 0 && (
             <Section title="GitHub activity" hint={`latest ${Math.min(20, detail.githubEvents.length)}`}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {detail.githubEvents.slice(0, 20).map((e) => (
                   <li key={e.id} className="py-2 flex items-center gap-3">
-                    <span className="text-[10.5px] uppercase tracking-wider text-slate-500 w-20 shrink-0">
+                    <span className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] w-20 shrink-0">
                       {e.type.replace('_', ' ')}
                     </span>
-                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-slate-800 hover:underline truncate flex-1">
+                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-[var(--m-ink)] hover:underline truncate flex-1">
                       {e.title}
                     </a>
-                    <span className="text-[10.5px] text-slate-500 shrink-0 truncate max-w-[180px]">{e.repo}</span>
+                    <span className="text-[10.5px] text-[var(--m-ink-3)] shrink-0 truncate max-w-[180px]">{e.repo}</span>
                   </li>
                 ))}
               </ul>
@@ -559,20 +559,20 @@ export function ProfilePageClient({
 
           {detail.last7Shifts.length > 0 && (
             <Section title="Recent shifts" hint="last 7 days">
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {detail.last7Shifts.map((s) => (
                   <li key={s.id} className="py-2 flex items-center gap-3">
-                    <span className="text-[11px] text-slate-500 tabular-nums w-32 shrink-0">
+                    <span className="text-[11px] text-[var(--m-ink-3)] tabular-nums w-32 shrink-0">
                       {new Date(s.punchedInAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                     </span>
-                    <span className="text-[12.5px] text-slate-700 flex-1 tabular-nums">
+                    <span className="text-[12.5px] text-[var(--m-ink-2)] flex-1 tabular-nums">
                       {new Date(s.punchedInAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                       {' – '}
                       {s.punchedOutAt
                         ? new Date(s.punchedOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
                         : 'in progress'}
                     </span>
-                    <span className="text-[12.5px] text-slate-800 tabular-nums shrink-0">{fmtHm(s.totalMin)}</span>
+                    <span className="text-[12.5px] text-[var(--m-ink)] tabular-nums shrink-0">{fmtHm(s.totalMin)}</span>
                   </li>
                 ))}
               </ul>
@@ -595,8 +595,8 @@ export function ProfilePageClient({
                           style={{ height: `${Math.min(100, total * 8)}%` }}
                         />
                       </div>
-                      <p className="text-[9.5px] text-slate-500 mt-1 tabular-nums">{total}</p>
-                      <p className="text-[8.5px] uppercase tracking-wider text-slate-400">
+                      <p className="text-[9.5px] text-[var(--m-ink-3)] mt-1 tabular-nums">{total}</p>
+                      <p className="text-[8.5px] uppercase tracking-wider text-[var(--m-ink-4)]">
                         {new Date(d.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 1)}
                       </p>
                     </div>
@@ -611,8 +611,8 @@ export function ProfilePageClient({
               <ul className="space-y-1">
                 {detail.topRepos.slice(0, 5).map((r) => (
                   <li key={r.repo} className="flex items-center justify-between text-[12.5px]">
-                    <span className="text-slate-700 truncate">{r.repo}</span>
-                    <span className="text-slate-500 tabular-nums shrink-0">{r.events}</span>
+                    <span className="text-[var(--m-ink-2)] truncate">{r.repo}</span>
+                    <span className="text-[var(--m-ink-3)] tabular-nums shrink-0">{r.events}</span>
                   </li>
                 ))}
               </ul>
@@ -633,8 +633,8 @@ export function ProfilePageClient({
                           : a.kind === 'today'
                             ? 'bg-[var(--m-accent)]'
                             : a.kind === 'pre_join'
-                              ? 'bg-slate-50'
-                              : 'bg-slate-100'
+                              ? 'bg-[var(--m-bg-soft)]'
+                              : 'bg-[var(--m-bg-soft)]'
                   return (
                     <div
                       key={a.date}
@@ -644,11 +644,11 @@ export function ProfilePageClient({
                   )
                 })}
               </div>
-              <div className="mt-3 flex items-center gap-3 text-[10.5px] text-slate-500 flex-wrap">
+              <div className="mt-3 flex items-center gap-3 text-[10.5px] text-[var(--m-ink-3)] flex-wrap">
                 <Legend cls="bg-emerald-200" label="Present" />
                 <Legend cls="bg-amber-200" label="Leave" />
                 <Legend cls="bg-rose-200" label="Absent" />
-                <Legend cls="bg-slate-100" label="Weekend" />
+                <Legend cls="bg-[var(--m-bg-soft)]" label="Weekend" />
               </div>
             </Section>
           )}
@@ -661,10 +661,10 @@ export function ProfilePageClient({
                   const isOnline = onlineMs < 24 * 60 * 60 * 1000
                   return (
                     <li key={d.id} className="text-[12.5px] flex items-center gap-2.5">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isOnline ? 'bg-emerald-500' : 'bg-[var(--m-ink-5)]'}`} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-slate-800 truncate">{d.label}</p>
-                        <p className="text-[10.5px] text-slate-500 truncate">
+                        <p className="text-[var(--m-ink)] truncate">{d.label}</p>
+                        <p className="text-[10.5px] text-[var(--m-ink-3)] truncate">
                           {d.platform ?? 'unknown'} · v{d.agentVersion ?? '?'} · last {fmtAgo(d.lastSeenAt)}
                         </p>
                       </div>
@@ -681,14 +681,14 @@ export function ProfilePageClient({
                 {detail.recentLeaves.slice(0, 5).map((l) => (
                   <li key={l.id} className="text-[12.5px]">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-800 capitalize">{l.leaveType}</span>
+                      <span className="text-[var(--m-ink)] capitalize">{l.leaveType}</span>
                       <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full capitalize ${
                         l.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                         l.status === 'denied' ? 'bg-rose-100 text-rose-700' :
                         'bg-amber-100 text-amber-700'
                       }`}>{l.status}</span>
                     </div>
-                    <p className="text-[10.5px] text-slate-500 mt-0.5">
+                    <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5">
                       {l.startDate} → {l.endDate}
                     </p>
                   </li>
@@ -762,12 +762,12 @@ function Kpi({
   sub: string
   tone?: 'warn' | 'neutral'
 }) {
-  const fg = tone === 'warn' ? 'text-amber-700' : 'text-slate-900'
+  const fg = tone === 'warn' ? 'text-amber-700' : 'text-[var(--m-ink)]'
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
-      <p className="text-[10.5px] uppercase tracking-widest text-slate-500 font-medium">{label}</p>
+    <div className="rounded-xl border border-[var(--m-border)] bg-white px-4 py-3.5">
+      <p className="text-[10.5px] uppercase tracking-widest text-[var(--m-ink-3)] font-medium">{label}</p>
       <p className={`mt-1 text-[22px] tracking-tight tabular-nums ${fg}`}>{value}</p>
-      <p className="text-[11px] text-slate-500 mt-0.5 truncate">{sub}</p>
+      <p className="text-[11px] text-[var(--m-ink-3)] mt-0.5 truncate">{sub}</p>
     </div>
   )
 }
@@ -786,14 +786,14 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">
+          <p className="text-[11px] uppercase tracking-widest text-[var(--m-ink-3)] font-semibold">
             {title}
           </p>
           {chip}
-          {hint && <span className="text-[11.5px] text-slate-500">· {hint}</span>}
+          {hint && <span className="text-[11.5px] text-[var(--m-ink-3)]">· {hint}</span>}
         </div>
         {right}
       </div>
@@ -805,10 +805,10 @@ function Section({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-3">
-      <dt className="text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold w-24 shrink-0">
+      <dt className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold w-24 shrink-0">
         {label}
       </dt>
-      <dd className="text-slate-800 capitalize">{value}</dd>
+      <dd className="text-[var(--m-ink)] capitalize">{value}</dd>
     </div>
   )
 }
@@ -816,7 +816,7 @@ function Field({ label, value }: { label: string; value: string }) {
 function Legend({ cls, label }: { cls: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`inline-block w-2.5 h-2.5 rounded-sm border border-slate-200 ${cls}`} />
+      <span className={`inline-block w-2.5 h-2.5 rounded-sm border border-[var(--m-border)] ${cls}`} />
       {label}
     </span>
   )

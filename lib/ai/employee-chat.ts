@@ -145,7 +145,7 @@ export async function buildEmployeeContext(input: {
       discipline: (membership as { discipline?: string }).discipline ?? 'other',
       jobTitle: (membership as { jobTitle?: string | null }).jobTitle ?? null,
       joinedOn: (user as { joinedOn?: string | null }).joinedOn ?? null,
-      hasGithub: !!user.accessToken,
+      hasGithub: !!user.accessToken || user.githubId != null || !!user.githubLogin,
     },
     windowDays,
     windowStart: sinceIso,

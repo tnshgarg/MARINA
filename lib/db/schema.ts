@@ -6,6 +6,12 @@ export const users = pgTable('users', {
   // GitHub fields — nullable now so email-only users can exist.
   githubId: integer('github_id').unique(),
   login: text('login').notNull(),
+  // The employee's GitHub *username* for attribution, captured at invite-accept
+  // (or self-set in settings). Distinct from `login` (the in-app @handle, which
+  // is email-derived for non-GitHub sign-ins). Because the org installs the
+  // GitHub App, this username alone is enough to attribute their commits/PRs —
+  // no per-employee OAuth needed. Matched case-insensitively in app-sync.
+  githubLogin: text('github_login'),
   name: text('name'),
   email: text('email').unique(),
   emailVerified: timestamp('email_verified', { withTimezone: true }),

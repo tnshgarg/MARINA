@@ -98,16 +98,16 @@ export function MeetingsPanel() {
 
   if (!connected) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h3 className="text-[13px] font-semibold text-slate-900">Today's meetings</h3>
+          <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">Today's meetings</h3>
         </div>
-        <p className="mt-1.5 text-[12px] text-slate-500 leading-snug">
+        <p className="mt-1.5 text-[12px] text-[var(--m-ink-3)] leading-snug">
           Connect Google Calendar to see today's schedule and get notified before each meeting.
         </p>
         <a
           href={`/api/connect/google/start?return_to=${encodeURIComponent(pathname || '/dashboard')}`}
-          className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium transition"
+          className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium transition"
         >
           Connect Google Calendar
         </a>
@@ -121,11 +121,11 @@ export function MeetingsPanel() {
   const past = meetings.filter((m) => new Date(m.endAt).getTime() <= now)
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between gap-3 flex-wrap">
-        <h3 className="text-[13px] font-semibold text-slate-900">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between gap-3 flex-wrap">
+        <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">
           Today&apos;s meetings
-          <span className="ml-1.5 text-slate-400 tabular-nums">{meetings.length}</span>
+          <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">{meetings.length}</span>
         </h3>
         <div className="flex items-center gap-3">
           {typeof window !== 'undefined' &&
@@ -146,7 +146,7 @@ export function MeetingsPanel() {
             href="https://calendar.google.com/calendar/r/day"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-[var(--m-accent)] font-medium transition-colors"
+            className="inline-flex items-center gap-1 text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-accent)] font-medium transition-colors"
             title="Open Google Calendar in a new tab"
           >
             View calendar
@@ -158,9 +158,9 @@ export function MeetingsPanel() {
       </div>
 
       {meetings.length === 0 ? (
-        <p className="px-4 py-5 text-[12.5px] text-slate-500">Nothing scheduled today.</p>
+        <p className="px-4 py-5 text-[12.5px] text-[var(--m-ink-3)]">Nothing scheduled today.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-[var(--m-border-soft)]">
           {nextUp && (
             <MeetingRow meeting={nextUp} isNext />
           )}
@@ -196,16 +196,16 @@ function MeetingRow({
         isNext ? 'bg-[var(--m-accent-soft)]/60' : isPast ? 'opacity-60' : ''
       }`}
     >
-      <div className="shrink-0 w-14 text-[11px] text-slate-500 tabular-nums leading-tight pt-0.5">
+      <div className="shrink-0 w-14 text-[11px] text-[var(--m-ink-3)] tabular-nums leading-tight pt-0.5">
         {fmt(start)}
         <br />
-        <span className="text-slate-400">{fmt(end)}</span>
+        <span className="text-[var(--m-ink-4)]">{fmt(end)}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`text-[12.5px] truncate ${declined ? 'line-through text-slate-400' : 'text-slate-900 font-medium'}`}>
+        <p className={`text-[12.5px] truncate ${declined ? 'line-through text-[var(--m-ink-4)]' : 'text-[var(--m-ink)] font-medium'}`}>
           {m.title}
         </p>
-        <p className="text-[11px] text-slate-500 truncate">
+        <p className="text-[11px] text-[var(--m-ink-3)] truncate">
           {inProgress && <span className="text-emerald-700 font-medium">In progress · </span>}
           {m.location || (m.attendees.length > 0 ? `${m.attendees.length} attendees` : 'no details')}
           {m.attendedAt && <span className="text-emerald-700"> · attended</span>}
@@ -216,7 +216,7 @@ function MeetingRow({
           href={m.conferenceUrl}
           target="_blank"
           rel="noreferrer"
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11.5px] font-medium transition shrink-0"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[11.5px] font-medium transition shrink-0"
         >
           Join
         </a>

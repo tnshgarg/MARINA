@@ -47,7 +47,7 @@ export default async function DevLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-[var(--m-accent-soft)] px-6 py-16">
+    <main className="min-h-screen bg-gradient-to-br from-[var(--m-bg-soft)] to-[var(--m-accent-soft)] px-6 py-16">
       <div className="max-w-4xl mx-auto">
         <div className="rounded-2xl bg-gradient-to-br from-rose-50 to-amber-50 border border-rose-200 p-4 mb-8">
           <p className="text-[12px] font-semibold uppercase tracking-widest text-rose-700">
@@ -59,8 +59,8 @@ export default async function DevLoginPage() {
           </p>
         </div>
 
-        <h1 className="text-[28px] font-semibold text-slate-900 mb-2">Dev login</h1>
-        <p className="text-slate-600 mb-8">
+        <h1 className="text-[28px] font-semibold text-[var(--m-ink)] mb-2">Dev login</h1>
+        <p className="text-[var(--m-ink-2)] mb-8">
           {users.length} seeded user{users.length === 1 ? '' : 's'} found. Pick one to sign in as.
           {users.length === 0 && (
             <span className="block mt-2 text-amber-700 font-medium">

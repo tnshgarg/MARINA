@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, ensureScopeUser, requireScope } from '@/lib/auth/guards'
+import { HttpError, ensureScopeUser, requireCapability } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 import { audit, requestMeta } from '@/lib/audit/log'
 import { inbox } from '@/lib/notify/inbox'
 
@@ -29,7 +30,14 @@ export async function POST(
   }
 
   try {
-    const { session, scope } = await requireScope(orgId, 'manager')
+    // Deciding an attendance dispute is the same authority as deciding leave →
+    // gate on `decide_leaves`, then scope to the people this manager can see.
+    const { session, membership } = await requireCapability(orgId, 'decide_leaves')
+    const scope = await getVisibleScope(orgId, {
+      userId: session.appUserId,
+      membershipId: membership.id,
+      role: membership.role as 'admin' | 'manager' | 'lead' | 'member',
+    })
     const body = (await req.json().catch(() => ({}))) as {
       decision?: 'approve' | 'deny'
       note?: string

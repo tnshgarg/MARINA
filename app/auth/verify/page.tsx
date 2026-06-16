@@ -31,7 +31,7 @@ export default async function VerifyPage({
 
   if (!token) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
+      <main className="min-h-screen flex items-center justify-center bg-[var(--m-bg-soft)] px-6">
         <div className="max-w-md w-full app-card app-card-lg text-center">
           <p className="text-[28px]">🔗</p>
           <h1 className="app-h2 mt-2">Missing token</h1>
@@ -69,7 +69,7 @@ export default async function VerifyPage({
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
+    <main className="min-h-screen flex items-center justify-center bg-[var(--m-bg-soft)] px-6">
       <div className="max-w-md w-full app-card app-card-lg text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" width={40} height={40} alt="" aria-hidden className="mx-auto mb-3" />
@@ -82,7 +82,7 @@ export default async function VerifyPage({
             Finish signing in →
           </button>
         </form>
-        <p className="mt-3 text-[12px] text-slate-400">
+        <p className="mt-3 text-[12px] text-[var(--m-ink-4)]">
           This link is single-use and expires after an hour.
         </p>
       </div>

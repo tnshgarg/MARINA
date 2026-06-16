@@ -85,7 +85,15 @@ export default async function InvitePage({
   // Auto-accept: if the viewer is signed in AND the invite is ready, just
   // create the membership server-side and redirect into the org. Avoids the
   // extra "Accept and join" click after a fresh OAuth/magic-link sign-in.
-  if (signedIn && state === 'ready' && emailMatches && invite && org && session?.appUserId) {
+  //
+  // EXCEPTION: when we have NO GitHub identity for the user yet (no githubId AND
+  // no saved github username — e.g. they signed in via Google or a magic link),
+  // we DON'T auto-accept. Instead we fall through to the form so they can type
+  // their GitHub username, which lets the org's GitHub App attribute their
+  // commits/PRs without a per-employee OAuth link. Users who already have a
+  // githubId (OAuth) or a saved githubLogin keep their zero-click accept.
+  const knowsGithubIdentity = me?.githubId != null || !!me?.githubLogin
+  if (signedIn && state === 'ready' && emailMatches && invite && org && session?.appUserId && knowsGithubIdentity) {
     try {
       const { seatCapError } = await import('@/lib/billing/seats')
       const capError = await seatCapError(invite.orgId)
@@ -164,12 +172,12 @@ export default async function InvitePage({
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[var(--m-accent-soft)] flex items-start justify-center pt-20 px-6">
+    <main className="min-h-screen bg-gradient-to-br from-[var(--m-bg-soft)] via-white to-[var(--m-accent-soft)] flex items-start justify-center pt-20 px-6">
       <div className="w-full max-w-md">
         <p className="text-[11px] uppercase tracking-widest text-[var(--m-accent)] font-semibold">
           You&apos;re invited
         </p>
-        <h1 className="text-[32px] font-semibold tracking-tight text-slate-900 mt-2">Join your squad</h1>
+        <h1 className="text-[32px] font-semibold tracking-tight text-[var(--m-ink)] mt-2">Join your squad</h1>
 
         {authError === 'invalid_or_expired_link' && state === 'ready' && (
           <Message tone="error" title="That sign-in link expired">
@@ -197,12 +205,12 @@ export default async function InvitePage({
           </Message>
         )}
         {state === 'used' && (
-          <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">
+          <div className="mt-6 bg-white rounded-2xl border border-[var(--m-border)] shadow-sm p-6">
+            <p className="text-[11px] uppercase tracking-widest text-[var(--m-ink-3)] font-semibold">
               Welcome back
             </p>
-            <p className="mt-1 text-[15px] text-slate-700">
-              This invite to <strong className="text-slate-900">{org?.name}</strong> has already
+            <p className="mt-1 text-[15px] text-[var(--m-ink-2)]">
+              This invite to <strong className="text-[var(--m-ink)]">{org?.name}</strong> has already
               been used. Sign in to jump straight into the workspace.
             </p>
             <div className="mt-5">
@@ -224,27 +232,32 @@ export default async function InvitePage({
         )}
 
         {state === 'ready' && invite && org && (
-          <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="mt-6 bg-white rounded-2xl border border-[var(--m-border)] shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--m-accent)] to-[var(--m-clay)] text-white font-semibold inline-flex items-center justify-center">
                 {org.name.charAt(0).toUpperCase()}
               </span>
               <div>
-                <p className="text-[14px] text-slate-700">
-                  Join <strong className="text-slate-900">{org.name}</strong>
+                <p className="text-[14px] text-[var(--m-ink-2)]">
+                  Join <strong className="text-[var(--m-ink)]">{org.name}</strong>
                 </p>
-                <p className="text-[12px] text-slate-500">
-                  Role · <span className="text-slate-700 font-medium">{invite.role}</span>
+                <p className="text-[12px] text-[var(--m-ink-3)]">
+                  Role · <span className="text-[var(--m-ink-2)] font-medium">{invite.role}</span>
                 </p>
               </div>
             </div>
 
             {signedIn ? (
               <div>
-                <p className="text-[12px] text-slate-500 mb-3">
+                <p className="text-[12px] text-[var(--m-ink-3)] mb-3">
                   Signed in as @{session?.login}
                 </p>
-                <AcceptInviteClient token={token} orgId={org.id} />
+                <AcceptInviteClient
+                  token={token}
+                  orgId={org.id}
+                  showGithubField={me?.githubId == null && !me?.githubLogin}
+                  prefillGithub={me?.githubLogin ?? ''}
+                />
               </div>
             ) : (
               <InviteAuthOptions
@@ -257,10 +270,10 @@ export default async function InvitePage({
           </div>
         )}
 
-        <p className="mt-6 text-center text-[11px] text-slate-400">
+        <p className="mt-6 text-center text-[11px] text-[var(--m-ink-4)]">
           By accepting, you agree to MARINA's{' '}
-          <a href="/terms" className="underline hover:text-slate-600">Terms</a>{' '}·{' '}
-          <a href="/privacy" className="underline hover:text-slate-600">Privacy</a>
+          <a href="/terms" className="underline hover:text-[var(--m-ink-2)]">Terms</a>{' '}·{' '}
+          <a href="/privacy" className="underline hover:text-[var(--m-ink-2)]">Privacy</a>
         </p>
       </div>
     </main>
@@ -276,7 +289,7 @@ function Message({
   title: string
   children: React.ReactNode
 }) {
-  const bg = tone === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-white border-slate-200 text-slate-900'
+  const bg = tone === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-white border-[var(--m-border)] text-[var(--m-ink)]'
   return (
     <div className={`mt-6 rounded-2xl border p-4 ${bg}`}>
       <p className="font-medium">{title}</p>

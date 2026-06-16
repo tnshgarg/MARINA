@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 import BlockersClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -17,18 +18,23 @@ export default async function BlockersPage({ params }: { params: Promise<{ orgId
   const orgId = Number(raw)
   if (!Number.isInteger(orgId)) notFound()
 
+  let viewer
   try {
-    const { membership } = await requireMembership(orgId, 'member')
-    // We expose this page to plain members too — they can see what their
-    // teammates are blocked on, but the Unblock / Route actions are
-    // gated server-side. Read-only access is enough for situational
-    // awareness on small teams.
-    void membership
+    // Only managers/admins reach /org/* (the layout redirects plain members to
+    // their dashboard). This is a manager surface, so it must respect the
+    // viewer's visible scope — NOT show every blocker (incl. reasons) org-wide.
+    viewer = await requireMembership(orgId, 'manager')
   } catch (err) {
     if (err instanceof HttpError && err.status === 401) redirect('/')
     if (err instanceof HttpError && err.status === 403) redirect(`/org/${orgId}`)
     throw err
   }
+  const scope = await getVisibleScope(orgId, {
+    userId: viewer.session.appUserId,
+    membershipId: viewer.membership.id,
+    role: viewer.membership.role as 'admin' | 'manager' | 'lead' | 'member',
+  })
+  const scopeFilter = scope.isAdminScope ? undefined : inArray(schema.breaks.userId, Array.from(scope.userIds))
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
@@ -46,6 +52,7 @@ export default async function BlockersPage({ params }: { params: Promise<{ orgId
           eq(schema.breaks.orgId, orgId),
           eq(schema.breaks.category, 'blocked'),
           isNull(schema.breaks.endedAt),
+          scopeFilter,
         ),
       )
       .orderBy(desc(schema.breaks.startedAt)),
@@ -62,6 +69,7 @@ export default async function BlockersPage({ params }: { params: Promise<{ orgId
           eq(schema.breaks.category, 'blocked'),
           isNotNull(schema.breaks.endedAt),
           gte(schema.breaks.endedAt, weekAgo),
+          scopeFilter,
         ),
       )
       .orderBy(desc(schema.breaks.endedAt))

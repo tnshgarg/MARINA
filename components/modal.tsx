@@ -84,31 +84,31 @@ export function Modal({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-900/50"
+        className="absolute inset-0 bg-[var(--m-ink)]/50"
         style={{ animation: 'modalFadeIn 140ms ease-out' }}
       />
 
       {/* Dialog */}
       <div
         ref={dialogRef}
-        className={`relative w-full ${maxW} max-h-[88vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl`}
+        className={`relative w-full ${maxW} max-h-[88vh] flex flex-col rounded-2xl border border-[var(--m-border)] bg-white shadow-2xl`}
         style={{ animation: 'modalSlideIn 180ms cubic-bezier(0.22, 1, 0.36, 1)' }}
       >
         {(title || subtitle) && (
-          <header className="shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-4">
+          <header className="shrink-0 px-6 pt-5 pb-4 border-b border-[var(--m-border-soft)] flex items-start justify-between gap-4">
             <div className="min-w-0">
               {title && (
-                <h2 id="modal-title" className="text-[16px] font-semibold text-slate-900 tracking-tight">
+                <h2 id="modal-title" className="text-[16px] font-semibold text-[var(--m-ink)] tracking-tight">
                   {title}
                 </h2>
               )}
-              {subtitle && <p className="mt-0.5 text-[12.5px] text-slate-500">{subtitle}</p>}
+              {subtitle && <p className="mt-0.5 text-[12.5px] text-[var(--m-ink-3)]">{subtitle}</p>}
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="shrink-0 -m-1.5 p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              className="shrink-0 -m-1.5 p-1.5 rounded-md text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] hover:bg-[var(--m-bg-soft)] transition"
             >
               <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M6 6l12 12M18 6l-12 12" strokeLinecap="round" />
@@ -120,7 +120,7 @@ export function Modal({
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 min-w-0">{children}</div>
 
         {footer && (
-          <footer className="shrink-0 px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2">
+          <footer className="shrink-0 px-6 py-3 border-t border-[var(--m-border-soft)] bg-[var(--m-bg-soft)]/60 flex items-center justify-end gap-2">
             {footer}
           </footer>
         )}
@@ -175,7 +175,7 @@ export function ConfirmModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
           >
             {cancelLabel}
           </button>
@@ -184,7 +184,7 @@ export function ConfirmModal({
             onClick={onConfirm}
             disabled={busy}
             className={`px-3 py-1.5 rounded-md text-white text-[12.5px] font-medium disabled:opacity-50 transition ${
-              destructive ? 'bg-rose-600 hover:bg-rose-700' : 'bg-slate-900 hover:bg-slate-700'
+              destructive ? 'bg-rose-600 hover:bg-rose-700' : 'bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)]'
             }`}
           >
             {busy ? '…' : confirmLabel}
@@ -192,7 +192,7 @@ export function ConfirmModal({
         </>
       }
     >
-      {body && <div className="text-[13px] text-slate-700 leading-relaxed">{body}</div>}
+      {body && <div className="text-[13px] text-[var(--m-ink-2)] leading-relaxed">{body}</div>}
     </Modal>
   )
 }

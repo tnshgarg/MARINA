@@ -43,7 +43,7 @@ export default function DevLoginClient({
       />
 
       {filtered.length === 0 && (
-        <p className="text-center text-slate-500 py-10">No matching users.</p>
+        <p className="text-center text-[var(--m-ink-3)] py-10">No matching users.</p>
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -52,19 +52,19 @@ export default function DevLoginClient({
             <input type="hidden" name="userId" value={u.id} />
             <button
               type="submit"
-              className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              className="w-full text-left rounded-2xl border border-[var(--m-border)] bg-white p-4 hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
               <div className="flex items-center gap-3 mb-2">
                 <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={42} />
                 <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-slate-900 truncate">
+                  <p className="text-[14px] font-medium text-[var(--m-ink)] truncate">
                     {u.name ?? `@${u.login}`}
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate">@{u.login}</p>
+                  <p className="text-[11px] text-[var(--m-ink-3)] truncate">@{u.login}</p>
                 </div>
               </div>
               {u.email && (
-                <p className="text-[11px] text-slate-500 truncate">{u.email}</p>
+                <p className="text-[11px] text-[var(--m-ink-3)] truncate">{u.email}</p>
               )}
               <div className="mt-2 flex flex-wrap gap-1">
                 {u.orgs.length === 0 ? (
@@ -80,7 +80,7 @@ export default function DevLoginClient({
                           ? 'bg-[var(--m-clay-soft)] text-[var(--m-clay-deep)]'
                           : o.role === 'manager'
                             ? 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]'
-                            : 'bg-slate-100 text-slate-600'
+                            : 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]'
                       }`}
                     >
                       {o.orgName} · {o.role}

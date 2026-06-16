@@ -199,7 +199,7 @@ export default function SettingsClient({
             className={
               paused
                 ? 'px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition'
-                : 'px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition'
+                : 'px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition'
             }
           >
             {paused ? 'Resume' : 'Pause'}
@@ -224,7 +224,7 @@ export default function SettingsClient({
               onChange={(e) => patchSettings({ windowTitlesEnabled: e.target.checked })}
               className="w-4 h-4 accent-[var(--m-accent)]"
             />
-            <span className="text-[12px] text-slate-600">
+            <span className="text-[12px] text-[var(--m-ink-2)]">
               {settings.windowTitlesEnabled ? 'On' : 'Off'}
             </span>
           </label>
@@ -238,7 +238,7 @@ export default function SettingsClient({
           <button
             onClick={generateCode}
             disabled={busy === 'pair'}
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
           >
             {busy === 'pair' ? 'Generating…' : 'Generate code'}
           </button>
@@ -255,12 +255,12 @@ export default function SettingsClient({
               </code>
               <button
                 onClick={() => copyCode(pairing.code)}
-                className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+                className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition"
               >
                 {copiedCode ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="mt-2 text-[11.5px] text-slate-500">
+            <p className="mt-2 text-[11.5px] text-[var(--m-ink-3)]">
               Anyone with this code can pair a device to your account. It vanishes the moment a device pairs.
             </p>
           </div>
@@ -277,7 +277,7 @@ export default function SettingsClient({
               <button
                 onClick={syncCalendar}
                 disabled={busy === 'cal-sync'}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
               >
                 {busy === 'cal-sync' ? 'Syncing…' : 'Sync now'}
               </button>
@@ -292,7 +292,7 @@ export default function SettingsClient({
           ) : (
             <a
               href="/api/connect/google/start?return_to=/settings"
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition inline-block"
+              className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition inline-block"
             >
               Connect
             </a>
@@ -314,30 +314,30 @@ export default function SettingsClient({
           character everywhere CharacterAvatar is used. */}
       <AvatarSection />
 
-      <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-          <h2 className="text-[13px] font-semibold text-slate-900">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold text-[var(--m-ink)]">
             Paired devices
-            <span className="ml-1.5 text-slate-400 tabular-nums">{activeDevices.length}</span>
+            <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">{activeDevices.length}</span>
           </h2>
         </div>
         {devices.length === 0 ? (
-          <p className="px-4 py-5 text-[12.5px] text-slate-500">No devices paired yet.</p>
+          <p className="px-4 py-5 text-[12.5px] text-[var(--m-ink-3)]">No devices paired yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {devices.map((d) => (
               <li key={d.id} className="px-4 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-slate-900">
+                  <p className="text-[13px] font-medium text-[var(--m-ink)]">
                     {d.label}{' '}
-                    <span className="text-[11px] text-slate-500 font-normal">
+                    <span className="text-[11px] text-[var(--m-ink-3)] font-normal">
                       {d.platform}{d.agentVersion ? ` · ${d.agentVersion}` : ''}
                     </span>
                   </p>
-                  <p className="text-[11.5px] text-slate-500">
+                  <p className="text-[11.5px] text-[var(--m-ink-3)]">
                     {d.tokenPrefix}… · paired {new Date(d.pairedAt).toLocaleString()}
                   </p>
-                  <p className="text-[11.5px] text-slate-500">
+                  <p className="text-[11.5px] text-[var(--m-ink-3)]">
                     {d.revokedAt
                       ? `Revoked ${new Date(d.revokedAt).toLocaleString()}`
                       : d.lastSeenAt
@@ -361,14 +361,14 @@ export default function SettingsClient({
       </section>
 
       {settings.consentAt && (
-        <p className="text-[11.5px] text-slate-500">
+        <p className="text-[11.5px] text-[var(--m-ink-3)]">
           Consent on file from {new Date(settings.consentAt).toLocaleString()}.
         </p>
       )}
 
       <section className="rounded-xl border border-rose-200 bg-white p-5">
         <h2 className="text-[14px] font-semibold text-rose-700">Danger zone</h2>
-        <p className="text-[12.5px] text-slate-500 mt-1">
+        <p className="text-[12.5px] text-[var(--m-ink-3)] mt-1">
           Your data is yours. Download or permanently delete it under your DPDP Act 2023 rights.
         </p>
         {/* Transfer ownership (self-hides unless you own a workspace with members) */}
@@ -376,16 +376,16 @@ export default function SettingsClient({
           <TransferOwnership />
         </div>
         <div className="mt-3 grid sm:grid-cols-2 gap-3">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-[13px] font-semibold text-slate-900">Export my data</h3>
-            <p className="text-[12px] text-slate-500 mt-1 leading-snug">
+          <div className="rounded-lg border border-[var(--m-border)] p-4">
+            <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">Export my data</h3>
+            <p className="text-[12px] text-[var(--m-ink-3)] mt-1 leading-snug">
               Download a JSON dump of every row tied to your account — profile, GitHub events,
               activity, shifts, breaks, leaves, narratives.
             </p>
             <a
               href="/api/me/export"
               download
-              className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
+              className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium transition"
             >
               Download JSON
             </a>
@@ -426,7 +426,7 @@ export default function SettingsClient({
         </div>
       </section>
 
-      <p className="text-[11px] text-slate-400 mt-2">
+      <p className="text-[11px] text-[var(--m-ink-4)] mt-2">
         Want a Data Processing Agreement? See <a href="/dpa" className="underline">/dpa</a>.
       </p>
     </div>
@@ -451,11 +451,11 @@ function SettingsRow({
   children?: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1 max-w-[440px]">
-          <h2 className="text-[13.5px] font-semibold text-slate-900">{title}</h2>
-          <p className="mt-1 text-[12.5px] text-slate-500 leading-relaxed">{body}</p>
+          <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">{title}</h2>
+          <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)] leading-relaxed">{body}</p>
         </div>
         <div className="shrink-0">{action}</div>
       </div>
@@ -519,9 +519,9 @@ function AvatarSection() {
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="text-[13.5px] font-semibold text-slate-900">Profile photo</h2>
-      <p className="mt-1 text-[12.5px] text-slate-500">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
+      <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Profile photo</h2>
+      <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
         Upload a real photo if you&apos;d rather skip the pixel character. JPEG, PNG, WebP or
         GIF — up to 2 MB.
       </p>
@@ -530,7 +530,7 @@ function AvatarSection() {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+          className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
         >
           {busy ? 'Uploading…' : 'Choose photo'}
         </button>
@@ -538,7 +538,7 @@ function AvatarSection() {
           type="button"
           onClick={reset}
           disabled={busy}
-          className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[12.5px] font-medium text-slate-700 disabled:opacity-50 transition"
+          className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[12.5px] font-medium text-[var(--m-ink-2)] disabled:opacity-50 transition"
         >
           Use pixel character
         </button>

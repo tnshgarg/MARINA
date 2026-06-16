@@ -73,11 +73,11 @@ export default function OnboardingClient({
             {pendingInvites.map((i) => (
               <li
                 key={i.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--m-border-soft)] px-3 py-2"
               >
                 <div>
-                  <p className="text-[14px] font-medium text-slate-900">{i.orgName}</p>
-                  <p className="text-[11px] text-slate-500 uppercase tracking-widest">
+                  <p className="text-[14px] font-medium text-[var(--m-ink)]">{i.orgName}</p>
+                  <p className="text-[11px] text-[var(--m-ink-3)] uppercase tracking-widest">
                     Role · {i.role}
                   </p>
                 </div>

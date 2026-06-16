@@ -161,6 +161,12 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "github_installation_id" integer`)
   console.log('  · 0013 orgs.github_installation_id OK')
 
+  // 0015 — users.github_login: the employee's GitHub username captured at
+  // invite-accept. With the org's GitHub App installed, this is enough to
+  // attribute their commits/PRs — no per-employee OAuth required.
+  await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "github_login" text`)
+  console.log('  · 0015 users.github_login OK')
+
   // 0014 — Unique key on github_events (user_id, type, external_id) so the App
   // sync can UPSERT (refresh a PR's status / a review's verdict) instead of
   // duplicating or going stale. Dedupe any pre-existing collisions first so the

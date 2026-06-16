@@ -69,13 +69,13 @@ export function BlockerCoaching() {
         <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--m-accent-2)]">
           Coaching from your manager
         </p>
-        <span className="text-[11px] text-slate-500">{data.thread.length} message{data.thread.length === 1 ? '' : 's'}</span>
+        <span className="text-[11px] text-[var(--m-ink-3)]">{data.thread.length} message{data.thread.length === 1 ? '' : 's'}</span>
       </div>
       <ul className="space-y-2">
         {items.map((t) => (
           <li
             key={t.id}
-            className="flex items-start gap-2.5 rounded-lg bg-white border border-slate-200 px-3 py-2"
+            className="flex items-start gap-2.5 rounded-lg bg-white border border-[var(--m-border)] px-3 py-2"
           >
             {t.author ? (
               <CharacterAvatar
@@ -84,18 +84,18 @@ export function BlockerCoaching() {
                 size={28}
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-slate-100" />
+              <div className="w-7 h-7 rounded-full bg-[var(--m-bg-soft)]" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] text-slate-500">
-                <span className="font-medium text-slate-800">
+              <p className="text-[12px] text-[var(--m-ink-3)]">
+                <span className="font-medium text-[var(--m-ink)]">
                   {t.author?.name ?? `@${t.author?.login ?? 'manager'}`}
                 </span>{' '}
-                <span className="text-slate-400">·</span>{' '}
+                <span className="text-[var(--m-ink-4)]">·</span>{' '}
                 <KindLabel kind={t.kind} />
-                <span className="text-slate-400"> · {timeAgo(t.createdAt)}</span>
+                <span className="text-[var(--m-ink-4)]"> · {timeAgo(t.createdAt)}</span>
               </p>
-              <p className="mt-0.5 text-[13px] text-slate-800 leading-snug">{t.body}</p>
+              <p className="mt-0.5 text-[13px] text-[var(--m-ink)] leading-snug">{t.body}</p>
             </div>
           </li>
         ))}
@@ -111,7 +111,7 @@ function KindLabel({ kind }: { kind: ThreadItem['kind'] }) {
     case 'nudge':
       return <span className="text-amber-700 font-medium">sent a nudge</span>
     case 'note':
-      return <span className="text-slate-600 font-medium">added a note</span>
+      return <span className="text-[var(--m-ink-2)] font-medium">added a note</span>
     case 'resolution':
       return <span className="text-[var(--m-good)] font-medium">resolved this</span>
   }

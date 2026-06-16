@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { and, desc, eq, gte, inArray, isNull, like, not } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
+import { requireScope } from '@/lib/auth/guards'
 import { githubAppConfigured } from '@/lib/github/app'
 import GithubSyncButton from './sync-button'
 import { HubHeader, StatCard, Card, EmptyState } from '../ui'
-import GithubConstellation, { type GhDetail } from './constellation'
-import type { CNode, CEdge } from '@/components/collaboration-constellation'
+import GithubBoard, { type GhPerson } from './board'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,13 +37,21 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
   const installationId = (org as { githubInstallationId?: number | null }).githubInstallationId ?? null
   const configured = githubAppConfigured()
 
-  const members = await db
-    .select({ userId: schema.users.id, name: schema.users.name, login: schema.users.login, hasGithub: schema.users.accessToken })
+  // RBAC: a manager only sees the people they manage; an admin / HR
+  // (view_all_data) sees the whole org. Same scope that gates every other view.
+  const { scope } = await requireScope(orgId, 'manager')
+  const allMembers = await db
+    .select({ userId: schema.users.id, name: schema.users.name, login: schema.users.login, githubLogin: schema.users.githubLogin, githubId: schema.users.githubId, hasGithub: schema.users.accessToken })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
+  const members = scope.isAdminScope ? allMembers : allMembers.filter((m) => scope.userIds.has(m.userId))
   const userIds = members.map((m) => m.userId)
-  const linkedCount = members.filter((m) => m.hasGithub).length
+  // "Linked" = we can attribute their work: OAuth token, a known GitHub id, or a
+  // github username captured at invite (the App attributes by username/id alone).
+  const isLinked = (m: { hasGithub: string | null; githubId: number | null; githubLogin: string | null }) =>
+    !!m.hasGithub || m.githubId != null || !!m.githubLogin
+  const linkedCount = members.filter(isLinked).length
 
   const since14 = new Date(Date.now() - 14 * DAY_MS)
   const events = userIds.length
@@ -61,7 +70,7 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
           and(
             inArray(schema.githubEvents.userId, userIds),
             gte(schema.githubEvents.occurredAt, since14),
-            not(like(schema.githubEvents.externalId, 'seed-%')),
+            hideSeedRows(schema.githubEvents.externalId),
           ),
         )
         .orderBy(desc(schema.githubEvents.occurredAt))
@@ -69,18 +78,33 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
     : []
 
   const nameByUser = new Map(members.map((m) => [m.userId, m.name ?? `@${m.login}`]))
-  const loginToUserId = new Map(members.map((m) => [m.login.toLowerCase(), m.userId]))
-  const detail: Record<number, GhDetail> = {}
-  for (const m of members) detail[m.userId] = { name: nameByUser.get(m.userId)!, commits: 0, prs: [], reviewsGiven: [], reviewsReceived: [], recentCommitTitles: [] }
+  // Map a PR author's github login → userId. Index BOTH the app handle and the
+  // invite-supplied github username so reviews attribute either way.
+  const loginToUserId = new Map<string, number>()
+  for (const m of members) {
+    loginToUserId.set(m.login.toLowerCase(), m.userId)
+    if (m.githubLogin) loginToUserId.set(m.githubLogin.toLowerCase(), m.userId)
+  }
+
+  type Acc = {
+    name: string
+    commits: number
+    reviewCount: number
+    prs: Array<{ title: string; url: string; status: string }>
+    reviewing: Set<string>
+    reviewedBy: Set<string>
+    recentCommitTitles: string[]
+  }
+  const acc: Record<number, Acc> = {}
+  for (const m of members) acc[m.userId] = { name: nameByUser.get(m.userId)!, commits: 0, reviewCount: 0, prs: [], reviewing: new Set(), reviewedBy: new Set(), recentCommitTitles: [] }
   const seenCommit = new Map<number, Set<string>>()
   const repoCount = new Map<string, number>()
-  const edgeW = new Map<string, number>()
   const totals = { commits: 0, prs: 0, reviews: 0 }
 
   for (const e of events) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = (e.raw ?? {}) as any
-    const d = detail[e.userId]
+    const d = acc[e.userId]
     repoCount.set(e.repo, (repoCount.get(e.repo) ?? 0) + 1)
     if (e.type === 'commit') {
       totals.commits++
@@ -99,35 +123,32 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
       if (d) d.prs.push({ title: e.title, url: e.url, status: prStatus(r) })
     } else if (e.type === 'pr_reviewed') {
       totals.reviews++
-      if (d) d.reviewsGiven.push({ title: e.title, url: e.url, prAuthor: r?.prAuthor ?? null, verdict: r?.verdict ?? null })
-      const authorId = loginToUserId.get(String(r?.prAuthor ?? '').toLowerCase())
-      if (authorId != null && detail[authorId]) detail[authorId].reviewsReceived.push({ title: e.title, url: e.url, reviewer: nameByUser.get(e.userId)!, verdict: r?.verdict ?? null })
-      if (authorId != null && authorId !== e.userId) {
-        const a = Math.min(authorId, e.userId)
-        const b = Math.max(authorId, e.userId)
-        const k = `${a}|${b}`
-        edgeW.set(k, (edgeW.get(k) ?? 0) + 1)
+      const authorLogin = r?.prAuthor ? String(r.prAuthor) : null
+      const authorId = authorLogin ? loginToUserId.get(authorLogin.toLowerCase()) : undefined
+      if (d) {
+        d.reviewCount++
+        if (authorLogin && authorId !== e.userId) d.reviewing.add(authorId != null ? acc[authorId].name : `@${authorLogin}`)
       }
+      if (authorId != null && acc[authorId] && authorId !== e.userId) acc[authorId].reviewedBy.add(d?.name ?? `#${e.userId}`)
     }
   }
 
-  const nodes: CNode[] = []
-  const nodeIds = new Set<number>()
-  for (const m of members) {
-    const d = detail[m.userId]
-    const own = d.commits + d.prs.length + d.reviewsGiven.length
-    const touched = own + d.reviewsReceived.length
-    if (touched > 0) {
-      nodes.push({ id: m.userId, label: d.name, value: Math.max(1, own) })
-      nodeIds.add(m.userId)
-    }
-  }
-  const edges: CEdge[] = Array.from(edgeW.entries())
-    .map(([k, w]) => {
-      const [a, b] = k.split('|').map(Number)
-      return { source: a, target: b, weight: w }
+  const people: GhPerson[] = members
+    .map((m): GhPerson => {
+      const d = acc[m.userId]
+      return {
+        id: m.userId,
+        name: d.name,
+        commits: d.commits,
+        reviewCount: d.reviewCount,
+        prs: d.prs,
+        reviewing: [...d.reviewing],
+        reviewedBy: [...d.reviewedBy],
+        recentCommitTitles: d.recentCommitTitles,
+        total: d.commits + d.prs.length + d.reviewCount,
+      }
     })
-    .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+    .filter((p) => p.total > 0 || p.reviewedBy.length > 0)
 
   const topRepos = Array.from(repoCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10)
   const feed = events.slice(0, 18).map((e) => ({ ...e, name: nameByUser.get(e.userId) ?? `#${e.userId}` }))
@@ -137,7 +158,7 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
       <HubHeader
         brand="github"
         title="GitHub"
-        subtitle="Org-wide code activity from the GitHub App — last 14 days."
+        subtitle="Who's shipping and reviewing across the team — last 14 days."
         actions={installationId ? <GithubSyncButton orgId={orgId} /> : undefined}
       />
 
@@ -153,7 +174,7 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
         </Link>
       </div>
 
-      {!installationId ? (
+      {!installationId && events.length === 0 ? (
         <EmptyState
           brand="github"
           title={configured ? 'Install the GitHub App to start tracking' : 'GitHub App not configured on this deployment'}
@@ -176,19 +197,13 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
             <StatCard value={repoCount.size} label="active repos" />
           </div>
 
-          {/* Constellation — the centrepiece */}
-          <div className="mb-5">
-            <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
-              <h2 className="text-[12.5px] font-semibold text-[var(--m-ink)]">Collaboration map</h2>
-              <p className="text-[11px] text-[var(--m-ink-4)]">
-                ★ size = activity · lines = code reviews · <span className="text-[var(--m-ink-3)]">click a teammate to drill in</span>
-              </p>
-            </div>
-            <GithubConstellation nodes={nodes} edges={edges} detail={detail} />
+          {/* Team activity board — who's shipping & reviewing whom, at a glance */}
+          <div className="mb-6">
+            <h2 className="text-[12.5px] font-semibold text-[var(--m-ink)] mb-2.5">Team activity</h2>
+            <GithubBoard people={people} />
           </div>
 
           <div className="grid lg:grid-cols-5 gap-4">
-            {/* Recent feed */}
             <div className="lg:col-span-3">
               <Card title="Recent activity" hint="newest first">
                 <ul className="divide-y divide-[var(--m-border-soft)] -my-1">
@@ -213,7 +228,6 @@ export default async function GithubHubPage({ params }: { params: Promise<{ orgI
               </Card>
             </div>
 
-            {/* Active repos */}
             <div className="lg:col-span-2">
               <Card title="Active repos" hint={`${topRepos.length}`}>
                 <div className="flex flex-wrap gap-1.5">

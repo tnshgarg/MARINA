@@ -502,7 +502,7 @@ export function MemberDetailModal({
                 type="button"
                 onClick={sync}
                 disabled={busy}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
               >
                 {busy ? "…" : "Sync GitHub"}
               </button>
@@ -512,7 +512,7 @@ export function MemberDetailModal({
                 type="button"
                 onClick={() => setScheduleOpen(true)}
                 disabled={busy}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
               >
                 Schedule meeting
               </button>
@@ -525,7 +525,7 @@ export function MemberDetailModal({
       }
     >
       {loading && (
-        <p className="text-[13px] text-slate-500 py-4">Loading details…</p>
+        <p className="text-[13px] text-[var(--m-ink-3)] py-4">Loading details…</p>
       )}
       {err && <p className="text-[13px] text-rose-600 py-4">{err}</p>}
 
@@ -828,7 +828,7 @@ function _LegacyScheduleMeetingDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-slate-900/40"
+      className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-[var(--m-ink)]/40"
       onClick={onClose}
     >
       <div
@@ -836,24 +836,24 @@ function _LegacyScheduleMeetingDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[15px] font-semibold text-slate-900">
+          <h3 className="text-[15px] font-semibold text-[var(--m-ink)]">
             Schedule a meeting
           </h3>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-slate-400 hover:text-slate-700"
+            className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)]"
           >
             ✕
           </button>
         </div>
-        <p className="text-[12px] text-slate-500 mb-3">
+        <p className="text-[12px] text-[var(--m-ink-3)] mb-3">
           We'll send {attendeeName} an in-app notification and an email. If you
           have Google Calendar connected, the event is also added to both
           calendars with a Meet link.
         </p>
 
-        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">
+        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">
           Title
         </label>
         <input
@@ -866,7 +866,7 @@ function _LegacyScheduleMeetingDialog({
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">
+            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">
               When
             </label>
             <input
@@ -879,7 +879,7 @@ function _LegacyScheduleMeetingDialog({
             />
           </div>
           <div>
-            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">
+            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">
               Length
             </label>
             <select
@@ -897,7 +897,7 @@ function _LegacyScheduleMeetingDialog({
           </div>
         </div>
 
-        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">
+        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">
           Agenda (optional)
         </label>
         <textarea
@@ -1879,12 +1879,12 @@ function Section({
     <section>
       <div className="flex items-baseline justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--m-ink-3)]">
             {title}
           </h3>
           {chip}
         </div>
-        {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+        {hint && <span className="text-[11px] text-[var(--m-ink-4)]">{hint}</span>}
       </div>
       {children}
     </section>
@@ -2326,7 +2326,7 @@ function StatTile({
 }) {
   const dim = n === 0;
   const colorClass = dim
-    ? "text-slate-300"
+    ? "text-[var(--m-ink-5)]"
     : tone === "emerald"
       ? "text-emerald-700"
       : tone === "violet"
@@ -2335,13 +2335,13 @@ function StatTile({
           ? "text-sky-700"
           : "text-amber-700";
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <div className="rounded-lg border border-[var(--m-border)] bg-white px-3 py-2.5">
       <p
         className={`text-[24px] font-semibold tabular-nums tracking-tight ${colorClass}`}
       >
         {n}
       </p>
-      <p className="text-[11px] text-slate-500 mt-0.5">{label}</p>
+      <p className="text-[11px] text-[var(--m-ink-3)] mt-0.5">{label}</p>
     </div>
   );
 }
@@ -2384,7 +2384,7 @@ function NarrativeBullets({ text }: { text: string }) {
   const bullets = splitToBullets(text);
   if (bullets.length < 2) {
     return (
-      <p className="text-[13px] text-slate-700 leading-relaxed whitespace-pre-line">
+      <p className="text-[13px] text-[var(--m-ink-2)] leading-relaxed whitespace-pre-line">
         {text}
       </p>
     );
@@ -2394,7 +2394,7 @@ function NarrativeBullets({ text }: { text: string }) {
       {bullets.map((b, i) => (
         <li
           key={i}
-          className="flex gap-2 text-[12.5px] text-slate-700 leading-snug"
+          className="flex gap-2 text-[12.5px] text-[var(--m-ink-2)] leading-snug"
         >
           <span className="text-[var(--m-accent)] mt-0.5">•</span>
           <span>{b}</span>
@@ -2432,7 +2432,7 @@ function GitHubStats({
   }
   if (events.length === 0) {
     return (
-      <p className="text-[12.5px] text-slate-500">
+      <p className="text-[12.5px] text-[var(--m-ink-3)]">
         No activity in the last 7 days.
       </p>
     );
@@ -2449,7 +2449,7 @@ function EventTypeBadge({ type }: { type: string }) {
     },
     pr_reviewed: { cls: "bg-sky-50 text-sky-700", label: "review" },
     issue_closed: { cls: "bg-amber-50 text-amber-700", label: "issue" },
-  }[type] ?? { cls: "bg-slate-100 text-slate-600", label: type };
+  }[type] ?? { cls: "bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]", label: type };
   return (
     <span
       className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full uppercase tracking-wider ${cfg.cls}`}
@@ -2495,14 +2495,14 @@ const BREAK_CATEGORY: Record<
   },
   personal: {
     label: "Personal",
-    bg: "bg-slate-100",
-    fg: "text-slate-700",
+    bg: "bg-[var(--m-bg-soft)]",
+    fg: "text-[var(--m-ink-2)]",
     dot: "#64748b",
   },
   other: {
     label: "Other",
-    bg: "bg-slate-100",
-    fg: "text-slate-700",
+    bg: "bg-[var(--m-bg-soft)]",
+    fg: "text-[var(--m-ink-2)]",
     dot: "#94a3b8",
   },
 };
@@ -2528,13 +2528,13 @@ function BreakRow({ brk: b }: { brk: Detail["recentBreaks"][number] }) {
         />
         {cat.label}
       </span>
-      <span className="text-[12.5px] text-slate-700 truncate flex-1">
+      <span className="text-[12.5px] text-[var(--m-ink-2)] truncate flex-1">
         {b.reason || "—"}
       </span>
-      <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">
+      <span className="shrink-0 text-[11px] text-[var(--m-ink-3)] tabular-nums">
         {duration}
       </span>
-      <span className="shrink-0 text-[11px] text-slate-400">
+      <span className="shrink-0 text-[11px] text-[var(--m-ink-4)]">
         {timeAgo(b.startedAt)}
       </span>
     </li>
@@ -2547,10 +2547,10 @@ const LEAVE_TYPE_COLOR: Record<string, { bg: string; fg: string }> = {
   earned: { bg: "bg-emerald-50", fg: "text-emerald-700" },
   maternity: { bg: "bg-pink-50", fg: "text-pink-700" },
   paternity: { bg: "bg-pink-50", fg: "text-pink-700" },
-  bereavement: { bg: "bg-slate-100", fg: "text-slate-700" },
+  bereavement: { bg: "bg-[var(--m-bg-soft)]", fg: "text-[var(--m-ink-2)]" },
   compoff: { bg: "bg-[var(--m-clay-soft)]", fg: "text-[var(--m-clay-deep)]" },
   unpaid: { bg: "bg-amber-50", fg: "text-amber-700" },
-  other: { bg: "bg-slate-100", fg: "text-slate-700" },
+  other: { bg: "bg-[var(--m-bg-soft)]", fg: "text-[var(--m-ink-2)]" },
 };
 
 function LeaveTypeChip({ type }: { type: string }) {
@@ -2570,18 +2570,18 @@ function SceneList({ scenes }: { scenes: Scene[] }) {
       {scenes.slice(0, 12).map((s, i) => (
         <li
           key={i}
-          className="flex items-start gap-2 text-[12px] text-slate-700"
+          className="flex items-start gap-2 text-[12px] text-[var(--m-ink-2)]"
         >
           <span
             className="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
             style={{ background: SCENE_COLOR[s.kind] }}
           />
           <span className="min-w-0">
-            <span className="text-slate-500 tabular-nums">
+            <span className="text-[var(--m-ink-3)] tabular-nums">
               {fmtClock(s.startAt)}–{fmtClock(s.endAt)}
             </span>{" "}
-            <span className="font-medium text-slate-900">{s.label}</span>
-            {s.detail && <span className="text-slate-500"> · {s.detail}</span>}
+            <span className="font-medium text-[var(--m-ink)]">{s.label}</span>
+            {s.detail && <span className="text-[var(--m-ink-3)]"> · {s.detail}</span>}
           </span>
         </li>
       ))}
@@ -2643,13 +2643,13 @@ function InteractiveRibbon({ scenes }: { scenes: Scene[] }) {
       )}
 
       {/* Time axis labels */}
-      <div className="flex justify-between text-[10px] text-slate-400 tabular-nums mb-1">
+      <div className="flex justify-between text-[10px] text-[var(--m-ink-4)] tabular-nums mb-1">
         <span>{fmtClock(scenes[0]!.startAt)}</span>
         <span>{fmtClock(scenes[scenes.length - 1]!.endAt)}</span>
       </div>
 
       <div
-        className="relative rounded-md overflow-hidden h-3.5 flex bg-slate-100 border border-slate-200 cursor-pointer"
+        className="relative rounded-md overflow-hidden h-3.5 flex bg-[var(--m-bg-soft)] border border-[var(--m-border)] cursor-pointer"
         role="group"
         aria-label="Today's activity timeline"
       >
@@ -2699,7 +2699,7 @@ function InteractiveRibbon({ scenes }: { scenes: Scene[] }) {
       </div>
 
       {pinnedIdx !== null && (
-        <p className="mt-1.5 text-[10.5px] text-slate-400 text-center">
+        <p className="mt-1.5 text-[10.5px] text-[var(--m-ink-4)] text-center">
           Pinned — click again to unpin
         </p>
       )}
@@ -2733,13 +2733,13 @@ function ScenePopover({
       className="absolute bottom-full mb-2 -translate-x-1/2 z-30 pointer-events-none"
       style={{ left: `${leftPx}px`, animation: "popIn 120ms ease-out" }}
     >
-      <div className="pointer-events-auto min-w-[200px] max-w-[280px] rounded-lg border border-slate-200 bg-white shadow-xl px-3 py-2.5">
+      <div className="pointer-events-auto min-w-[200px] max-w-[280px] rounded-lg border border-[var(--m-border)] bg-white shadow-xl px-3 py-2.5">
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="min-w-0">
-            <p className="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold tabular-nums">
+            <p className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold tabular-nums">
               {fmtClock(scene.startAt)} – {fmtClock(scene.endAt)}
             </p>
-            <p className="text-[13px] font-semibold text-slate-900 leading-tight">
+            <p className="text-[13px] font-semibold text-[var(--m-ink)] leading-tight">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
                 style={{ background: SCENE_COLOR[scene.kind] }}
@@ -2750,7 +2750,7 @@ function ScenePopover({
           {pinned && (
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 -m-1 p-1"
+              className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] -m-1 p-1"
               aria-label="Unpin"
             >
               <svg
@@ -2767,25 +2767,25 @@ function ScenePopover({
           )}
         </div>
         {scene.detail && (
-          <p className="text-[11.5px] text-slate-600 leading-snug mb-1.5">
+          <p className="text-[11.5px] text-[var(--m-ink-2)] leading-snug mb-1.5">
             {scene.detail}
           </p>
         )}
-        <ul className="space-y-0.5 text-[11.5px] text-slate-700">
+        <ul className="space-y-0.5 text-[11.5px] text-[var(--m-ink-2)]">
           {ev.topApp && (
             <li>
-              <span className="text-slate-500">App: </span>
+              <span className="text-[var(--m-ink-3)]">App: </span>
               <span className="font-medium">{ev.topApp}</span>
             </li>
           )}
           {minutes != null && (
             <li>
-              <span className="text-slate-500">Active: </span>
+              <span className="text-[var(--m-ink-3)]">Active: </span>
               <span className="font-medium tabular-nums">
                 {humanDuration(minutes)}
               </span>
               {idleMin != null && idleMin > 0 && (
-                <span className="text-slate-400 tabular-nums">
+                <span className="text-[var(--m-ink-4)] tabular-nums">
                   {" "}
                   · idle {humanDuration(idleMin)}
                 </span>
@@ -2794,7 +2794,7 @@ function ScenePopover({
           )}
           {(ev.githubEvents ?? 0) > 0 && (
             <li>
-              <span className="text-slate-500">GitHub: </span>
+              <span className="text-[var(--m-ink-3)]">GitHub: </span>
               <span className="font-medium">
                 {ev.githubEvents} event{ev.githubEvents === 1 ? "" : "s"}
               </span>
@@ -2802,7 +2802,7 @@ function ScenePopover({
           )}
           {ev.breakReason && (
             <li>
-              <span className="text-slate-500">Reason: </span>
+              <span className="text-[var(--m-ink-3)]">Reason: </span>
               <span className="font-medium">{ev.breakReason}</span>
             </li>
           )}
@@ -2811,7 +2811,7 @@ function ScenePopover({
               {labelChips.map(([k, n]) => (
                 <span
                   key={k}
-                  className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-full"
+                  className="text-[10px] text-[var(--m-ink-2)] bg-[var(--m-bg-soft)] px-1.5 py-0.5 rounded-full"
                 >
                   {humanizeHint(k)} · {n}
                 </span>
@@ -2820,7 +2820,7 @@ function ScenePopover({
           )}
         </ul>
         {/* Arrow */}
-        <span className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 rotate-45 bg-white border-r border-b border-slate-200" />
+        <span className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 rotate-45 bg-white border-r border-b border-[var(--m-border)]" />
       </div>
       <style jsx>{`
         @keyframes popIn {
@@ -3136,10 +3136,10 @@ function PrStatusPill({
 }) {
   const cfg: Record<string, { bg: string; fg: string; label: string }> = {
     in_review: { bg: "bg-amber-100", fg: "text-amber-800", label: "review" },
-    open: { bg: "bg-slate-100", fg: "text-slate-700", label: "open" },
+    open: { bg: "bg-[var(--m-bg-soft)]", fg: "text-[var(--m-ink-2)]", label: "open" },
     merged: { bg: "bg-violet-100", fg: "text-violet-800", label: "merged" },
     closed: { bg: "bg-rose-100", fg: "text-rose-700", label: "closed" },
-    draft: { bg: "bg-slate-100", fg: "text-slate-500", label: "draft" },
+    draft: { bg: "bg-[var(--m-bg-soft)]", fg: "text-[var(--m-ink-3)]", label: "draft" },
   };
   const c = cfg[status] ?? cfg.open;
   return (
@@ -3159,7 +3159,7 @@ function VerdictPill({ verdict }: { verdict: string | null }) {
       : v === "CHANGES_REQUESTED"
         ? { bg: "bg-amber-100", fg: "text-amber-800", label: "✎ changes" }
         : v === "DISMISSED"
-          ? { bg: "bg-slate-100", fg: "text-slate-500", label: "dismissed" }
+          ? { bg: "bg-[var(--m-bg-soft)]", fg: "text-[var(--m-ink-3)]", label: "dismissed" }
           : { bg: "bg-sky-100", fg: "text-sky-700", label: "comment" };
   return (
     <span
@@ -3253,7 +3253,7 @@ function AppUsageBars({
   const total = usage.reduce((acc, u) => acc + u.seconds, 0);
   if (total === 0)
     return (
-      <p className="text-[12px] text-slate-500">
+      <p className="text-[12px] text-[var(--m-ink-3)]">
         No activity samples yet today.
       </p>
     );
@@ -3269,7 +3269,7 @@ function AppUsageBars({
 
   return (
     <div>
-      <div className="flex rounded-full overflow-hidden h-2 bg-slate-100 border border-slate-200">
+      <div className="flex rounded-full overflow-hidden h-2 bg-[var(--m-bg-soft)] border border-[var(--m-border)]">
         {usage.map((u, i) => (
           <div
             key={u.app}
@@ -3289,8 +3289,8 @@ function AppUsageBars({
               className="inline-block w-2 h-2 rounded-sm"
               style={{ background: PALETTE[i % PALETTE.length] }}
             />
-            <span className="text-slate-700 truncate">{u.app}</span>
-            <span className="ml-auto shrink-0 text-slate-500 tabular-nums">
+            <span className="text-[var(--m-ink-2)] truncate">{u.app}</span>
+            <span className="ml-auto shrink-0 text-[var(--m-ink-3)] tabular-nums">
               {humanDuration(Math.round(u.seconds / 60))}
             </span>
           </li>
@@ -3309,26 +3309,26 @@ function ScreenMix({ mix }: { mix: Detail["screenMix"] }) {
   const aPct = 100 - wPct - nPct;
   return (
     <div>
-      <div className="flex rounded-full overflow-hidden h-2 bg-slate-100 border border-slate-200">
+      <div className="flex rounded-full overflow-hidden h-2 bg-[var(--m-bg-soft)] border border-[var(--m-border)]">
         <div className="h-full bg-emerald-500" style={{ width: `${wPct}%` }} />
         <div className="h-full bg-rose-400" style={{ width: `${nPct}%` }} />
-        <div className="h-full bg-slate-300" style={{ width: `${aPct}%` }} />
+        <div className="h-full bg-[var(--m-ink-5)]" style={{ width: `${aPct}%` }} />
       </div>
-      <div className="mt-2 flex items-center gap-3 text-[11.5px] text-slate-700 flex-wrap">
+      <div className="mt-2 flex items-center gap-3 text-[11.5px] text-[var(--m-ink-2)] flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" />
           <span className="font-medium tabular-nums">{wPct}%</span>
-          <span className="text-slate-500">work</span>
+          <span className="text-[var(--m-ink-3)]">work</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2 h-2 rounded-sm bg-rose-400" />
           <span className="font-medium tabular-nums">{nPct}%</span>
-          <span className="text-slate-500">non-work</span>
+          <span className="text-[var(--m-ink-3)]">non-work</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2 h-2 rounded-sm bg-slate-300" />
+          <span className="inline-block w-2 h-2 rounded-sm bg-[var(--m-ink-5)]" />
           <span className="font-medium tabular-nums">{aPct}%</span>
-          <span className="text-slate-500">ambiguous</span>
+          <span className="text-[var(--m-ink-3)]">ambiguous</span>
         </span>
       </div>
       {(mix.topHints.length > 0 || mix.topCategories.length > 0) && (
@@ -3336,7 +3336,7 @@ function ScreenMix({ mix }: { mix: Detail["screenMix"] }) {
           {mix.topHints.map(({ k, n }) => (
             <span
               key={k}
-              className="text-[10.5px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-full"
+              className="text-[10.5px] text-[var(--m-ink-2)] bg-[var(--m-bg-soft)] px-1.5 py-0.5 rounded-full"
             >
               {humanizeHint(k)} · {n}
             </span>
@@ -3408,7 +3408,7 @@ function TodaySnapshot({ detail }: { detail: Detail }) {
         ? "bg-amber-50 text-amber-700 border-amber-200"
         : status.tone === "bad"
           ? "bg-rose-50 text-rose-700 border-rose-200"
-          : "bg-slate-100 text-slate-600 border-slate-200";
+          : "bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] border-[var(--m-border)]";
 
   // Today's work minutes — from the latest shift's punch-in.
   const todayMinutes =
@@ -3606,7 +3606,7 @@ function Tile({
   sub: string;
   tone?: "warn" | "neutral";
 }) {
-  const fg = tone === "warn" ? "text-amber-700" : "text-slate-900";
+  const fg = tone === "warn" ? "text-amber-700" : "text-[var(--m-ink)]";
   return (
     <div className="rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)]/40 px-3 py-2.5">
       <p className="text-[10px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold">
@@ -3968,22 +3968,22 @@ function DevicesPanel({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[13px] font-semibold text-slate-900">
+        <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">
           Paired devices
-          <span className="ml-1.5 text-slate-400 tabular-nums">
+          <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">
             {devices.filter((d) => !d.revokedAt).length}
           </span>
         </h3>
         {devices.length === 0 && (
-          <p className="text-[11.5px] text-slate-500">
+          <p className="text-[11.5px] text-[var(--m-ink-3)]">
             Not running the desktop agent yet
           </p>
         )}
       </div>
       {devices.length === 0 ? (
-        <p className="text-[12.5px] text-slate-500">
+        <p className="text-[12.5px] text-[var(--m-ink-3)]">
           Nothing paired. Ask this teammate to download MARINA from{" "}
           <a
             href="/download"
@@ -3994,22 +3994,22 @@ function DevicesPanel({
           and pair using their account.
         </p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-[var(--m-border-soft)]">
           {devices.map((d) => {
             const status = deviceStatus(d);
             return (
               <li key={d.id} className="py-2.5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-md bg-slate-100 inline-flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-md bg-[var(--m-bg-soft)] inline-flex items-center justify-center shrink-0">
                   <DeviceIcon platform={d.platform} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                  <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                     {d.label}
-                    <span className="ml-1.5 text-[10.5px] text-slate-400 font-normal uppercase tracking-wider">
+                    <span className="ml-1.5 text-[10.5px] text-[var(--m-ink-4)] font-normal uppercase tracking-wider">
                       {d.platform ?? "unknown"}
                     </span>
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate">
+                  <p className="text-[11px] text-[var(--m-ink-3)] truncate">
                     {d.agentVersion ? `v${d.agentVersion} · ` : ""}
                     Paired {timeAgo(d.pairedAt)}
                     {d.lastSeenAt
@@ -4050,7 +4050,7 @@ function DeviceIcon({ platform }: { platform: string | null }) {
         height={18}
         viewBox="0 0 384 512"
         fill="currentColor"
-        className="text-slate-600"
+        className="text-[var(--m-ink-2)]"
       >
         <path d="M318 268c-1-69 56-103 59-105-32-47-82-53-100-54-43-4-83 25-105 25-22 0-55-25-90-24-46 1-89 27-113 68-48 84-12 207 35 274 23 33 50 70 86 69 35-1 48-22 89-22 41 0 53 22 89 22 37-1 60-34 82-67 26-38 37-75 38-77-1-1-73-28-70-109zM254 80c19-23 32-55 28-87-28 1-62 19-82 41-18 20-34 53-30 84 31 2 63-16 84-38z" />
       </svg>
@@ -4063,7 +4063,7 @@ function DeviceIcon({ platform }: { platform: string | null }) {
         height={18}
         viewBox="0 0 448 512"
         fill="currentColor"
-        className="text-slate-600"
+        className="text-[var(--m-ink-2)]"
       >
         <path d="M0 93.7l183-25.2v177.4H0V93.7zm0 324.6l183 25.2V268.4H0v149.9zm203 28L448 480V268H203v178.3zm0-410v177.5h245V32L203 38.3z" />
       </svg>
@@ -4077,7 +4077,7 @@ function DeviceIcon({ platform }: { platform: string | null }) {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.8}
-      className="text-slate-600"
+      className="text-[var(--m-ink-2)]"
     >
       <rect x={3} y={4} width={18} height={12} rx={2} />
       <path d="M8 20h8M12 16v4" strokeLinecap="round" />
@@ -4097,7 +4097,7 @@ function deviceStatus(d: Detail["devices"][number]): {
   if (!d.lastSeenAt)
     return {
       label: "Pending",
-      cls: "bg-slate-50 text-slate-600 border border-slate-200",
+      cls: "bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] border border-[var(--m-border)]",
     };
   const age = Date.now() - new Date(d.lastSeenAt).getTime();
   const day = 24 * 60 * 60 * 1000;
@@ -4113,6 +4113,6 @@ function deviceStatus(d: Detail["devices"][number]): {
     };
   return {
     label: "Stale",
-    cls: "bg-slate-50 text-slate-500 border border-slate-200",
+    cls: "bg-[var(--m-bg-soft)] text-[var(--m-ink-3)] border border-[var(--m-border)]",
   };
 }

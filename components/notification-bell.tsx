@@ -99,7 +99,7 @@ export function NotificationBell() {
           setOpen((v) => !v)
           if (!open) load()
         }}
-        className="relative w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+        className="relative w-8 h-8 inline-flex items-center justify-center rounded-md text-[var(--m-ink-3)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)] transition"
         aria-label={`${unread} unread notifications`}
       >
         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -122,7 +122,7 @@ export function NotificationBell() {
           // z-[1000] + portal to <body> guarantees the panel always wins
           // the stacking battle, regardless of any parent's transform /
           // backdrop-filter / overflow-hidden stacking context.
-          className="fixed w-[320px] rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden z-[1000]"
+          className="fixed w-[320px] rounded-xl border border-[var(--m-border)] bg-white shadow-2xl overflow-hidden z-[1000]"
           style={{
             left: Math.min(Math.max(8, anchor.left - 160), window.innerWidth - 328),
             bottom: anchor.bottom + 8,
@@ -131,32 +131,32 @@ export function NotificationBell() {
             flexDirection: 'column',
           }}
         >
-          <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
-            <p className="text-[12.5px] font-semibold text-slate-900">Notifications</p>
+          <div className="px-4 py-2.5 border-b border-[var(--m-border-soft)] flex items-center justify-between">
+            <p className="text-[12.5px] font-semibold text-[var(--m-ink)]">Notifications</p>
             {unread > 0 && (
               <button
                 onClick={markAll}
-                className="text-[11.5px] text-slate-500 hover:text-slate-900"
+                className="text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
               >
                 Mark all read
               </button>
             )}
           </div>
           {items.length === 0 ? (
-            <p className="px-4 py-6 text-[12px] text-slate-500 text-center">You're all caught up.</p>
+            <p className="px-4 py-6 text-[12px] text-[var(--m-ink-3)] text-center">You're all caught up.</p>
           ) : (
-            <ul className="flex-1 overflow-y-auto divide-y divide-slate-100">
+            <ul className="flex-1 overflow-y-auto divide-y divide-[var(--m-border-soft)]">
               {items.map((n) => {
                 const isUnread = !n.readAt
                 const body = (
-                  <div className={`px-4 py-2.5 ${isUnread ? 'bg-[var(--m-accent-soft)]/60' : ''} hover:bg-slate-50/60 transition`}>
-                    <p className="text-[12.5px] font-medium text-slate-900 leading-snug">
+                  <div className={`px-4 py-2.5 ${isUnread ? 'bg-[var(--m-accent-soft)]/60' : ''} hover:bg-[var(--m-bg-soft)]/60 transition`}>
+                    <p className="text-[12.5px] font-medium text-[var(--m-ink)] leading-snug">
                       {n.title}
                     </p>
                     {n.body && (
-                      <p className="mt-0.5 text-[11.5px] text-slate-600 leading-snug">{n.body}</p>
+                      <p className="mt-0.5 text-[11.5px] text-[var(--m-ink-2)] leading-snug">{n.body}</p>
                     )}
-                    <p className="mt-0.5 text-[10.5px] text-slate-400">{timeAgo(n.createdAt)}</p>
+                    <p className="mt-0.5 text-[10.5px] text-[var(--m-ink-4)]">{timeAgo(n.createdAt)}</p>
                   </div>
                 )
                 return (

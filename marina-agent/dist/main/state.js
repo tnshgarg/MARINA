@@ -11,10 +11,10 @@ class StateBus extends events_1.EventEmitter {
         sampleIntervalSeconds: 30,
         flushIntervalSeconds: 300,
         userLogin: null,
-        // Default to whatever config.ts resolves — `https://marina.team` in prod
-        // builds, the MARINA_SERVER_URL env in dev. Once the user pairs, the
-        // serverBaseUrl they typed in the pairing dialog is persisted to the
-        // encrypted store and overrides this default on every boot.
+        // Default to whatever config.ts resolves — the prod domain in packaged
+        // builds, http://localhost:3000 when unpackaged (dev), or MARINA_SERVER_URL
+        // if set. Once the user pairs, the serverBaseUrl they typed in the pairing
+        // dialog is persisted to the encrypted store and overrides this on boot.
         serverBaseUrl: config_1.DEFAULT_SERVER_BASE_URL,
         lastHeartbeatAt: null,
         lastFlushAt: null,

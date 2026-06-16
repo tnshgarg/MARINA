@@ -46,10 +46,10 @@ const KIND_STYLE: Record<DayKind, { bg: string; fg: string; label: string }> = {
   absent:      { bg: 'bg-rose-50',     fg: 'text-rose-700',    label: 'Absent'         },
   leave:       { bg: 'bg-amber-50',    fg: 'text-amber-700',   label: 'On leave'       },
   holiday:     { bg: 'bg-[var(--m-clay-soft)]',   fg: 'text-[var(--m-clay-deep)]',  label: 'Holiday'        },
-  weekend:     { bg: 'bg-slate-50',    fg: 'text-slate-400',   label: 'Weekend'        },
-  future:      { bg: 'bg-white',       fg: 'text-slate-300',   label: 'Upcoming'       },
-  'today-empty': { bg: 'bg-white',     fg: 'text-slate-500',   label: 'Not yet logged' },
-  'pre-join':  { bg: 'bg-white',       fg: 'text-slate-300',   label: 'Before joining' },
+  weekend:     { bg: 'bg-[var(--m-bg-soft)]',    fg: 'text-[var(--m-ink-4)]',   label: 'Weekend'        },
+  future:      { bg: 'bg-white',       fg: 'text-[var(--m-ink-5)]',   label: 'Upcoming'       },
+  'today-empty': { bg: 'bg-white',     fg: 'text-[var(--m-ink-3)]',   label: 'Not yet logged' },
+  'pre-join':  { bg: 'bg-white',       fg: 'text-[var(--m-ink-5)]',   label: 'Before joining' },
 }
 
 export default function AttendanceClient({
@@ -112,9 +112,9 @@ export default function AttendanceClient({
     <div className="grid grid-cols-12 gap-5">
       {/* Left: member list */}
       <aside className="col-span-12 md:col-span-3">
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-slate-100">
-            <p className="text-[11.5px] uppercase tracking-wider font-semibold text-slate-500 mb-2">Team</p>
+        <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-[var(--m-border-soft)]">
+            <p className="text-[11.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] mb-2">Team</p>
             <input
               type="search"
               value={memberQuery}
@@ -125,7 +125,7 @@ export default function AttendanceClient({
             />
           </div>
           {members.length === 0 ? (
-            <p className="px-3 py-6 text-[12.5px] text-slate-500">No members yet.</p>
+            <p className="px-3 py-6 text-[12.5px] text-[var(--m-ink-3)]">No members yet.</p>
           ) : (
             <ul className="max-h-[420px] overflow-y-auto">
               {members
@@ -145,7 +145,7 @@ export default function AttendanceClient({
                       type="button"
                       onClick={() => selectMember(m.userId)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-left transition ${
-                        active ? 'bg-[var(--m-accent-soft)]/60 text-[var(--m-accent-2)]' : 'hover:bg-slate-50 text-slate-700'
+                        active ? 'bg-[var(--m-accent-soft)]/60 text-[var(--m-accent-2)]' : 'hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]'
                       }`}
                     >
                       <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={24} />
@@ -167,36 +167,36 @@ export default function AttendanceClient({
             doesn't feel like a frozen page. */}
         {isPending && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/60 backdrop-blur-[1px]">
-            <span className="inline-flex items-center gap-2 text-[12.5px] text-slate-600 font-medium">
-              <span className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-[var(--m-accent)] animate-spin" />
+            <span className="inline-flex items-center gap-2 text-[12.5px] text-[var(--m-ink-2)] font-medium">
+              <span className="w-4 h-4 rounded-full border-2 border-[var(--m-border)] border-t-[var(--m-accent)] animate-spin" />
               Loading…
             </span>
           </div>
         )}
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+        <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => changeMonth(-1)}
-                className="px-2 py-1 rounded-md hover:bg-slate-100 text-slate-600"
+                className="px-2 py-1 rounded-md hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]"
                 aria-label="Previous month"
               >
                 ‹
               </button>
-              <h2 className="text-[14px] font-semibold text-slate-900 tabular-nums min-w-[140px] text-center">
+              <h2 className="text-[14px] font-semibold text-[var(--m-ink)] tabular-nums min-w-[140px] text-center">
                 {monthLabel}
               </h2>
               <button
                 type="button"
                 onClick={() => changeMonth(1)}
-                className="px-2 py-1 rounded-md hover:bg-slate-100 text-slate-600"
+                className="px-2 py-1 rounded-md hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]"
                 aria-label="Next month"
               >
                 ›
               </button>
             </div>
-            <div className="flex items-center gap-3 text-[11.5px] text-slate-500 flex-wrap">
+            <div className="flex items-center gap-3 text-[11.5px] text-[var(--m-ink-3)] flex-wrap">
               <Counter n={summary.present} label="present" tone="emerald" />
               <Counter n={summary.leave} label="on leave" tone="amber" />
               <Counter n={summary.absent} label="absent" tone="rose" />
@@ -210,7 +210,7 @@ export default function AttendanceClient({
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                 <div
                   key={d}
-                  className="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold text-center"
+                  className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold text-center"
                 >
                   {d}
                 </div>
@@ -229,7 +229,7 @@ export default function AttendanceClient({
                     key={c.date}
                     type="button"
                     onClick={() => setPickedDay(c)}
-                    className={`group relative h-16 rounded-lg border border-slate-100 ${style.bg} hover:border-slate-300 transition text-left p-1.5 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/30`}
+                    className={`group relative h-16 rounded-lg border border-[var(--m-border-soft)] ${style.bg} hover:border-[var(--m-border)] transition text-left p-1.5 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/30`}
                     title={style.label + (c.detail ? ` — ${c.detail}` : '')}
                   >
                     <span
@@ -277,16 +277,16 @@ export default function AttendanceClient({
 function DayDetail({ cell: c }: { cell: DayCell }) {
   if (c.kind === 'leave' && c.leave) {
     return (
-      <div className="space-y-2 text-[13px] text-slate-700">
+      <div className="space-y-2 text-[13px] text-[var(--m-ink-2)]">
         <p>
-          <span className="capitalize text-slate-900 font-medium">{c.leave.leaveType}</span> ·{' '}
+          <span className="capitalize text-[var(--m-ink)] font-medium">{c.leave.leaveType}</span> ·{' '}
           <span className={c.leave.status === 'approved' ? 'text-emerald-700' : 'text-amber-700'}>
             {c.leave.status}
           </span>
         </p>
-        <p className="text-[12.5px] text-slate-600">{fmtDate(c.leave.startDate)} — {fmtDate(c.leave.endDate)}</p>
+        <p className="text-[12.5px] text-[var(--m-ink-2)]">{fmtDate(c.leave.startDate)} — {fmtDate(c.leave.endDate)}</p>
         {c.leave.reason && (
-          <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12.5px] text-slate-700 leading-snug">
+          <div className="mt-2 rounded-lg bg-[var(--m-bg-soft)] border border-[var(--m-border)] px-3 py-2 text-[12.5px] text-[var(--m-ink-2)] leading-snug">
             {c.leave.reason}
           </div>
         )}
@@ -295,34 +295,34 @@ function DayDetail({ cell: c }: { cell: DayCell }) {
   }
   if (c.kind === 'holiday' && c.holiday) {
     return (
-      <p className="text-[13px] text-slate-700">
-        <span className="font-medium text-slate-900">{c.holiday.name}</span>
-        {c.holiday.isOptional && <span className="ml-1.5 text-[11.5px] text-slate-500">(optional)</span>}
+      <p className="text-[13px] text-[var(--m-ink-2)]">
+        <span className="font-medium text-[var(--m-ink)]">{c.holiday.name}</span>
+        {c.holiday.isOptional && <span className="ml-1.5 text-[11.5px] text-[var(--m-ink-3)]">(optional)</span>}
       </p>
     )
   }
   if (c.kind === 'present') {
     return (
-      <p className="text-[13px] text-slate-700">
+      <p className="text-[13px] text-[var(--m-ink-2)]">
         On-shift {c.shiftMins ? `for ${fmtHm(c.shiftMins)}` : ''}
-        {c.detail && <span className="text-slate-500"> · {c.detail}</span>}
+        {c.detail && <span className="text-[var(--m-ink-3)]"> · {c.detail}</span>}
       </p>
     )
   }
   if (c.kind === 'absent') {
     return (
-      <p className="text-[13px] text-slate-700">
+      <p className="text-[13px] text-[var(--m-ink-2)]">
         No shift, no approved leave on this day.
       </p>
     )
   }
   if (c.kind === 'weekend') {
-    return <p className="text-[13px] text-slate-500">Weekend — not a working day.</p>
+    return <p className="text-[13px] text-[var(--m-ink-3)]">Weekend — not a working day.</p>
   }
   if (c.kind === 'future') {
-    return <p className="text-[13px] text-slate-500">Upcoming — nothing to report yet.</p>
+    return <p className="text-[13px] text-[var(--m-ink-3)]">Upcoming — nothing to report yet.</p>
   }
-  return <p className="text-[13px] text-slate-500">Today — no shift logged yet.</p>
+  return <p className="text-[13px] text-[var(--m-ink-3)]">Today — no shift logged yet.</p>
 }
 
 function Counter({
@@ -349,12 +349,12 @@ function Counter({
 
 function Legend() {
   return (
-    <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+    <div className="mt-3 flex items-center gap-3 text-[11px] text-[var(--m-ink-3)] flex-wrap">
       <Swatch className="bg-emerald-50" label="Present" />
       <Swatch className="bg-amber-50" label="On leave" />
       <Swatch className="bg-rose-50" label="Absent" />
       <Swatch className="bg-[var(--m-clay-soft)]" label="Holiday" />
-      <Swatch className="bg-slate-50" label="Weekend" />
+      <Swatch className="bg-[var(--m-bg-soft)]" label="Weekend" />
     </div>
   )
 }
@@ -362,7 +362,7 @@ function Legend() {
 function Swatch({ className, label }: { className: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`inline-block w-3 h-3 rounded border border-slate-200 ${className}`} />
+      <span className={`inline-block w-3 h-3 rounded border border-[var(--m-border)] ${className}`} />
       <span>{label}</span>
     </span>
   )

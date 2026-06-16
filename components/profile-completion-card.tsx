@@ -92,17 +92,17 @@ export function ProfileCompletionCard() {
           <p className="text-[11px] uppercase tracking-wider text-[var(--m-accent-2)] font-semibold">
             One quick thing
           </p>
-          <p className="mt-1 text-[14px] font-medium text-slate-900">
+          <p className="mt-1 text-[14px] font-medium text-[var(--m-ink)]">
             Help us celebrate you
           </p>
-          <p className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">
+          <p className="text-[12.5px] text-[var(--m-ink-2)] mt-0.5 leading-snug">
             Your manager doesn&apos;t need to enter these — fill in your dates once
             and MARINA handles the rest.
           </p>
         </div>
         <button
           onClick={() => setDismissed(true)}
-          className="text-slate-400 hover:text-slate-700 text-[18px] leading-none px-1"
+          className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] text-[18px] leading-none px-1"
           aria-label="Dismiss"
         >
           ×
@@ -111,7 +111,7 @@ export function ProfileCompletionCard() {
       <div className="grid sm:grid-cols-2 gap-3">
         {needsJoinedOn && (
           <label className="block">
-            <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            <span className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold">
               Joining date
             </span>
             <input
@@ -125,8 +125,8 @@ export function ProfileCompletionCard() {
         )}
         {needsBirthday && (
           <label className="block">
-            <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-              Birthday <span className="text-slate-400 font-normal normal-case">(only day + month shown)</span>
+            <span className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold">
+              Birthday <span className="text-[var(--m-ink-4)] font-normal normal-case">(only day + month shown)</span>
             </span>
             <input
               type="date"
@@ -145,7 +145,7 @@ export function ProfileCompletionCard() {
         >
           {busy ? 'Saving…' : 'Save'}
         </button>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-[var(--m-ink-3)]">
           Your birthday year is never stored or shown.
         </p>
       </div>

@@ -9,7 +9,7 @@ export default function Loading() {
       </div>
       <div className="space-y-5">
         <section className="app-card">
-          <div className="px-5 py-3 border-b border-slate-100">
+          <div className="px-5 py-3 border-b border-[var(--m-border-soft)]">
             <SkelBar w={140} h={14} />
           </div>
           <div>
@@ -19,7 +19,7 @@ export default function Loading() {
           </div>
         </section>
         <section className="app-card">
-          <div className="px-5 py-3 border-b border-slate-100">
+          <div className="px-5 py-3 border-b border-[var(--m-border-soft)]">
             <SkelBar w={140} h={14} />
           </div>
           <div>

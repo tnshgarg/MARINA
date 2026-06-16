@@ -91,7 +91,7 @@ export function WelcomeTour({
 
       <button
         onClick={() => setDismissed(true)}
-        className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-[14px] transition"
+        className="absolute top-4 right-4 text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] text-[14px] transition"
         aria-label="Dismiss welcome"
         title="Dismiss"
       >
@@ -103,20 +103,20 @@ export function WelcomeTour({
           <span className="text-[12px] font-semibold uppercase tracking-widest text-[var(--m-accent)]">
             Welcome
           </span>
-          <span className="text-[11px] text-slate-500 tabular">
+          <span className="text-[11px] text-[var(--m-ink-3)] tabular">
             {completed}/{steps.length} done
           </span>
         </div>
-        <h2 className="text-[24px] font-semibold tracking-tight text-slate-900">
+        <h2 className="text-[24px] font-semibold tracking-tight text-[var(--m-ink)]">
           {firstWord(name)}, let&apos;s get you set up. 👋
         </h2>
-        <p className="mt-2 text-[14px] text-slate-600 max-w-xl">
+        <p className="mt-2 text-[14px] text-[var(--m-ink-2)] max-w-xl">
           MARINA combines work signals from GitHub + your desktop into an honest story of your day.
           Three minutes to set up. Then you&apos;ll never write a status update again.
         </p>
 
         {/* Progress bar */}
-        <div className="mt-5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="mt-5 h-1.5 rounded-full bg-[var(--m-bg-soft)] overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-[var(--m-accent)] via-[var(--m-clay)] to-[var(--m-gold)] transition-all duration-700 ease-out"
             style={{ width: `${(completed / steps.length) * 100}%` }}
@@ -131,21 +131,21 @@ export function WelcomeTour({
                 className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-[12px] font-semibold border transition-colors ${
                   s.done
                     ? 'bg-emerald-500 text-white border-emerald-500'
-                    : 'bg-white text-slate-500 border-slate-300'
+                    : 'bg-white text-[var(--m-ink-3)] border-[var(--m-border)]'
                 }`}
               >
                 {s.done ? '✓' : i + 1}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <p className={`text-[14px] font-medium ${s.done ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                  <p className={`text-[14px] font-medium ${s.done ? 'text-[var(--m-ink-3)] line-through' : 'text-[var(--m-ink)]'}`}>
                     {s.label}
                   </p>
                   {s.cta && !s.done && (
                     <CtaButton cta={s.cta} />
                   )}
                 </div>
-                <p className="text-[12px] text-slate-600 mt-0.5">{s.detail}</p>
+                <p className="text-[12px] text-[var(--m-ink-2)] mt-0.5">{s.detail}</p>
               </div>
             </li>
           ))}
@@ -218,11 +218,11 @@ function QuickAction({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+      className="group rounded-2xl border border-[var(--m-border)] bg-white p-4 text-left hover:border-[var(--m-accent)]/40 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
     >
       <div className="text-[24px] mb-1.5">{emoji}</div>
-      <p className="text-[13px] font-medium text-slate-900">{label}</p>
-      <p className="text-[11px] text-slate-500">{sub}</p>
+      <p className="text-[13px] font-medium text-[var(--m-ink)]">{label}</p>
+      <p className="text-[11px] text-[var(--m-ink-3)]">{sub}</p>
     </button>
   )
 }

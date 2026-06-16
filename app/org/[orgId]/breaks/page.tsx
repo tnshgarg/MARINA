@@ -57,35 +57,35 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
     <>
       <div className="mb-5">
         <h1 className="app-h1">Breaks</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Real-time view of who&apos;s paused right now, plus the last 72 hours of breaks.
         </p>
       </div>
 
       <div className="grid grid-cols-12 gap-5">
-        <section className="col-span-12 lg:col-span-7 rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-            <h2 className="text-[14px] font-semibold text-slate-900">Paused now</h2>
-            <span className="text-[12px] text-slate-500 tabular-nums">{ongoing.length}</span>
+        <section className="col-span-12 lg:col-span-7 rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+            <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">Paused now</h2>
+            <span className="text-[12px] text-[var(--m-ink-3)] tabular-nums">{ongoing.length}</span>
           </div>
           {ongoing.length === 0 ? (
-            <p className="px-4 py-6 text-[12.5px] text-slate-500">Nobody&apos;s paused right now.</p>
+            <p className="px-4 py-6 text-[12.5px] text-[var(--m-ink-3)]">Nobody&apos;s paused right now.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-[var(--m-border-soft)]">
               {ongoing.map(({ b, u }) => (
                 <li key={b.id} className="px-4 py-3 flex items-start gap-3">
                   <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={32} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-slate-900 truncate">
+                    <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
                       {u.name ?? `@${u.login}`}
-                      <span className="ml-1.5 text-[10.5px] text-slate-500 capitalize font-normal">
+                      <span className="ml-1.5 text-[10.5px] text-[var(--m-ink-3)] capitalize font-normal">
                         · {b.category ?? 'other'}
                       </span>
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[var(--m-ink-3)]">
                       Started {timeAgo(b.startedAt.toISOString())}
                     </p>
-                    <p className="mt-1 text-[12.5px] text-slate-700 leading-snug">{b.reason}</p>
+                    <p className="mt-1 text-[12.5px] text-[var(--m-ink-2)] leading-snug">{b.reason}</p>
                   </div>
                   <CheckInButton
                     orgId={orgId}
@@ -100,26 +100,26 @@ export default async function BreaksPage({ params }: { params: Promise<{ orgId: 
           )}
         </section>
 
-        <section className="col-span-12 lg:col-span-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-            <h2 className="text-[14px] font-semibold text-slate-900">Recent breaks</h2>
-            <span className="text-[11.5px] text-slate-500">Last 72 hours</span>
+        <section className="col-span-12 lg:col-span-5 rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+            <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">Recent breaks</h2>
+            <span className="text-[11.5px] text-[var(--m-ink-3)]">Last 72 hours</span>
           </div>
           {recent.length === 0 ? (
-            <p className="px-4 py-6 text-[12.5px] text-slate-500">No recent breaks logged.</p>
+            <p className="px-4 py-6 text-[12.5px] text-[var(--m-ink-3)]">No recent breaks logged.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-[var(--m-border-soft)]">
               {recent.slice(0, 12).map(({ b, u }) => (
                 <li key={b.id} className="px-4 py-2.5 flex items-start gap-3">
                   <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                    <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                       {u.name ?? `@${u.login}`}
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[var(--m-ink-3)]">
                       {fmtDuration(b)} · {timeAgo(b.startedAt.toISOString())}
                     </p>
-                    <p className="text-[11.5px] text-slate-600 leading-snug">{b.reason}</p>
+                    <p className="text-[11.5px] text-[var(--m-ink-2)] leading-snug">{b.reason}</p>
                   </div>
                 </li>
               ))}

@@ -119,7 +119,7 @@ export function StoryCard({ endpoint }: { endpoint: string }) {
           <Timeline scenes={story.scenes} />
           <NarrativeBlock narrative={story.narrative} />
           <Legend scenes={story.scenes} />
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-[var(--m-ink-4)]">
             {story.provider} · {story.model}
             {loadedFromCache && story.generatedAt
               ? ` · cached ${new Date(story.generatedAt).toLocaleString()}`
@@ -127,9 +127,9 @@ export function StoryCard({ endpoint }: { endpoint: string }) {
           </p>
         </div>
       ) : (
-        <div className="mt-5 rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+        <div className="mt-5 rounded-xl border border-dashed border-[var(--m-border)] px-4 py-8 text-center">
           <p className="text-[24px] mb-1">📖</p>
-          <p className="text-[14px] font-medium text-slate-900">
+          <p className="text-[14px] font-medium text-[var(--m-ink)]">
             Your day, as told by MARINA
           </p>
           <p className="app-sub mt-1 max-w-md mx-auto">
@@ -153,12 +153,12 @@ function Timeline({ scenes }: { scenes: Scene[] }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
+      <div className="flex items-center justify-between text-[11px] text-[var(--m-ink-3)] mb-1.5">
         <span>{timeOf(scenes[0].startAt)}</span>
         <span>{timeOf(scenes[scenes.length - 1].endAt)}</span>
       </div>
       <div
-        className="relative h-9 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex"
+        className="relative h-9 rounded-lg overflow-hidden border border-[var(--m-border)] bg-[var(--m-bg-soft)] flex"
         title="Hover scenes for details"
       >
         {scenes.map((s, i) => {
@@ -179,20 +179,20 @@ function Timeline({ scenes }: { scenes: Scene[] }) {
         {scenes.map((s, i) => (
           <div
             key={i}
-            className="grid grid-cols-[80px_1fr_auto] items-baseline gap-2 text-[12px] py-1 border-b border-slate-50 last:border-0"
+            className="grid grid-cols-[80px_1fr_auto] items-baseline gap-2 text-[12px] py-1 border-b border-[var(--m-border-soft)] last:border-0"
           >
-            <span className="text-slate-500 font-mono">
+            <span className="text-[var(--m-ink-3)] font-mono">
               {timeOf(s.startAt)}–{timeOf(s.endAt)}
             </span>
-            <span className="text-slate-800">
+            <span className="text-[var(--m-ink)]">
               <span
                 className="inline-block w-2 h-2 rounded-full mr-1.5"
                 style={{ background: KIND_COLOR[s.kind] ?? KIND_COLOR.unknown }}
               />
-              <strong className="font-medium text-slate-900">{s.label}</strong>
-              {s.detail ? <span className="text-slate-500"> · {s.detail}</span> : null}
+              <strong className="font-medium text-[var(--m-ink)]">{s.label}</strong>
+              {s.detail ? <span className="text-[var(--m-ink-3)]"> · {s.detail}</span> : null}
             </span>
-            <span className="text-slate-400 text-[11px]">{durationOf(s.startAt, s.endAt)}</span>
+            <span className="text-[var(--m-ink-4)] text-[11px]">{durationOf(s.startAt, s.endAt)}</span>
           </div>
         ))}
       </div>
@@ -207,7 +207,7 @@ function NarrativeBlock({ narrative }: { narrative: string }) {
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--m-accent-2)] mb-1.5">
         ✦ Narrative
       </p>
-      <p className="text-[14px] leading-relaxed text-slate-800 whitespace-pre-line">{narrative}</p>
+      <p className="text-[14px] leading-relaxed text-[var(--m-ink)] whitespace-pre-line">{narrative}</p>
     </div>
   )
 }
@@ -219,7 +219,7 @@ function Legend({ scenes }: { scenes: Scene[] }) {
       {kinds.map((k) => (
         <span
           key={k}
-          className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 px-2 py-0.5 rounded-full bg-slate-100"
+          className="inline-flex items-center gap-1.5 text-[11px] text-[var(--m-ink-2)] px-2 py-0.5 rounded-full bg-[var(--m-bg-soft)]"
         >
           <span
             className="w-2 h-2 rounded-full"

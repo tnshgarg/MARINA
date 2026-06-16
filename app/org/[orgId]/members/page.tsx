@@ -60,7 +60,7 @@ export default async function MembersPage({ params }: { params: Promise<{ orgId:
     <>
       <div className="mb-4">
         <h1 className="app-h1">People</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Manage the roster, invite teammates, and review punched-in shifts.
         </p>
       </div>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { NavProgress } from "@/components/nav-progress";
 import { ToastProvider } from "@/components/toast";
+import { TestModeBadge } from "@/components/test-mode-badge";
 
 export const metadata: Metadata = {
   title: "MARINA · AI Chief of Staff for remote teams",
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <NavProgress />
         <ToastProvider>{children}</ToastProvider>
+        <TestModeBadge />
       </body>
     </html>
   );

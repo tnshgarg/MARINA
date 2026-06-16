@@ -65,14 +65,14 @@ export default function OrgSettingsClient({
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Org name */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Workspace name</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">Shown in the sidebar and on email invites.</p>
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Workspace name</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">Shown in the sidebar and on email invites.</p>
           </div>
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || name.trim() === initial.name}
             onClick={() => save({ name }, 'name')}
           >
@@ -91,11 +91,11 @@ export default function OrgSettingsClient({
       <OrgLogoSection orgId={orgId} initialLogoUrl={initial.logoUrl} />
 
       {/* Slack notifications */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Slack notifications</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Slack notifications</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
               Get pinged when employees take a break, request leave, or punch out with a suspicious summary.
               {hasSlack && <span className="ml-1 text-emerald-600 font-medium">· Configured</span>}
             </p>
@@ -109,12 +109,12 @@ export default function OrgSettingsClient({
           placeholder="https://hooks.slack.com/services/T00.../B00.../..."
           className="input"
         />
-        <p className="mt-2 text-[12px] text-slate-500">
+        <p className="mt-2 text-[12px] text-[var(--m-ink-3)]">
           Create one at <code>api.slack.com/apps</code> → your app → Incoming Webhooks → Add. Paste the URL above.
         </p>
         <div className="flex gap-2 mt-3">
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || slackWebhook.trim().length === 0}
             onClick={async () => {
               const ok = await save({ slackWebhookUrl: slackWebhook }, 'slack')
@@ -143,14 +143,14 @@ export default function OrgSettingsClient({
       </section>
 
       {/* Holiday region */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Public holiday calendar</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">Seeds the leave + insights views with India national + state holidays.</p>
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Public holiday calendar</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">Seeds the leave + insights views with India national + state holidays.</p>
           </div>
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || region === initial.holidayRegion}
             onClick={() => save({ holidayRegion: region }, 'region')}
           >
@@ -166,16 +166,16 @@ export default function OrgSettingsClient({
 
       {/* Leave policy — annual paid-leave allowance per type. Drives the
           balance shown to employees when they request leave. */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Leave policy</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Leave policy</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
               Annual paid-leave allowance per type (in days). Employees see their remaining balance only when requesting leave.
             </p>
           </div>
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null}
             onClick={() =>
               save(
@@ -194,7 +194,7 @@ export default function OrgSettingsClient({
             ['Earned', earnedDays, setEarnedDays],
           ] as const).map(([label, val, setVal]) => (
             <div key={label}>
-              <label className="text-[11px] uppercase tracking-wide text-slate-500 font-medium block mb-1">{label}</label>
+              <label className="text-[11px] uppercase tracking-wide text-[var(--m-ink-3)] font-medium block mb-1">{label}</label>
               <input
                 type="number"
                 min={0}
@@ -206,20 +206,20 @@ export default function OrgSettingsClient({
             </div>
           ))}
         </div>
-        <p className="mt-2 text-[11.5px] text-slate-400">
+        <p className="mt-2 text-[11.5px] text-[var(--m-ink-4)]">
           This is the workspace default. Per-employee overrides are coming next.
         </p>
       </section>
 
       {/* Avatar mode */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Avatar style</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">Choose how teammates appear across dashboards.</p>
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Avatar style</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">Choose how teammates appear across dashboards.</p>
           </div>
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || avatarMode === initial.avatarMode}
             onClick={() => save({ avatarMode }, 'avatar')}
           >
@@ -227,7 +227,7 @@ export default function OrgSettingsClient({
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mt-4 max-w-md">
-          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'hero' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}>
+          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'hero' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-[var(--m-border)] hover:border-[var(--m-border)]'}`}>
             <input
               type="radio"
               name="avatar"
@@ -236,10 +236,10 @@ export default function OrgSettingsClient({
               onChange={() => setAvatarMode('hero')}
               className="sr-only"
             />
-            <p className="text-[14px] font-medium text-slate-900">Pixel hero</p>
-            <p className="text-[12px] text-slate-500 mt-1">Iron Man, Spider-Man, etc. Fun for Gen-Z teams.</p>
+            <p className="text-[14px] font-medium text-[var(--m-ink)]">Pixel hero</p>
+            <p className="text-[12px] text-[var(--m-ink-3)] mt-1">Iron Man, Spider-Man, etc. Fun for Gen-Z teams.</p>
           </label>
-          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'photo' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}>
+          <label className={`cursor-pointer rounded-xl border p-4 transition-all ${avatarMode === 'photo' ? 'border-[var(--m-accent)] bg-[var(--m-accent-soft)]' : 'border-[var(--m-border)] hover:border-[var(--m-border)]'}`}>
             <input
               type="radio"
               name="avatar"
@@ -248,21 +248,21 @@ export default function OrgSettingsClient({
               onChange={() => setAvatarMode('photo')}
               className="sr-only"
             />
-            <p className="text-[14px] font-medium text-slate-900">GitHub photo</p>
-            <p className="text-[12px] text-slate-500 mt-1">Real profile pictures. Better for enterprise HR.</p>
+            <p className="text-[14px] font-medium text-[var(--m-ink)]">GitHub photo</p>
+            <p className="text-[12px] text-[var(--m-ink-3)] mt-1">Real profile pictures. Better for enterprise HR.</p>
           </label>
         </div>
       </section>
 
       {/* Workday */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-slate-900">Workday hours</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">Used to flag punch-ins / punch-outs outside the expected window.</p>
+            <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Workday hours</h2>
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">Used to flag punch-ins / punch-outs outside the expected window.</p>
           </div>
           <button
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
             disabled={busy !== null || (workStart === initial.workdayStartHour && workEnd === initial.workdayEndHour)}
             onClick={() => save({ workdayStartHour: workStart, workdayEndHour: workEnd }, 'workday')}
           >
@@ -350,13 +350,13 @@ function PlanAndBilling({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-[13.5px] font-semibold text-slate-900">Plan &amp; billing</h2>
-          <p className="mt-1 text-[12.5px] text-slate-500">
+          <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Plan &amp; billing</h2>
+          <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
             You&rsquo;re currently on{' '}
-            <span className="font-medium text-slate-800">{planLabel}</span>
+            <span className="font-medium text-[var(--m-ink)]">{planLabel}</span>
             {lifetime
               ? ' — free forever (founding-customer grant).'
               : expiry
@@ -374,7 +374,7 @@ function PlanAndBilling({
           dominate the page — but discoverable for the customers we hand
           codes to. */}
       <details className="mt-4 group" open={plan === 'free'}>
-        <summary className="cursor-pointer text-[12.5px] text-slate-600 hover:text-slate-900 select-none list-none flex items-center gap-1.5">
+        <summary className="cursor-pointer text-[12.5px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] select-none list-none flex items-center gap-1.5">
           <svg
             width={12}
             height={12}
@@ -405,15 +405,15 @@ function PlanAndBilling({
           <button
             type="submit"
             disabled={busy || code.trim().length < 3}
-            className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition whitespace-nowrap"
+            className="px-3.5 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition whitespace-nowrap"
           >
             {busy ? 'Checking…' : 'Redeem'}
           </button>
         </form>
-        <p className="mt-2 text-[11.5px] text-slate-500">
+        <p className="mt-2 text-[11.5px] text-[var(--m-ink-3)]">
           We hand these to design partners and our first 50 organisations. If you&rsquo;ve been
           promised one but lost it, email{' '}
-          <a href="mailto:thetanishgarg@gmail.com" className="text-slate-700 underline">
+          <a href="mailto:thetanishgarg@gmail.com" className="text-[var(--m-ink-2)] underline">
             thetanishgarg@gmail.com
           </a>
           .
@@ -476,11 +476,11 @@ function OrgLogoSection({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-[13.5px] font-semibold text-slate-900">Workspace logo</h2>
-          <p className="mt-1 text-[12.5px] text-slate-500">
+          <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Workspace logo</h2>
+          <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
             Replaces the brand mark in the sidebar for everyone in this workspace. SVG, PNG,
             WebP or JPEG up to 3 MB.
           </p>
@@ -488,19 +488,19 @@ function OrgLogoSection({
       </div>
 
       <div className="mt-4 flex items-center gap-4 flex-wrap">
-        <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+        <div className="w-14 h-14 rounded-xl bg-white border border-[var(--m-border)] flex items-center justify-center overflow-hidden">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview} alt="Logo preview" className="w-full h-full object-contain" />
           ) : (
-            <span className="text-[10.5px] text-slate-400">No logo</span>
+            <span className="text-[10.5px] text-[var(--m-ink-4)]">No logo</span>
           )}
         </div>
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium disabled:opacity-50 transition"
+          className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium disabled:opacity-50 transition"
         >
           {busy ? 'Uploading…' : preview ? 'Replace logo' : 'Upload logo'}
         </button>

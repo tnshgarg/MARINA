@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, desc, eq, gte, inArray, not, like, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireScope } from '@/lib/auth/guards'
 import { withMembershipWindow } from '@/lib/auth/tenant-scope'
@@ -76,7 +77,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
           .where(
             and(
               inArray(schema.githubEvents.userId, userIds),
-              not(like(schema.githubEvents.externalId, 'seed-%')),
+              hideSeedRows(schema.githubEvents.externalId),
               // Multi-tenant isolation: only show events that fell within
               // the user's membership window for THIS org. Without this a
               // user in two orgs leaks data across them.
@@ -176,7 +177,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
       <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Activity</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Recent activity across the team — GitHub events plus self-reported deliverables.
           </p>
         </div>
@@ -185,7 +186,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
             and just show when the most recent member sync completed. The
             actual sync is fire-and-forget via `afterResponse()` so it never
             blocks the page render. */}
-        <p className="text-[11.5px] text-slate-500 inline-flex items-center gap-1.5">
+        <p className="text-[11.5px] text-[var(--m-ink-3)] inline-flex items-center gap-1.5">
           <span className="relative inline-flex">
             <span className="absolute inset-0 rounded-full bg-[var(--m-accent)]/40 animate-ping" />
             <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-accent)]" />
@@ -229,15 +230,15 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
         {events.length === 0 ? (
           <EmptyState withGitHub={membersWithGitHub.length} totalMembers={members.length} />
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {events.map((e) => (
               <li
                 key={e.id}
-                className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50/60 transition-colors"
+                className="px-5 py-3 flex items-start gap-3 hover:bg-[var(--m-bg-soft)]/60 transition-colors"
               >
                 <CharacterAvatar characterKey={e.user.characterKey} name={e.user.name} login={e.user.login} size={28} />
                 <div className="flex-1 min-w-0">
@@ -250,15 +251,15 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
                         href={e.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[13px] text-slate-900 hover:text-[var(--m-accent)] truncate"
+                        className="text-[13px] text-[var(--m-ink)] hover:text-[var(--m-accent)] truncate"
                       >
                         {e.title}
                       </a>
                     ) : (
-                      <span className="text-[13px] text-slate-900 truncate">{e.title}</span>
+                      <span className="text-[13px] text-[var(--m-ink)] truncate">{e.title}</span>
                     )}
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mt-0.5">
+                  <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
                     {e.user.name ?? `@${e.user.login}`} · {e.source} · {timeAgo(e.occurredAt.toISOString())}
                   </p>
                 </div>
@@ -274,8 +275,8 @@ export default async function ActivityPage({ params }: { params: Promise<{ orgId
 function EmptyState({ withGitHub, totalMembers }: { withGitHub: number; totalMembers: number }) {
   return (
     <div className="p-12 text-center">
-      <h2 className="text-[15px] font-semibold text-slate-900">No activity yet</h2>
-      <p className="mt-1.5 max-w-md mx-auto text-[12.5px] text-slate-600 leading-relaxed">
+      <h2 className="text-[15px] font-semibold text-[var(--m-ink)]">No activity yet</h2>
+      <p className="mt-1.5 max-w-md mx-auto text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
         {withGitHub === 0 && totalMembers > 0
           ? "Nobody on the team has signed in with GitHub yet, so we have no commits or PRs to show. Members who sign in with GitHub will have their activity auto-synced."
           : withGitHub > 0

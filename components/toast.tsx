@@ -73,7 +73,7 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
               ? 'border-emerald-200'
               : t.kind === 'error'
                 ? 'border-rose-200'
-                : 'border-slate-200'
+                : 'border-[var(--m-border)]'
           }`}
           style={{ animation: 'toastIn 220ms cubic-bezier(0.22, 1, 0.36, 1)' }}
         >
@@ -88,17 +88,17 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
                     ? 'text-emerald-900'
                     : t.kind === 'error'
                       ? 'text-rose-900'
-                      : 'text-slate-900'
+                      : 'text-[var(--m-ink)]'
                 }`}
               >
                 {t.title}
               </p>
-              {t.body && <p className="mt-0.5 text-[12px] text-slate-600 break-words">{t.body}</p>}
+              {t.body && <p className="mt-0.5 text-[12px] text-[var(--m-ink-2)] break-words">{t.body}</p>}
             </div>
             <button
               type="button"
               onClick={() => onDismiss(t.id)}
-              className="text-slate-400 hover:text-slate-700 text-[14px] leading-none"
+              className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] text-[14px] leading-none"
               aria-label="Dismiss"
             >
               ✕

@@ -81,13 +81,13 @@ export default async function EmployeeProfilePage({
   return (
     <div className="-mx-4 sm:-mx-8 -mt-4 sm:-mt-8">
       {/* Breadcrumb + header banner — sticks above the scrollable detail. */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 pt-4 pb-5">
-        <nav className="text-[11.5px] text-slate-500 mb-2 flex items-center gap-1.5">
+      <header className="bg-white border-b border-[var(--m-border)] px-4 sm:px-8 pt-4 pb-5">
+        <nav className="text-[11.5px] text-[var(--m-ink-3)] mb-2 flex items-center gap-1.5">
           <Link href={`/org/${orgId}/members`} className="hover:text-[var(--m-accent)] transition-colors">
             People
           </Link>
-          <span className="text-slate-300">/</span>
-          <span className="text-slate-700">{user.name ?? `@${user.login}`}</span>
+          <span className="text-[var(--m-ink-5)]">/</span>
+          <span className="text-[var(--m-ink-2)]">{user.name ?? `@${user.login}`}</span>
         </nav>
         <div className="flex items-start gap-4">
           <CharacterAvatar
@@ -100,7 +100,7 @@ export default async function EmployeeProfilePage({
             <h1 className="app-h1 truncate">
               {user.name ?? `@${user.login}`}
             </h1>
-            <p className="text-[13px] text-slate-500 mt-0.5 truncate">
+            <p className="text-[13px] text-[var(--m-ink-3)] mt-0.5 truncate">
               {(target as { jobTitle?: string | null }).jobTitle
                 ? `${(target as { jobTitle?: string | null }).jobTitle} · `
                 : ''}

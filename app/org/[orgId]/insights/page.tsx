@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, desc, eq, gte, inArray, isNull, like, lt, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireScope } from '@/lib/auth/guards'
 import { CharacterAvatar } from '@/components/character-avatar'
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 // Demo seed rows have externalId LIKE 'seed-%'. Filter them from any
 // authentic-data view so the org doesn't see fake GitHub events.
-const NOT_SEED = not(like(schema.githubEvents.externalId, 'seed-%'))
+const NOT_SEED = hideSeedRows(schema.githubEvents.externalId)
 const inThisOrgWindow = (orgId: number) =>
   withMembershipWindow(
     orgId,
@@ -49,6 +50,8 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
       name: schema.users.name,
       characterKey: schema.users.characterKey,
       hasGithub: schema.users.accessToken,
+      githubId: schema.users.githubId,
+      githubLogin: schema.users.githubLogin,
       lastSyncedAt: schema.users.lastSyncedAt,
     })
     .from(schema.memberships)
@@ -208,7 +211,9 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
 
   // ---- Derive: quiet (no GH events in 3d) ---------------------------------
   const recentlyActive = new Set(quietMembers.map((e) => e.userId))
-  const quietList = memberRows.filter((m) => m.hasGithub && !recentlyActive.has(m.userId))
+  const isLinked = (m: { hasGithub: string | null; githubId: number | null; githubLogin: string | null }) =>
+    !!m.hasGithub || m.githubId != null || !!m.githubLogin
+  const quietList = memberRows.filter((m) => isLinked(m) && !recentlyActive.has(m.userId))
 
   // ---- Derive: stale PRs — drop URLs that show a later pr_reviewed event ---
   const reviewedUrls = new Set(
@@ -225,14 +230,14 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
   // Does this team have any GitHub-linked engineers? If not, the velocity /
   // stale-PR / quiet-engineer cards are noise — hide them entirely so the
   // page is genuinely useful for non-engineering teams.
-  const teamHasGithub = memberRows.some((m) => !!m.hasGithub)
+  const teamHasGithub = memberRows.some((m) => isLinked(m))
 
   // ---- Render -------------------------------------------------------------
   return (
     <>
       <div className="mb-4">
         <h1 className="app-h1">Activity</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">What to act on this week.</p>
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">What to act on this week.</p>
       </div>
 
       <div className="grid grid-cols-12 gap-5">
@@ -258,7 +263,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                   <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                   <span className="truncate">
                     <strong>{u.name ?? `@${u.login}`}</strong>{' '}
-                    <span className="text-slate-500">
+                    <span className="text-[var(--m-ink-3)]">
                       on {waitingOnLogin ? `@${waitingOnLogin}` : b.waitingOnExternal ?? 'someone'}
                     </span>
                   </span>
@@ -300,7 +305,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
               return (
                 <li key={pr.id} className="flex items-center gap-2.5 text-[12.5px]">
                   <CharacterAvatar characterKey={author?.characterKey ?? null} size={22} />
-                  <a href={pr.url} target="_blank" rel="noreferrer" className="text-slate-900 hover:text-[var(--m-accent)] truncate">
+                  <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--m-ink)] hover:text-[var(--m-accent)] truncate">
                     {pr.title}
                   </a>
                   <span className="ml-auto text-[11px] text-amber-700 font-medium">{dur}</span>
@@ -328,7 +333,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                   <CharacterAvatar characterKey={u?.characterKey ?? null} size={26} />
                   <span className="truncate">
                     <strong>{u?.name ?? `@${u?.login ?? 'unknown'}`}</strong>{' '}
-                    <span className="text-slate-500">should consider stopping</span>
+                    <span className="text-[var(--m-ink-3)]">should consider stopping</span>
                   </span>
                   <span className="ml-auto text-[11.5px] font-semibold text-[var(--m-clay-deep)]">{dur}</span>
                 </li>
@@ -353,7 +358,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                 <CharacterAvatar characterKey={u.characterKey} name={u.name} login={u.login} size={26} />
                 <span className="truncate">
                   <strong>{u.name ?? `@${u.login}`}</strong>
-                  <span className="text-slate-500"> · {l.leaveType}</span>
+                  <span className="text-[var(--m-ink-3)]"> · {l.leaveType}</span>
                 </span>
                 <span className="ml-auto text-[11.5px] text-sky-700 font-medium">
                   {fmtRange(l.startDate, l.endDate)}
@@ -381,7 +386,7 @@ export default async function InsightsPage({ params }: { params: Promise<{ orgId
                   <span className="truncate">
                     <strong>{m.name ?? `@${m.login}`}</strong>
                   </span>
-                  <span className="ml-auto text-[11.5px] text-slate-500">
+                  <span className="ml-auto text-[11.5px] text-[var(--m-ink-3)]">
                     {m.lastSyncedAt ? `last sync ${humanDuration(now.getTime() - new Date(m.lastSyncedAt).getTime())} ago` : 'no sync yet'}
                   </span>
                 </li>
@@ -402,7 +407,7 @@ const TONE: Record<string, { ring: string; bg: string; chip: string }> = {
   amber: { ring: 'border-amber-200', bg: 'from-amber-50', chip: 'text-amber-700' },
   violet: { ring: 'border-[var(--m-clay)]/30', bg: 'from-[var(--m-clay-soft)]', chip: 'text-[var(--m-clay-deep)]' },
   sky: { ring: 'border-sky-200', bg: 'from-sky-50', chip: 'text-sky-700' },
-  slate: { ring: 'border-slate-200', bg: 'from-slate-50', chip: 'text-slate-700' },
+  slate: { ring: 'border-[var(--m-border)]', bg: 'from-[var(--m-bg-soft)]', chip: 'text-[var(--m-ink-2)]' },
 }
 
 function InsightCard({
@@ -425,17 +430,17 @@ function InsightCard({
     <section className={`col-span-12 md:col-span-6 rounded-2xl border ${t.ring} bg-gradient-to-br ${t.bg} via-white to-white p-5 shadow-sm`}>
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div>
-          <h2 className={`text-[15px] font-semibold text-slate-900 ${t.chip}`}>{title}</h2>
-          <p className="text-[12px] text-slate-500 mt-0.5">{subtitle}</p>
+          <h2 className={`text-[15px] font-semibold text-[var(--m-ink)] ${t.chip}`}>{title}</h2>
+          <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5">{subtitle}</p>
         </div>
-        <details className="text-[10.5px] text-slate-400">
-          <summary className="cursor-pointer hover:text-slate-600 list-none">data source</summary>
-          <p className="mt-1 text-slate-500 max-w-[300px] text-right">{source}</p>
+        <details className="text-[10.5px] text-[var(--m-ink-4)]">
+          <summary className="cursor-pointer hover:text-[var(--m-ink-2)] list-none">data source</summary>
+          <p className="mt-1 text-[var(--m-ink-3)] max-w-[300px] text-right">{source}</p>
         </details>
       </div>
       <div className="mt-3">
         {empty ? (
-          <p className="text-[12.5px] text-slate-500 py-2">— Nothing here right now.</p>
+          <p className="text-[12.5px] text-[var(--m-ink-3)] py-2">— Nothing here right now.</p>
         ) : (
           children
         )}
@@ -457,8 +462,8 @@ function VelocityList({
 }) {
   if (items.length === 0) {
     return (
-      <div className="text-[11.5px] text-slate-500 px-2 py-2">
-        <p className="text-[10.5px] uppercase tracking-widest text-slate-400 mb-1 font-semibold">
+      <div className="text-[11.5px] text-[var(--m-ink-3)] px-2 py-2">
+        <p className="text-[10.5px] uppercase tracking-widest text-[var(--m-ink-4)] mb-1 font-semibold">
           {dir === 'up' ? 'Trending up' : 'Trending down'}
         </p>
         <p>{emptyMsg}</p>
@@ -481,7 +486,7 @@ function VelocityList({
               <span className="ml-auto font-medium tabular-nums" style={{ color: dir === 'up' ? '#15803d' : '#b91c1c' }}>
                 {v.delta > 0 ? '+' : ''}
                 {v.delta}
-                <span className="text-slate-400 font-normal"> · {v.last7}/{v.prev7}</span>
+                <span className="text-[var(--m-ink-4)] font-normal"> · {v.last7}/{v.prev7}</span>
               </span>
             </li>
           )

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { HttpError, requireCapability } from '@/lib/auth/guards'
 import { audit, requestMeta } from '@/lib/audit/log'
 
 export const runtime = 'nodejs'
@@ -18,7 +18,7 @@ export async function DELETE(
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session } = await requireCapability(orgId, 'manage_members')
     const deleted = await db
       .delete(schema.invites)
       .where(

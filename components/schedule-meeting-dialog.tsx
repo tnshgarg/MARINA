@@ -71,11 +71,13 @@ export function ScheduleMeetingDialog({
       toast.push({
         kind: 'success',
         title: 'Meeting scheduled',
-        body: data.googleError
-          ? 'In-app only — Google Calendar push failed.'
-          : data.meeting?.conferenceUrl
-            ? 'Calendar invite sent with a Meet link.'
-            : 'Calendar invite sent.',
+        body: data.calendarConnected === false
+          ? 'Scheduled (in-app + email). Connect Google Calendar to also add it to calendars.'
+          : data.googleError
+            ? 'In-app only — Google Calendar push failed.'
+            : data.meeting?.conferenceUrl
+              ? 'Calendar invite sent with a Meet link.'
+              : 'Calendar invite sent.',
       })
       onClose()
     } catch (e) {
@@ -87,7 +89,7 @@ export function ScheduleMeetingDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[210] flex items-center justify-center px-4 bg-slate-900/40"
+      className="fixed inset-0 z-[210] flex items-center justify-center px-4 bg-[var(--m-ink)]/40"
       onClick={onClose}
     >
       <div
@@ -95,21 +97,21 @@ export function ScheduleMeetingDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[15px] font-semibold text-slate-900">Schedule a meeting</h3>
+          <h3 className="text-[15px] font-semibold text-[var(--m-ink)]">Schedule a meeting</h3>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-slate-400 hover:text-slate-700"
+            className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)]"
           >
             ✕
           </button>
         </div>
-        <p className="text-[12px] text-slate-500 mb-3">
+        <p className="text-[12px] text-[var(--m-ink-3)] mb-3">
           We&apos;ll send {attendeeName} an in-app notification and an email. If you have Google
           Calendar connected, the event is also added to both calendars with a Meet link.
         </p>
 
-        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">Title</label>
+        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">Title</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -120,7 +122,7 @@ export function ScheduleMeetingDialog({
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">When</label>
+            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">When</label>
             <input
               type="datetime-local"
               value={startAt}
@@ -131,7 +133,7 @@ export function ScheduleMeetingDialog({
             />
           </div>
           <div>
-            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">Length</label>
+            <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">Length</label>
             <select
               value={durationMin}
               onChange={(e) => setDurationMin(Number(e.target.value))}
@@ -147,7 +149,7 @@ export function ScheduleMeetingDialog({
           </div>
         </div>
 
-        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-500 block mb-1">Agenda (optional)</label>
+        <label className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] block mb-1">Agenda (optional)</label>
         <textarea
           value={agenda}
           onChange={(e) => setAgenda(e.target.value)}

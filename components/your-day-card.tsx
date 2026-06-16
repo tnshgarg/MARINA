@@ -61,7 +61,7 @@ export function YourDayCard() {
   if (loading || !snap) {
     return (
       <section className="app-card app-card-lg">
-        <p className="text-[13px] text-slate-500">Loading your day…</p>
+        <p className="text-[13px] text-[var(--m-ink-3)]">Loading your day…</p>
       </section>
     )
   }
@@ -133,7 +133,7 @@ export function YourDayCard() {
       </div>
 
       {/* Focus bar — visual reinforcement of the % */}
-      <div className="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+      <div className="mt-3 h-1.5 rounded-full bg-[var(--m-bg-soft)] overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{
@@ -146,7 +146,7 @@ export function YourDayCard() {
         />
       </div>
 
-      <p className="mt-1.5 text-[11px] text-slate-500 tabular-nums">
+      <p className="mt-1.5 text-[11px] text-[var(--m-ink-3)] tabular-nums">
         {humanMin(snap.focusMinutes)} focused of {humanMin(snap.totalShiftMinutes)} logged
       </p>
     </section>
@@ -169,9 +169,9 @@ function KpiTile({
     tone === 'accent' ? 'text-[var(--m-accent)]' :
     'text-[var(--m-info)]'
   return (
-    <div className="min-w-[88px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-right">
+    <div className="min-w-[88px] rounded-lg border border-[var(--m-border)] bg-white px-3 py-2 text-right">
       <p className={`text-[20px] font-semibold tabular-nums tracking-tight ${fg}`}>{value}</p>
-      <p className="text-[10.5px] text-slate-500 mt-0.5">{label}</p>
+      <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5">{label}</p>
     </div>
   )
 }

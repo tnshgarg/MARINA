@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { HttpError, requireMembership, roleAtLeast } from '@/lib/auth/guards'
+import { HttpError, requireCapability, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import { sendInviteEmail } from '@/lib/email/send'
 import type { Discipline, Role } from '@/lib/db/schema'
 
@@ -47,7 +47,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   }
 
   try {
-    const { session, membership } = await requireMembership(orgId, 'manager')
+    // Roster mutation → capability-gated (a `lead` has rank ≥ manager but does
+    // NOT hold manage_members), matching members DELETE / managers endpoints.
+    const { session, membership } = await requireCapability(orgId, 'manage_members')
     const {
       email,
       role,

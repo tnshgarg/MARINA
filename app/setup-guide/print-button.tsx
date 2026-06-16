@@ -10,7 +10,7 @@ export default function SetupGuidePrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+      className="px-3.5 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
     >
       Download as PDF
     </button>

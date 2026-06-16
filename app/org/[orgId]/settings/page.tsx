@@ -40,7 +40,7 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
     <>
       <div className="mb-4">
         <h1 className="app-h1">Settings</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Workspace-wide configuration on the left, your personal preferences in Profile.
         </p>
       </div>

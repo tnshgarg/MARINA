@@ -180,7 +180,7 @@ export default async function MyDataPage() {
 
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
         <div className="app-card app-card-lg">
-          <p className="text-[13px] text-slate-700 leading-relaxed">
+          <p className="text-[13px] text-[var(--m-ink-2)] leading-relaxed">
             MARINA is here to surface your work fairly, not to watch over your shoulder. This page
             lists every kind of data we collect about you, why it exists, and what's switched on for
             your account right now. No surprises — and you can export or delete it any time.
@@ -190,21 +190,21 @@ export default async function MyDataPage() {
         {/* ── Section A ── */}
         <section>
           <h2 className="app-h3">What MARINA tracks about you</h2>
-          <ul className="mt-4 app-card divide-y divide-slate-100">
+          <ul className="mt-4 app-card divide-y divide-[var(--m-border-soft)]">
             {tracked.map((t) => (
               <li
                 key={t.title}
                 className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap"
               >
                 <div className="min-w-0 flex-1 max-w-[480px]">
-                  <p className="text-[14px] font-medium text-slate-900">{t.title}</p>
-                  <p className="mt-1 text-[12.5px] text-slate-500 leading-relaxed">{t.why}</p>
+                  <p className="text-[14px] font-medium text-[var(--m-ink)]">{t.title}</p>
+                  <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)] leading-relaxed">{t.why}</p>
                 </div>
                 <span className={`pill ${STATUS_PILL[t.status]} shrink-0`}>{t.statusLabel}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[12px] text-slate-500 leading-relaxed">
+          <p className="mt-3 text-[12px] text-[var(--m-ink-3)] leading-relaxed">
             We never read your keystrokes, message contents, or private files. Activity is sampled as
             high-level signals — which app is in front, whether you're idle — not a recording of your
             screen.
@@ -215,7 +215,7 @@ export default async function MyDataPage() {
         {signals ? (
           <section>
             <h2 className="app-h3">Your wellbeing this week</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">
+            <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
               A read on your last seven days, just for you. This is a nudge, never a judgement.
             </p>
             <div className="mt-4 grid sm:grid-cols-3 gap-3">
@@ -247,7 +247,7 @@ export default async function MyDataPage() {
                 <p className="text-[12.5px] font-semibold text-[var(--m-accent-2)]">A gentle note</p>
                 <ul className="mt-2 space-y-1.5">
                   {wellbeingNotes.map((note, i) => (
-                    <li key={i} className="text-[13px] text-slate-700 leading-relaxed">
+                    <li key={i} className="text-[13px] text-[var(--m-ink-2)] leading-relaxed">
                       {note}
                     </li>
                   ))}
@@ -262,7 +262,7 @@ export default async function MyDataPage() {
         ) : (
           <section>
             <h2 className="app-h3">Your wellbeing this week</h2>
-            <p className="mt-2 text-[13px] text-slate-500 leading-relaxed">
+            <p className="mt-2 text-[13px] text-[var(--m-ink-3)] leading-relaxed">
               You're not part of a workspace yet, so there's nothing to summarise here. Once you join
               an org, you'll see a private read on your hours, breaks, and output.
             </p>
@@ -274,34 +274,34 @@ export default async function MyDataPage() {
           <h2 className="app-h3">Your rights</h2>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <div className="app-card app-card-lg">
-              <h3 className="text-[13.5px] font-semibold text-slate-900">Export everything</h3>
-              <p className="mt-1 text-[12.5px] text-slate-500 leading-relaxed">
+              <h3 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Export everything</h3>
+              <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)] leading-relaxed">
                 Download a complete JSON copy of every row tied to your account — profile, shifts,
                 breaks, leaves, deliverables, GitHub activity, and agent samples.
               </p>
               <a
                 href="/api/me/export"
                 download
-                className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+                className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
               >
                 Download my data (JSON)
               </a>
             </div>
             <div className="app-card app-card-lg">
-              <h3 className="text-[13.5px] font-semibold text-slate-900">Request deletion</h3>
-              <p className="mt-1 text-[12.5px] text-slate-500 leading-relaxed">
+              <h3 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Request deletion</h3>
+              <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)] leading-relaxed">
                 You can permanently erase your account and all associated data from the danger zone in
                 Settings. This can't be undone.
               </p>
               <Link
                 href="/settings"
-                className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium transition"
+                className="mt-3 inline-flex px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium transition"
               >
                 Go to Settings →
               </Link>
             </div>
           </div>
-          <p className="mt-4 text-[12px] text-slate-500">
+          <p className="mt-4 text-[12px] text-[var(--m-ink-3)]">
             Read the full{' '}
             <Link href="/privacy" className="underline hover:text-[var(--m-accent)]">
               privacy policy
@@ -317,11 +317,11 @@ export default async function MyDataPage() {
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="app-card app-card-lg">
-      <p className="text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)]">{label}</p>
       <p className="mt-1 text-[24px] font-semibold text-[var(--m-ink)] tabular-nums leading-none">
         {value}
       </p>
-      <p className="mt-2 text-[11.5px] text-slate-500">{hint}</p>
+      <p className="mt-2 text-[11.5px] text-[var(--m-ink-3)]">{hint}</p>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 
 export const runtime = 'nodejs'
 
@@ -46,7 +47,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
     return NextResponse.json({ error: 'invalid orgId' }, { status: 400 })
   }
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, membership } = await requireMembership(orgId, 'manager')
     const body = (await req.json().catch(() => ({}))) as {
       userId?: number
       covered?: boolean
@@ -66,6 +67,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
     })
     if (!peer) {
       return NextResponse.json({ error: 'not a member of this org' }, { status: 400 })
+    }
+    // RBAC: a manager can only toggle coverage for people in their scope.
+    const scope = await getVisibleScope(orgId, {
+      userId: session.appUserId,
+      membershipId: membership.id,
+      role: membership.role as 'admin' | 'manager' | 'lead' | 'member',
+    })
+    if (!scope.isAdminScope && !scope.userIds.has(body.userId)) {
+      return NextResponse.json({ error: 'not in your scope' }, { status: 403 })
     }
 
     if (body.covered === false) {

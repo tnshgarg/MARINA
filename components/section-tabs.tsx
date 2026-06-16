@@ -32,7 +32,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
     .sort((a, b) => b.matchPrefix.length - a.matchPrefix.length)[0]?.key
 
   return (
-    <div className="border-b border-slate-200 mb-6">
+    <div className="border-b border-[var(--m-border)] mb-6">
       <nav className="flex gap-1 -mb-px" aria-label="Section tabs">
         {tabs.map((t) => {
           const active = t.key === activeKey
@@ -43,15 +43,15 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
               prefetch
               className={`relative inline-flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[13px] font-medium transition ${
                 active
-                  ? 'text-slate-900 border-b-2 border-slate-900'
-                  : 'text-slate-500 border-b-2 border-transparent hover:text-slate-900 hover:border-slate-200'
+                  ? 'text-[var(--m-ink)] border-b-2 border-[var(--m-ink)]'
+                  : 'text-[var(--m-ink-3)] border-b-2 border-transparent hover:text-[var(--m-ink)] hover:border-[var(--m-border)]'
               }`}
             >
               {t.label}
               {typeof t.badge === 'number' && t.badge > 0 && (
                 <span
                   className={`text-[10.5px] tabular-nums px-1.5 py-0.5 rounded-full ${
-                    active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                    active ? 'bg-[var(--m-ink)] text-white' : 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]'
                   }`}
                 >
                   {t.badge}

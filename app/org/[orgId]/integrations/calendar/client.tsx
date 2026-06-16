@@ -262,7 +262,7 @@ function TeammatePicker({
   // clips the overlay into that boxed, dark-edged rectangle.
   if (!open || !mounted) return null
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 bg-slate-900/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 bg-[var(--m-ink)]/40" onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[14px] font-semibold text-[var(--m-ink)]">Schedule with…</h3>

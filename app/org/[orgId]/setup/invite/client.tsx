@@ -113,7 +113,7 @@ export default function InviteSetupClient({
           {rows.map((r, i) => (
             <div
               key={i}
-              className="rounded-xl border border-slate-200 bg-white p-3 grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_120px_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2.5 items-center"
+              className="rounded-xl border border-[var(--m-border)] bg-white p-3 grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_120px_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2.5 items-center"
             >
               <input
                 type="email"
@@ -157,7 +157,7 @@ export default function InviteSetupClient({
                 type="button"
                 onClick={() => removeRow(i)}
                 disabled={busy || rows.length === 1}
-                className="text-slate-400 hover:text-rose-600 disabled:opacity-30 transition px-2"
+                className="text-[var(--m-ink-4)] hover:text-rose-600 disabled:opacity-30 transition px-2"
                 aria-label="Remove row"
                 title="Remove"
               >
@@ -183,15 +183,15 @@ export default function InviteSetupClient({
         )}
 
         {results && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-[12.5px] font-semibold text-slate-900 mb-2">Invites sent</p>
+          <div className="mt-5 rounded-xl border border-[var(--m-border)] bg-white p-4">
+            <p className="text-[12.5px] font-semibold text-[var(--m-ink)] mb-2">Invites sent</p>
             <ul className="space-y-1">
               {results.map((r, i) => (
                 <li key={i} className="text-[12.5px] flex items-baseline gap-2">
                   <span className={r.ok ? 'text-[var(--m-good)]' : 'text-rose-700'}>
                     {r.ok ? '✓' : '✗'}
                   </span>
-                  <span className="text-slate-800 flex-1 truncate">{r.email}</span>
+                  <span className="text-[var(--m-ink)] flex-1 truncate">{r.email}</span>
                   {r.error && <span className="text-rose-700 text-[11.5px]">{r.error}</span>}
                 </li>
               ))}
@@ -208,7 +208,7 @@ export default function InviteSetupClient({
           <button
             type="button"
             onClick={() => router.push(`/org/${orgId}`)}
-            className="text-[13px] text-slate-500 hover:text-slate-900 underline"
+            className="text-[13px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)] underline"
           >
             Skip — I&apos;ll invite later
           </button>

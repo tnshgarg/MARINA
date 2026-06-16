@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { and, desc, eq, gte, isNull, like, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { membershipWindow } from '@/lib/auth/tenant-scope'
@@ -99,7 +100,7 @@ export async function GET(
             eq(schema.githubEvents.userId, user.id),
             gte(schema.githubEvents.occurredAt, eventStart),
             sql`${schema.githubEvents.occurredAt} <= ${windowEnd}`,
-            not(like(schema.githubEvents.externalId, 'seed-%')),
+            hideSeedRows(schema.githubEvents.externalId),
           ),
         )
         .orderBy(desc(schema.githubEvents.occurredAt))
@@ -705,6 +706,7 @@ export async function GET(
             eq(schema.meetings.userId, user.id),
             gte(schema.meetings.startAt, todayMidnight),
             sql`${schema.meetings.startAt} < ${tomorrowMidnight}`,
+            hideSeedRows(schema.meetings.externalId),
           ),
         )
         .orderBy(schema.meetings.startAt),
@@ -718,6 +720,7 @@ export async function GET(
           and(
             eq(schema.meetings.userId, user.id),
             gte(schema.meetings.startAt, since7),
+            hideSeedRows(schema.meetings.externalId),
           ),
         ),
     ])
@@ -790,7 +793,7 @@ export async function GET(
         email: user.email,
         avatarUrl: user.avatarUrl,
         characterKey: user.characterKey,
-        hasGithub: !!user.accessToken,
+        hasGithub: !!user.accessToken || user.githubId != null || !!user.githubLogin,
         lastSyncedAt: user.lastSyncedAt?.toISOString() ?? null,
         lastSyncError: user.lastSyncError,
       },

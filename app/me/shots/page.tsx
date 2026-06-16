@@ -37,23 +37,23 @@ export default async function MyShotsPage() {
 
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="app-card app-card-lg">
-          <p className="text-[13px] text-slate-700">
-            Only <strong className="text-slate-900">derived labels</strong> are shown to your manager.
+          <p className="text-[13px] text-[var(--m-ink-2)]">
+            Only <strong className="text-[var(--m-ink)]">derived labels</strong> are shown to your manager.
             The raw images live for 48 hours so you can review what was captured, then auto-purge.
             Nobody else can see the pixels.
           </p>
         </div>
 
-        <ul className="mt-6 app-card divide-y divide-slate-100">
+        <ul className="mt-6 app-card divide-y divide-[var(--m-border-soft)]">
           {rows.length === 0 && (
-            <li className="px-5 py-10 text-center text-slate-500">
+            <li className="px-5 py-10 text-center text-[var(--m-ink-3)]">
               No captures in the last 48 hours.
             </li>
           )}
           {rows.map(({ shot, analysis }) => (
             <li key={shot.id} className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap">
               <div className="min-w-0">
-                <p className="text-[14px] font-medium text-slate-900">
+                <p className="text-[14px] font-medium text-[var(--m-ink)]">
                   {new Date(shot.capturedAt).toLocaleString()}
                 </p>
                 {analysis ? (
@@ -63,15 +63,15 @@ export default async function MyShotsPage() {
                     </span>
                     <span className="pill pill-violet">{analysis.appCategory}</span>
                     <span className="pill pill-sky">{analysis.visibleContentHint}</span>
-                    <span className="text-[12px] text-slate-500">
+                    <span className="text-[12px] text-[var(--m-ink-3)]">
                       {analysis.confidence}% conf · progress {analysis.progressScore}/100
                     </span>
                   </div>
                 ) : (
-                  <p className="mt-1 text-[12px] text-slate-500">No analysis yet.</p>
+                  <p className="mt-1 text-[12px] text-[var(--m-ink-3)]">No analysis yet.</p>
                 )}
               </div>
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 shrink-0">
+              <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] shrink-0">
                 {shot.deletedAt
                   ? 'image purged'
                   : `auto-purges ${new Date(shot.expiresAt).toLocaleTimeString()}`}

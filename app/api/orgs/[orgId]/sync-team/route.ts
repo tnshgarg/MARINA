@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireMembership } from '@/lib/auth/guards'
+import { getVisibleScope } from '@/lib/auth/scope'
 import { syncUserActivity } from '@/lib/github/sync'
 import { syncOrgViaApp } from '@/lib/github/app-sync'
 import { audit, requestMeta } from '@/lib/audit/log'
@@ -21,7 +22,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
   }
 
   try {
-    const { session } = await requireMembership(orgId, 'manager')
+    const { session, membership } = await requireMembership(orgId, 'manager')
+
+    // RBAC: a team manager may only refresh (and see results for) the people in
+    // their visible scope — not every teammate's GitHub. Admins sync everyone.
+    const scope = await getVisibleScope(orgId, {
+      userId: session.appUserId,
+      membershipId: membership.id,
+      role: membership.role as 'admin' | 'manager' | 'lead' | 'member',
+    })
 
     const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
     const trackedOrgs = (org as { trackedGithubOrgs?: string[] } | undefined)?.trackedGithubOrgs ?? []
@@ -31,7 +40,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string 
       .from(schema.memberships)
       .where(eq(schema.memberships.orgId, orgId))
 
-    const userIds = memberships.map((m) => m.userId)
+    const userIds = memberships
+      .map((m) => m.userId)
+      .filter((uid) => scope.isAdminScope || scope.userIds.has(uid))
     const results: Array<{ userId: number; login: string; inserted?: number; skipped?: string; error?: string }> = []
 
     for (const uid of userIds) {

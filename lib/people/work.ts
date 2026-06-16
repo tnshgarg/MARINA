@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, like, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 
 /**
@@ -43,10 +44,13 @@ function displayStatus(raw: { status?: string; requestedReviewers?: number }): P
 
 export async function buildMemberWork(orgId: number, userId: number, days = 14): Promise<MemberWork> {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
-  const hasGithub = !!user?.accessToken || user?.githubId != null
-  const login = user?.login ?? ''
+  const hasGithub = !!user?.accessToken || user?.githubId != null || !!user?.githubLogin
+  // For review attribution we match on the github username the App reports.
+  // Prefer the explicit github_login; fall back to the app handle (== github
+  // login for OAuth users).
+  const login = user?.githubLogin ?? user?.login ?? ''
   const since = new Date(Date.now() - days * DAY_MS)
-  const NOT_SEED = not(like(schema.githubEvents.externalId, 'seed-%'))
+  const NOT_SEED = hideSeedRows(schema.githubEvents.externalId)
 
   const [events, received, meetingRows, activeBlock] = await Promise.all([
     // This person's own events in the window.

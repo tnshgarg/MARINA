@@ -77,7 +77,7 @@ export default function BlockersClient({
       <div className="mb-3 flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Blockers</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             One queue for everything the team is stuck on. Triage in the order they need
             you — longest stuck first — and clear them with one click each.
           </p>
@@ -107,14 +107,14 @@ export default function BlockersClient({
 
       {/* Tab strip + search */}
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-        <div className="inline-flex bg-white border border-slate-200 rounded-lg p-0.5">
+        <div className="inline-flex bg-white border border-[var(--m-border)] rounded-lg p-0.5">
           <TabButton active={tab === 'active'} onClick={() => setTab('active')}>
             Active{' '}
-            <span className="ml-1 text-slate-400 tabular-nums">{active.length}</span>
+            <span className="ml-1 text-[var(--m-ink-4)] tabular-nums">{active.length}</span>
           </TabButton>
           <TabButton active={tab === 'resolved'} onClick={() => setTab('resolved')}>
             Resolved (7d){' '}
-            <span className="ml-1 text-slate-400 tabular-nums">{resolved.length}</span>
+            <span className="ml-1 text-[var(--m-ink-4)] tabular-nums">{resolved.length}</span>
           </TabButton>
         </div>
         <input
@@ -182,16 +182,16 @@ function BlockerRow({
     <button
       type="button"
       onClick={onOpen}
-      className={`group w-full text-left rounded-xl border border-slate-200 border-l-[3px] ${accent} hover:border-slate-300 hover:shadow-[var(--m-shadow)] transition-all px-4 py-3.5 flex items-center gap-3 flex-wrap`}
+      className={`group w-full text-left rounded-xl border border-[var(--m-border)] border-l-[3px] ${accent} hover:border-[var(--m-border)] hover:shadow-[var(--m-shadow)] transition-all px-4 py-3.5 flex items-center gap-3 flex-wrap`}
     >
       {/* Blocked person */}
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         <CharacterAvatar characterKey={blocker.blockedUser.characterKey} name={blocker.blockedUser.name} login={blocker.blockedUser.login} size={36} />
         <div className="min-w-0">
-          <p className="text-[13.5px] font-medium text-slate-900 truncate">
+          <p className="text-[13.5px] font-medium text-[var(--m-ink)] truncate">
             {blocker.blockedUser.name ?? `@${blocker.blockedUser.login}`}
           </p>
-          <p className="text-[12px] text-slate-500 truncate font-display italic">
+          <p className="text-[12px] text-[var(--m-ink-3)] truncate font-display italic">
             “{blocker.reason}”
           </p>
         </div>
@@ -205,13 +205,13 @@ function BlockerRow({
             {blocker.waitingOnUser ? (
               <>
                 <CharacterAvatar characterKey={blocker.waitingOnUser.characterKey} name={blocker.waitingOnUser.name} login={blocker.waitingOnUser.login} size={26} />
-                <span className="text-[12.5px] text-slate-700 font-medium">
+                <span className="text-[12.5px] text-[var(--m-ink-2)] font-medium">
                   {blocker.waitingOnUser.name ?? `@${blocker.waitingOnUser.login}`}
                 </span>
               </>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-700 font-medium">
-                <span className="w-5 h-5 rounded-full bg-slate-100 inline-flex items-center justify-center text-slate-400 text-[10px]">
+              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--m-ink-2)] font-medium">
+                <span className="w-5 h-5 rounded-full bg-[var(--m-bg-soft)] inline-flex items-center justify-center text-[var(--m-ink-4)] text-[10px]">
                   ?
                 </span>
                 {blocker.waitingOnExternal}
@@ -234,14 +234,14 @@ function BlockerRow({
                 ? 'bg-[var(--m-bad-soft)] text-[var(--m-bad)]'
                 : medium
                   ? 'bg-[var(--m-warn-soft)] text-[var(--m-warn)]'
-                  : 'bg-slate-100 text-slate-600'
+                  : 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]'
             }`}
           >
             {!isResolved && <Pulse small />}
             {elapsed} stuck
           </span>
         )}
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] text-slate-400">
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] text-[var(--m-ink-4)]">
           Open →
         </span>
       </div>
@@ -266,8 +266,8 @@ function TabButton({
       onClick={onClick}
       className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition ${
         active
-          ? 'bg-slate-900 text-white shadow-sm'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          ? 'bg-[var(--m-ink)] text-white shadow-sm'
+          : 'text-[var(--m-ink-2)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)]'
       }`}
     >
       {children}
@@ -320,7 +320,7 @@ function ArrowRight() {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.5}
-      className="text-slate-300"
+      className="text-[var(--m-ink-5)]"
     >
       <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -329,11 +329,11 @@ function ArrowRight() {
 
 function EmptyState({ tab }: { tab: Tab }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+    <div className="rounded-xl border border-[var(--m-border)] bg-white px-6 py-10 text-center">
       <p className="font-display text-[22px] text-[var(--m-ink)] leading-tight">
         {tab === 'active' ? 'No blockers right now.' : 'No resolved blockers this week.'}
       </p>
-      <p className="mt-1.5 text-[13px] text-slate-500">
+      <p className="mt-1.5 text-[13px] text-[var(--m-ink-3)]">
         {tab === 'active'
           ? 'When someone marks themselves blocked, they’ll show up here. Refresh anytime.'
           : 'Once you resolve a blocker, it’ll appear here for the next seven days.'}

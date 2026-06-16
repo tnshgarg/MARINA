@@ -167,7 +167,7 @@ export default async function CoveragePage({ params }: { params: Promise<{ orgId
       <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Leave Coverage</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Who&apos;s out over the next stretch — and where absences overlap.
           </p>
         </div>
@@ -189,26 +189,26 @@ export default async function CoveragePage({ params }: { params: Promise<{ orgId
         <div className="app-card app-card-lg">
           <div className="py-10 text-center">
             <h2 className="text-[15px] font-semibold text-[var(--m-ink)]">All clear</h2>
-            <p className="mt-1.5 text-[12.5px] text-slate-600">No upcoming time off for your team.</p>
+            <p className="mt-1.5 text-[12.5px] text-[var(--m-ink-2)]">No upcoming time off for your team.</p>
           </div>
         </div>
       ) : (
         <div className="space-y-5">
           {orderedGroups.map((g) => (
             <section key={g.label} className="app-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-5 py-3 border-b border-[var(--m-border-soft)] flex items-center justify-between">
                 <h2 className="text-[12.5px] font-semibold text-[var(--m-ink-2)]">{g.label}</h2>
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-[var(--m-ink-3)]">
                   {g.items.length} {g.items.length === 1 ? 'leave' : 'leaves'}
                 </span>
               </div>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {g.items.map((l) => {
                   const overlap = leaveHasOverlap(l)
                   return (
                     <li
                       key={l.id}
-                      className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/60 transition-colors"
+                      className="px-5 py-3 flex items-center gap-3 hover:bg-[var(--m-bg-soft)]/60 transition-colors"
                     >
                       <CharacterAvatar
                         characterKey={l.user.characterKey}
@@ -229,7 +229,7 @@ export default async function CoveragePage({ params }: { params: Promise<{ orgId
                             </span>
                           )}
                         </div>
-                        <p className="text-[11.5px] text-slate-500 mt-0.5">
+                        <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
                           {fmtRange(l.startDate, l.endDate)} ·{' '}
                           {dayCount(l.startDate, l.endDate)}{' '}
                           {dayCount(l.startDate, l.endDate) === 1 ? 'day' : 'days'}

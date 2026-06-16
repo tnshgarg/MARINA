@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { requireSessionOrRedirect } from '@/lib/auth/guards'
 import SettingsClient from './client'
+import GithubUsernameField from './github-username'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,36 +41,38 @@ export default async function SettingsPage() {
       <div className="mb-4 flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">My settings</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Your personal preferences, paired devices, and calendar. Workspace
             and integration settings live under Settings in the sidebar.
           </p>
         </div>
-        <p className="text-[12px] text-slate-500">
-          Signed in as <span className="text-slate-800 font-medium">{me?.name ?? `@${session.login}`}</span>
+        <p className="text-[12px] text-[var(--m-ink-3)]">
+          Signed in as <span className="text-[var(--m-ink)] font-medium">{me?.name ?? `@${session.login}`}</span>
         </p>
       </div>
 
       {/* Identity — people often don't know their own username; show it plainly. */}
-      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 max-w-3xl">
-        <h2 className="text-[13.5px] font-semibold text-slate-900">Your identity</h2>
+      <div className="mb-5 rounded-xl border border-[var(--m-border)] bg-white p-5 max-w-3xl">
+        <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Your identity</h2>
         <div className="mt-3 grid sm:grid-cols-3 gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Name</p>
-            <p className="text-[13px] text-slate-900 mt-0.5">{me?.name ?? '—'}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[var(--m-ink-4)] font-medium">Name</p>
+            <p className="text-[13px] text-[var(--m-ink)] mt-0.5">{me?.name ?? '—'}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Username</p>
-            <p className="text-[13px] text-slate-900 mt-0.5 font-mono">@{session.login}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[var(--m-ink-4)] font-medium">Username</p>
+            <p className="text-[13px] text-[var(--m-ink)] mt-0.5 font-mono">@{session.login}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400 font-medium">Email</p>
-            <p className="text-[13px] text-slate-900 mt-0.5 truncate" title={me?.email ?? undefined}>
+            <p className="text-[11px] uppercase tracking-wide text-[var(--m-ink-4)] font-medium">Email</p>
+            <p className="text-[13px] text-[var(--m-ink)] mt-0.5 truncate" title={me?.email ?? undefined}>
               {me?.email ?? '—'}
             </p>
           </div>
         </div>
       </div>
+
+      <GithubUsernameField initialValue={me?.githubLogin ?? null} />
 
       <SettingsClient
         initialSettings={{

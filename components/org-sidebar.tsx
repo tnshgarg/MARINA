@@ -641,10 +641,10 @@ export function OrgSidebar({
           >
             <LogoMark />
             <div className="nav-brand-text min-w-0">
-              <p className="font-semibold text-[15px] tracking-tight text-slate-900 group-hover:text-[var(--m-accent)] transition-colors">
+              <p className="font-semibold text-[15px] tracking-tight text-[var(--m-ink)] group-hover:text-[var(--m-accent)] transition-colors">
                 MARINA
               </p>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-[var(--m-ink-4)] truncate">
                 Your team, your way.
               </p>
             </div>
@@ -654,7 +654,7 @@ export function OrgSidebar({
           <button
             type="button"
             onClick={toggleRail}
-            className="nav-collapse-btn shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="nav-collapse-btn shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] hover:bg-[var(--m-bg-soft)] transition"
             title={rail ? "Expand sidebar" : "Collapse sidebar"}
             aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
             aria-pressed={rail}
@@ -787,7 +787,7 @@ export function OrgSidebar({
           when the name has a tall display font or the bell adds an unread
           dot. `flex-nowrap` keeps it on one line; `shrink-0` on the buttons
           guarantees they don't get cropped when the name is very long. */}
-      <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white">
+      <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-[var(--m-border-soft)] bg-white">
         <div className="nav-footer-row flex items-center gap-2 flex-nowrap min-h-[44px]">
           {/* Your identity is also the way back to YOUR personal console
               (punch in/out, your breaks, your leave) — a manager is an
@@ -796,7 +796,7 @@ export function OrgSidebar({
             href="/dashboard"
             prefetch
             title="Go to your personal dashboard"
-            className="flex items-center gap-2 min-w-0 flex-1 rounded-md -mx-1 px-1 py-1 hover:bg-slate-50 transition"
+            className="flex items-center gap-2 min-w-0 flex-1 rounded-md -mx-1 px-1 py-1 hover:bg-[var(--m-bg-soft)] transition"
           >
             <CharacterAvatar
               name={userName ?? userLogin}
@@ -804,10 +804,10 @@ export function OrgSidebar({
               size={32}
             />
             <div className="nav-footer-name min-w-0 flex-1 leading-tight">
-              <p className="text-[12.5px] font-medium text-slate-900 truncate leading-tight">
+              <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate leading-tight">
                 {userName ?? `@${userLogin}`}
               </p>
-              <p className="text-[11px] text-slate-500 truncate leading-tight">My dashboard ↗</p>
+              <p className="text-[11px] text-[var(--m-ink-3)] truncate leading-tight">My dashboard ↗</p>
             </div>
           </NavLink>
           <div className="nav-footer-actions shrink-0 flex items-center gap-1">
@@ -815,7 +815,7 @@ export function OrgSidebar({
             <form action={signOutAction}>
               <button
                 type="submit"
-                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[var(--m-ink-3)] hover:text-rose-600 hover:bg-rose-50 transition"
                 title="Sign out"
                 aria-label="Sign out"
               >

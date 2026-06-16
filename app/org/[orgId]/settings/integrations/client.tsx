@@ -88,17 +88,17 @@ export default function IntegrationsClient({
   return (
     <div className="space-y-4 max-w-3xl">
       {/* GitHub App — the reliable, org-level repo tracking path. */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="w-7 h-7 rounded-md bg-slate-900 text-white inline-flex items-center justify-center text-[13px] font-semibold">G</span>
-          <h2 className="text-[14px] font-semibold text-slate-900">GitHub App — repo activity</h2>
+          <span className="w-7 h-7 rounded-md bg-[var(--m-ink)] text-white inline-flex items-center justify-center text-[13px] font-semibold">G</span>
+          <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">GitHub App — repo activity</h2>
           {initial.githubApp.installationId ? (
             <span className="pill pill-good text-[11px]">Installed</span>
           ) : (
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">Not installed</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--m-bg-soft)] text-[var(--m-ink-3)] font-medium">Not installed</span>
           )}
         </div>
-        <p className="mt-2 text-[12.5px] text-slate-500 leading-snug max-w-2xl">
+        <p className="mt-2 text-[12.5px] text-[var(--m-ink-3)] leading-snug max-w-2xl">
           Install the MARINA GitHub App on your org and choose which repos to share. MARINA then reads
           commits &amp; PRs from those repos directly — including <strong>private</strong> ones — and
           attributes each to the teammate who authored it. No per-person repo access needed.
@@ -114,7 +114,7 @@ export default function IntegrationsClient({
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <a
               href={initial.githubApp.installUrl}
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+              className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
             >
               {initial.githubApp.installationId ? 'Manage repos / reinstall' : 'Install GitHub App'}
             </a>
@@ -123,7 +123,7 @@ export default function IntegrationsClient({
                 type="button"
                 onClick={syncApp}
                 disabled={busy === 'app-sync'}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12.5px] font-medium disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12.5px] font-medium disabled:opacity-50 transition"
               >
                 {busy === 'app-sync' ? 'Syncing…' : 'Sync now'}
               </button>
@@ -151,12 +151,12 @@ export default function IntegrationsClient({
         )}
         {/* Identity link — teammates connect their GitHub so commits/PRs map to
             them. This replaces the old per-teammate GitHub card. */}
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <p className="text-[12px] text-slate-600">
+        <div className="mt-4 pt-3 border-t border-[var(--m-border-soft)]">
+          <p className="text-[12px] text-[var(--m-ink-2)]">
             <strong>Teammates:</strong> link your GitHub so we can attribute each commit/PR to you.
-            <span className="text-slate-400"> Identity only — we read your username, never your repos.</span>
+            <span className="text-[var(--m-ink-4)]"> Identity only — we read your username, never your repos.</span>
             {initial.teamSize > 0 && (
-              <span className="text-slate-400">
+              <span className="text-[var(--m-ink-4)]">
                 {' '}· {initial.githubLinked} of {initial.teamSize} linked
               </span>
             )}
@@ -165,7 +165,7 @@ export default function IntegrationsClient({
             href={`/api/auth/signin/github?callbackUrl=${encodeURIComponent(
               `/org/${orgId}/settings/integrations`,
             )}`}
-            className="mt-2 inline-flex px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
+            className="mt-2 inline-flex px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium transition"
           >
             {initial.githubLinked > 0 ? 'Re-link my GitHub' : 'Link my GitHub'}
           </a>
@@ -192,7 +192,7 @@ export default function IntegrationsClient({
         }
         actions={
           <a
-            href={`/api/connect/google/start?return=/org/${orgId}/settings/integrations`}
+            href={`/api/connect/google/start?return_to=/org/${orgId}/settings/integrations`}
             className="inline-block px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-medium transition"
           >
             Connect my calendar
@@ -210,17 +210,17 @@ export default function IntegrationsClient({
       />
 
       {/* Request integration CTA — replaces the row of ghost cards */}
-      <section className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <section className="rounded-xl border border-dashed border-[var(--m-border)] bg-white px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[13px] font-semibold text-slate-900">Need another integration?</p>
-          <p className="text-[12px] text-slate-500 mt-0.5">
+          <p className="text-[13px] font-semibold text-[var(--m-ink)]">Need another integration?</p>
+          <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5">
             Figma · Linear · Jira · HubSpot · Salesforce · Zendesk · Notion · Asana · ClickUp —
             tell us which one you need next and we'll prioritise the shortlist.
           </p>
         </div>
         <a
           href="mailto:thetanishgarg@gmail.com?subject=Integration%20request"
-          className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition"
+          className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium transition"
         >
           Request an integration
         </a>
@@ -255,9 +255,9 @@ function IntegrationCard({
       ? { bg: 'bg-emerald-50', fg: 'text-emerald-700', label: 'Connected' }
       : status === 'partial'
       ? { bg: 'bg-amber-50', fg: 'text-amber-700', label: 'Partial' }
-      : { bg: 'bg-slate-100', fg: 'text-slate-600', label: 'Not connected' }
+      : { bg: 'bg-[var(--m-bg-soft)]', fg: 'text-[var(--m-ink-2)]', label: 'Not connected' }
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
       <div className="flex items-start gap-3">
         <span
           className={`inline-flex w-10 h-10 rounded-lg ${glyphBg} text-white items-center justify-center text-[14px] font-semibold shrink-0`}
@@ -266,16 +266,16 @@ function IntegrationCard({
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-[14px] font-semibold text-slate-900">{name}</h3>
+            <h3 className="text-[14px] font-semibold text-[var(--m-ink)]">{name}</h3>
             <span
               className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full ${chip.bg} ${chip.fg}`}
             >
               {chip.label}
             </span>
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">{category}</span>
+            <span className="text-[10px] uppercase tracking-wider text-[var(--m-ink-3)]">{category}</span>
           </div>
-          <p className="mt-0.5 text-[12px] text-slate-700 font-medium">{headline}</p>
-          <div className="mt-2 text-[12.5px] text-slate-600 leading-snug space-y-1.5">{description}</div>
+          <p className="mt-0.5 text-[12px] text-[var(--m-ink-2)] font-medium">{headline}</p>
+          <div className="mt-2 text-[12.5px] text-[var(--m-ink-2)] leading-snug space-y-1.5">{description}</div>
           <div className="mt-3">{actions}</div>
         </div>
       </div>
@@ -337,15 +337,15 @@ function SlackIntegrationCard({
           <p>
             Install the MARINA Slack app to get manager DMs (leave requests, blockers),
             employee DMs (decision updates, nudges from teammates), and slash commands
-            (<code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina pulse</code>,
-            <code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina done</code>,
-            <code className="font-mono text-[11px] px-1 rounded bg-slate-100">/marina blocker</code>).
+            (<code className="font-mono text-[11px] px-1 rounded bg-[var(--m-bg-soft)]">/marina pulse</code>,
+            <code className="font-mono text-[11px] px-1 rounded bg-[var(--m-bg-soft)]">/marina done</code>,
+            <code className="font-mono text-[11px] px-1 rounded bg-[var(--m-bg-soft)]">/marina blocker</code>).
           </p>
           {install && (
             <p className="text-emerald-700">
               ✓ Workspace: <span className="font-medium">{install.teamName}</span>
               {install.installedAt && (
-                <span className="text-slate-500 ml-1.5">
+                <span className="text-[var(--m-ink-3)] ml-1.5">
                   · installed {new Date(install.installedAt).toLocaleDateString()}
                 </span>
               )}
@@ -369,7 +369,7 @@ function SlackIntegrationCard({
             type="button"
             onClick={disconnect}
             disabled={disconnecting}
-            className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-700 text-[12px] font-medium transition disabled:opacity-50"
+            className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-[var(--m-ink-2)] text-[12px] font-medium transition disabled:opacity-50"
           >
             {disconnecting ? 'Disconnecting…' : 'Disconnect'}
           </button>

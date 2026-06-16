@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, inArray, like, not } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { db, schema } from '@/lib/db/client'
 
 /**
@@ -36,7 +37,7 @@ export async function buildOneOnOneBrief(userId: number): Promise<OneOnOneBrief 
   const now = new Date()
   const since = new Date(now.getTime() - FOURTEEN_DAYS_MS)
 
-  const NOT_SEED = not(like(schema.githubEvents.externalId, 'seed-%'))
+  const NOT_SEED = hideSeedRows(schema.githubEvents.externalId)
 
   const [events, narratives, blockerBreaks, recentShifts] = await Promise.all([
     db
@@ -220,7 +221,7 @@ export async function buildOneOnOneBrief(userId: number): Promise<OneOnOneBrief 
     risks: risks.slice(0, 3),
     questions: questions.slice(0, 3),
     pastCommitments: pastCommitments.slice(0, 3),
-    hasGithub: !!user.accessToken,
+    hasGithub: !!user.accessToken || user.githubId != null || !!user.githubLogin,
   }
 }
 

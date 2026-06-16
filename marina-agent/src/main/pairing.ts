@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { completePairing } from './api'
+import { ApiError, completePairing } from './api'
 import { DEFAULT_DEVICE_LABEL, DEFAULT_SERVER_BASE_URL, STORE_KEYS } from './config'
 import { get, set, writeToken } from './store'
 import { bus } from './state'
@@ -89,7 +89,22 @@ export function registerPairingIpc(onPaired: (login: string) => void): void {
         pairingWindow?.close()
         return { ok: true, login: res.user.login }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
+        // Surface the server's friendly error (e.g. "invalid or expired code")
+        // rather than the raw "410 /api/agent/pair/complete". Network failures
+        // (status 0 — usually a wrong/unreachable server URL) keep their
+        // "network: …" message so a bad URL is obvious.
+        let msg: string
+        if (err instanceof ApiError) {
+          const bodyErr =
+            err.body && typeof err.body === 'object' && 'error' in err.body
+              ? String((err.body as { error: unknown }).error)
+              : null
+          msg = bodyErr
+            ? `${bodyErr}${err.status ? ` (${err.status})` : ''}`
+            : err.message
+        } else {
+          msg = err instanceof Error ? err.message : String(err)
+        }
         return { ok: false, error: msg }
       }
     }

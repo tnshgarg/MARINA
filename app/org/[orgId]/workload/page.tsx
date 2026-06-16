@@ -71,7 +71,7 @@ export default async function WorkloadPage({ params }: { params: Promise<{ orgId
       <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Workload Balance</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Who&apos;s overloaded and who has capacity, from hours logged this week.
           </p>
         </div>
@@ -79,9 +79,9 @@ export default async function WorkloadPage({ params }: { params: Promise<{ orgId
           <div className="text-right">
             <div className="text-[20px] font-semibold leading-none text-[var(--m-ink)]">
               {avgHours}
-              <span className="ml-0.5 text-[12px] font-normal text-slate-500">h</span>
+              <span className="ml-0.5 text-[12px] font-normal text-[var(--m-ink-3)]">h</span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-1">team avg / week</div>
+            <div className="text-[11px] text-[var(--m-ink-3)] mt-1">team avg / week</div>
           </div>
         )}
       </div>
@@ -90,14 +90,14 @@ export default async function WorkloadPage({ params }: { params: Promise<{ orgId
         <div className="app-card app-card-lg">
           <div className="py-10 text-center">
             <h2 className="text-[15px] font-semibold text-[var(--m-ink)]">Nobody to show</h2>
-            <p className="mt-1.5 text-[12.5px] text-slate-600">
+            <p className="mt-1.5 text-[12.5px] text-[var(--m-ink-2)]">
               No teammates in your scope yet.
             </p>
           </div>
         </div>
       ) : (
         <section className="app-card overflow-hidden">
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--m-border-soft)]">
             {rows.map((r) => {
               const pct = maxHours > 0 ? Math.round((r.weekHours / maxHours) * 100) : 0
               const u = r.user!
@@ -121,18 +121,18 @@ export default async function WorkloadPage({ params }: { params: Promise<{ orgId
                     </div>
                     {/* Hours bar — width relative to the busiest teammate. */}
                     <div className="mt-1.5 flex items-center gap-2.5">
-                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="flex-1 h-1.5 rounded-full bg-[var(--m-bg-soft)] overflow-hidden">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${pct}%`, background: BAR_COLOR[r.level] }}
                         />
                       </div>
-                      <span className="text-[11.5px] tabular-nums text-slate-600 shrink-0 w-12 text-right">
+                      <span className="text-[11.5px] tabular-nums text-[var(--m-ink-2)] shrink-0 w-12 text-right">
                         {r.weekHours}h
                       </span>
                     </div>
                     {r.flags.length > 0 && (
-                      <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                      <p className="text-[11px] text-[var(--m-ink-3)] mt-1.5 leading-snug">
                         {r.flags.join(' · ')}
                       </p>
                     )}

@@ -101,7 +101,7 @@ export default function TeamsClient({
       <div className="mb-3 flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <h1 className="app-h1">Teams</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             Sub-groups inside your workspace. Build them around projects, products, or pods —
             employees can be on multiple teams.
           </p>
@@ -110,7 +110,7 @@ export default function TeamsClient({
           <button
             type="button"
             onClick={() => setEditing('new')}
-            className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12.5px] font-medium transition"
+            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
           >
             + New team
           </button>
@@ -126,9 +126,9 @@ export default function TeamsClient({
       </div>
 
       {/* Tab strip */}
-      <div className="mb-4 inline-flex bg-white border border-slate-200 rounded-lg p-0.5">
+      <div className="mb-4 inline-flex bg-white border border-[var(--m-border)] rounded-lg p-0.5">
         <TabButton active={tab === 'teams'} onClick={() => setTab('teams')}>
-          Teams <span className="ml-1 text-slate-400 tabular-nums">{teams.length}</span>
+          Teams <span className="ml-1 text-[var(--m-ink-4)] tabular-nums">{teams.length}</span>
         </TabButton>
         <TabButton active={tab === 'chart'} onClick={() => setTab('chart')}>
           Org chart
@@ -140,8 +140,8 @@ export default function TeamsClient({
           {/* "Your teams" pill — shown to everyone so employees can confirm
               what they're on. */}
           {myTeams.length > 0 && (
-            <section className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+            <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-white px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mb-1.5">
                 You&apos;re on
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -163,8 +163,8 @@ export default function TeamsClient({
 
           {/* "Who you report to" pill */}
           {reportsToChain.length > 0 && (
-            <section className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+            <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-white px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mb-1.5">
                 You report to
               </p>
               <div className="flex items-center gap-2 flex-wrap">
@@ -175,9 +175,9 @@ export default function TeamsClient({
                       imageUrl={m.avatarUrl}
                       size={20}
                     />
-                    <span className="text-[12.5px] text-slate-800">{m.name ?? `@${m.login}`}</span>
+                    <span className="text-[12.5px] text-[var(--m-ink)]">{m.name ?? `@${m.login}`}</span>
                     {i < reportsToChain.length - 1 && (
-                      <span className="text-slate-300">→</span>
+                      <span className="text-[var(--m-ink-5)]">→</span>
                     )}
                   </span>
                 ))}
@@ -186,11 +186,11 @@ export default function TeamsClient({
           )}
 
           {teams.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+            <div className="rounded-xl border border-[var(--m-border)] bg-white px-6 py-10 text-center">
               <p className="font-display text-[20px] text-[var(--m-ink)] leading-tight">
                 No teams yet.
               </p>
-              <p className="mt-1.5 text-[13px] text-slate-500">
+              <p className="mt-1.5 text-[13px] text-[var(--m-ink-3)]">
                 {canEdit
                   ? 'Click "+ New team" to spin one up. Teams help group people for standups, reports and DMs.'
                   : 'Ask an admin to set up teams — they help map who works on what.'}
@@ -206,14 +206,14 @@ export default function TeamsClient({
                 return (
                   <li
                     key={t.id}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
+                    className="rounded-xl border border-[var(--m-border)] bg-white p-4"
                     style={t.color ? { borderLeftColor: t.color, borderLeftWidth: 4 } : undefined}
                   >
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-slate-900">{t.name}</p>
+                        <p className="text-[14px] font-semibold text-[var(--m-ink)]">{t.name}</p>
                         {t.description && (
-                          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{t.description}</p>
+                          <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5 leading-snug">{t.description}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -230,7 +230,7 @@ export default function TeamsClient({
                             <button
                               type="button"
                               onClick={() => setEditing(t)}
-                              className="text-[11.5px] text-slate-600 hover:text-slate-900 font-medium"
+                              className="text-[11.5px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] font-medium"
                             >
                               Edit
                             </button>
@@ -248,13 +248,13 @@ export default function TeamsClient({
 
                     {manager && (
                       <div className="mt-3 flex items-center gap-2 text-[12px]">
-                        <span className="text-slate-500">Lead:</span>
+                        <span className="text-[var(--m-ink-3)]">Lead:</span>
                         <CharacterAvatar
                           characterKey={manager.characterKey} name={manager.name} login={manager.login}
                           imageUrl={manager.avatarUrl}
                           size={20}
                         />
-                        <span className="text-slate-800 font-medium">
+                        <span className="text-[var(--m-ink)] font-medium">
                           {manager.name ?? `@${manager.login}`}
                         </span>
                       </div>
@@ -275,12 +275,12 @@ export default function TeamsClient({
                         </span>
                       ))}
                       {teamMembers.length > 8 && (
-                        <span className="text-[11px] text-slate-500 ml-1">
+                        <span className="text-[11px] text-[var(--m-ink-3)] ml-1">
                           +{teamMembers.length - 8}
                         </span>
                       )}
                       {teamMembers.length === 0 && (
-                        <span className="text-[11.5px] text-slate-400 italic">No members yet.</span>
+                        <span className="text-[11.5px] text-[var(--m-ink-4)] italic">No members yet.</span>
                       )}
                     </div>
                   </li>
@@ -333,8 +333,8 @@ function TabButton({
       onClick={onClick}
       className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition ${
         active
-          ? 'bg-slate-900 text-white shadow-sm'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          ? 'bg-[var(--m-ink)] text-white shadow-sm'
+          : 'text-[var(--m-ink-2)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)]'
       }`}
     >
       {children}
@@ -458,7 +458,7 @@ function TeamEditor({
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="w-full h-[38px] rounded-md border border-slate-200 cursor-pointer"
+              className="w-full h-[38px] rounded-md border border-[var(--m-border)] cursor-pointer"
             />
           </div>
         </div>
@@ -493,12 +493,12 @@ function TeamEditor({
 
         <div>
           <label className="app-eyebrow block mb-1.5">Members ({memberIds.size})</label>
-          <ul className="max-h-[280px] overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+          <ul className="max-h-[280px] overflow-y-auto rounded-lg border border-[var(--m-border)] divide-y divide-[var(--m-border-soft)]">
             {members.map((m) => {
               const checked = memberIds.has(m.membershipId)
               return (
                 <li key={m.membershipId}>
-                  <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                  <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[var(--m-bg-soft)]">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -511,10 +511,10 @@ function TeamEditor({
                       size={26}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-slate-900 truncate">
+                      <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
                         {m.name ?? `@${m.login}`}
                       </p>
-                      <p className="text-[11.5px] text-slate-500 truncate">
+                      <p className="text-[11.5px] text-[var(--m-ink-3)] truncate">
                         {m.jobTitle ?? m.discipline}
                       </p>
                     </div>

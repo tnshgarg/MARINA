@@ -413,15 +413,15 @@ export default function OrgChart({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
       {/* Toolbar */}
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-        <div className="text-[12.5px] text-slate-600">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-[12.5px] text-[var(--m-ink-2)]">
           {canEdit ? (
             <>
-              <span className="font-medium text-slate-900">{members.length}</span> people ·{' '}
-              <span className="font-medium text-slate-900">{edges.length}</span> reports-to edges ·{' '}
-              <span className="text-slate-500">drag to add a manager, or click + on a card.</span>
+              <span className="font-medium text-[var(--m-ink)]">{members.length}</span> people ·{' '}
+              <span className="font-medium text-[var(--m-ink)]">{edges.length}</span> reports-to edges ·{' '}
+              <span className="text-[var(--m-ink-3)]">drag to add a manager, or click + on a card.</span>
             </>
           ) : (
             <>The full reports-to graph across your workspace.</>
@@ -429,7 +429,7 @@ export default function OrgChart({
         </div>
         <div className="flex items-center gap-1.5">
           <ZoomBtn label="−" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)))} />
-          <span className="text-[11.5px] text-slate-500 tabular-nums w-10 text-center">
+          <span className="text-[11.5px] text-[var(--m-ink-3)] tabular-nums w-10 text-center">
             {Math.round(zoom * 100)}%
           </span>
           <ZoomBtn label="+" onClick={() => setZoom((z) => Math.min(1.6, +(z + 0.1).toFixed(2)))} />
@@ -444,18 +444,18 @@ export default function OrgChart({
               wrap.scrollTop = 0
             }}
           />
-          <span className="w-px h-5 bg-slate-200 mx-1" />
+          <span className="w-px h-5 bg-[var(--m-border)] mx-1" />
           <button
             type="button"
             onClick={printChart}
-            className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+            className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition"
           >
             Print
           </button>
           <button
             type="button"
             onClick={exportSvg}
-            className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition"
+            className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition"
           >
             Export SVG
           </button>
@@ -614,7 +614,7 @@ function NodeCard({
       ? { border: 'border-[var(--m-clay)]/40', bg: 'from-[var(--m-clay-soft)]/40 to-white', chip: 'bg-[var(--m-clay-soft)] text-[var(--m-clay-deep)]' }
       : m.role === 'manager'
         ? { border: 'border-[var(--m-accent)]/35', bg: 'from-[var(--m-accent-soft)]/40 to-white', chip: 'bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]' }
-        : { border: 'border-slate-200', bg: 'from-white to-white', chip: 'bg-slate-100 text-slate-600' }
+        : { border: 'border-[var(--m-border)]', bg: 'from-white to-white', chip: 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]' }
   return (
     <div
       draggable={canEdit && !busy}
@@ -650,17 +650,17 @@ function NodeCard({
       <div className="flex items-center gap-2.5">
         <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} imageUrl={m.avatarUrl} size={36} />
         <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-semibold text-slate-900 truncate leading-tight">
+          <p className="text-[12.5px] font-semibold text-[var(--m-ink)] truncate leading-tight">
             {m.name ?? `@${m.login}`}
           </p>
-          <p className="text-[11px] text-slate-500 truncate leading-snug">
+          <p className="text-[11px] text-[var(--m-ink-3)] truncate leading-snug">
             {m.jobTitle ?? m.discipline}
           </p>
           <div className="mt-1 flex items-center gap-1 min-w-0">
             <span className={`shrink-0 text-[9.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full ${tone.chip}`}>
               {m.role}
             </span>
-            <span className="text-[10px] text-slate-500 truncate">
+            <span className="text-[10px] text-[var(--m-ink-3)] truncate">
               {directReportsCount > 0 && (
                 <>· {directReportsCount} report{directReportsCount === 1 ? '' : 's'}</>
               )}
@@ -679,7 +679,7 @@ function NodeCard({
               e.stopPropagation()
               onAddManager()
             }}
-            className="shrink-0 w-6 h-6 rounded-full bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-slate-500 hover:text-[var(--m-accent-2)] inline-flex items-center justify-center text-[14px] font-semibold transition"
+            className="shrink-0 w-6 h-6 rounded-full bg-white border border-[var(--m-border)] hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[var(--m-ink-3)] hover:text-[var(--m-accent-2)] inline-flex items-center justify-center text-[14px] font-semibold transition"
             title="Add a manager to this person"
             aria-label="Add a manager"
           >
@@ -691,7 +691,7 @@ function NodeCard({
         // Tiny remove-edge strip ONLY for matrix nodes. Single-boss nodes
         // can still be edited via drag / picker — keeps the card less busy.
         <div
-          className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white rounded-full border border-slate-200 px-1 py-0.5 shadow-sm"
+          className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white rounded-full border border-[var(--m-border)] px-1 py-0.5 shadow-sm"
           style={{ fontSize: 9 }}
         >
           {managers.map((mm) => (
@@ -702,7 +702,7 @@ function NodeCard({
                 e.stopPropagation()
                 onRemoveManager(mm.membershipId)
               }}
-              className="px-1 text-slate-500 hover:text-rose-600 truncate max-w-[60px]"
+              className="px-1 text-[var(--m-ink-3)] hover:text-rose-600 truncate max-w-[60px]"
               title={`Remove ${mm.name ?? `@${mm.login}`} as a manager`}
             >
               {(mm.name ?? mm.login).split(' ')[0]} ×
@@ -719,7 +719,7 @@ function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-[11.5px] font-medium text-slate-700 transition w-8 text-center"
+      className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] transition w-8 text-center"
     >
       {label}
     </button>
@@ -743,7 +743,7 @@ function ManagerPicker({
   )
   return (
     <div
-      className="fixed inset-0 z-[260] bg-slate-900/40 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[260] bg-[var(--m-ink)]/40 flex items-center justify-center px-4"
       onClick={onClose}
     >
       <div
@@ -752,19 +752,19 @@ function ManagerPicker({
       >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold">
               Add a manager
             </p>
-            <p className="text-[13px] text-slate-900 font-medium">
+            <p className="text-[13px] text-[var(--m-ink)] font-medium">
               to {target?.name ?? `@${target?.login ?? 'this person'}`}
             </p>
-            <p className="text-[11.5px] text-slate-500 mt-1">
+            <p className="text-[11.5px] text-[var(--m-ink-3)] mt-1">
               One person can have multiple managers — pick another to add a matrix relationship.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700"
+            className="text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)]"
             aria-label="Close"
           >
             ✕
@@ -778,9 +778,9 @@ function ManagerPicker({
           placeholder="Search by name…"
           className="input w-full mb-3"
         />
-        <ul className="max-h-[320px] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200">
+        <ul className="max-h-[320px] overflow-y-auto divide-y divide-[var(--m-border-soft)] rounded-lg border border-[var(--m-border)]">
           {filtered.length === 0 ? (
-            <li className="px-3 py-6 text-center text-[12.5px] text-slate-500">
+            <li className="px-3 py-6 text-center text-[12.5px] text-[var(--m-ink-3)]">
               No matching teammates eligible as manager.
             </li>
           ) : (
@@ -789,14 +789,14 @@ function ManagerPicker({
                 <button
                   type="button"
                   onClick={() => void onPick(c.membershipId)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--m-bg-soft)] text-left"
                 >
                   <CharacterAvatar characterKey={c.characterKey} name={c.name} login={c.login} imageUrl={c.avatarUrl} size={26} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-slate-900 truncate">
+                    <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
                       {c.name ?? `@${c.login}`}
                     </p>
-                    <p className="text-[11.5px] text-slate-500 truncate">
+                    <p className="text-[11.5px] text-[var(--m-ink-3)] truncate">
                       {c.jobTitle ?? c.discipline}
                     </p>
                   </div>

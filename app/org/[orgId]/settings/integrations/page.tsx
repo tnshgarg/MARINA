@@ -50,6 +50,8 @@ export default async function IntegrationsPage({
     .select({
       userId: schema.users.id,
       hasGithub: schema.users.accessToken,
+      githubId: schema.users.githubId,
+      githubLogin: schema.users.githubLogin,
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
@@ -59,7 +61,9 @@ export default async function IntegrationsPage({
         isNull(schema.memberships.endedAt),
       ),
     )
-  const githubLinked = teammates.filter((t) => !!t.hasGithub).length
+  // "Linked" = OAuth token, known githubId, OR an invite-supplied username —
+  // any of these lets the App attribute their work.
+  const githubLinked = teammates.filter((t) => !!t.hasGithub || t.githubId != null || !!t.githubLogin).length
   const teamSize = teammates.length
 
   // Google Calendar tokens live on `accounts` (provider='google'). Count
@@ -82,7 +86,7 @@ export default async function IntegrationsPage({
     <>
       <div className="mb-4">
         <h1 className="app-h1">Settings</h1>
-        <p className="mt-1.5 text-[13px] text-slate-600">
+        <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
           Connect the tools your team uses. Each integration adds context to the
           per-person view without forcing engineering-shaped data on everyone.
         </p>

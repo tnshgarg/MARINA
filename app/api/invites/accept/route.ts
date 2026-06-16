@@ -4,15 +4,26 @@ import { and, eq, isNull, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
 import { seatCapError } from '@/lib/billing/seats'
+import { normalizeGithubUsername } from '@/lib/github/username'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   try {
     const session = await requireSession()
-    const { token } = (await req.json()) as { token?: string }
+    const { token, githubUsername } = (await req.json()) as {
+      token?: string
+      githubUsername?: string
+    }
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ error: 'token required' }, { status: 400 })
+    }
+    // Optional: the employee's GitHub username, so their App-tracked commits/PRs
+    // attribute to them without a per-employee OAuth link. Reject a clearly
+    // malformed handle so a typo doesn't silently break attribution.
+    const ghUsername = normalizeGithubUsername(githubUsername)
+    if (githubUsername && githubUsername.trim() && !ghUsername) {
+      return NextResponse.json({ error: "That doesn't look like a valid GitHub username." }, { status: 400 })
     }
 
     const invite = await db.query.invites.findFirst({
@@ -96,6 +107,16 @@ export async function POST(req: Request) {
       .update(schema.invites)
       .set({ acceptedAt: new Date() })
       .where(eq(schema.invites.id, invite.id))
+
+    // Persist the GitHub username for attribution. Stored even for OAuth-linked
+    // users (harmless — githubId still wins); only written when supplied so we
+    // never clobber an existing value with a blank.
+    if (ghUsername) {
+      await db
+        .update(schema.users)
+        .set({ githubLogin: ghUsername })
+        .where(eq(schema.users.id, session.appUserId))
+    }
 
     // Clear the pending-invite cookie now that we've accepted.
     try {

@@ -3,8 +3,8 @@ export const metadata = { title: 'Terms of Service · MARINA' }
 export default function TermsPage() {
   return (
     <>
-      <h1 className="text-[28px] font-semibold text-slate-900 mb-2">Terms of Service</h1>
-      <p className="text-[12px] text-slate-500 mb-8">Last updated: 6 June 2026</p>
+      <h1 className="text-[28px] font-semibold text-[var(--m-ink)] mb-2">Terms of Service</h1>
+      <p className="text-[12px] text-[var(--m-ink-3)] mb-8">Last updated: 6 June 2026</p>
 
       <p>
         These Terms govern your use of <strong>Project MARINA</strong>. By creating an account, paying for the
@@ -73,7 +73,7 @@ export default function TermsPage() {
         Bengaluru, Karnataka.
       </p>
 
-      <p className="mt-8 text-[13px] text-slate-500">
+      <p className="mt-8 text-[13px] text-[var(--m-ink-3)]">
         Questions? Email <code>thetanishgarg@gmail.com</code>.
       </p>
     </>

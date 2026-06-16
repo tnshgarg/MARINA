@@ -377,21 +377,21 @@ export default function DashboardClient({
             lives here now (today's tracked time + your recent GitHub). The old
             on-demand "7-day narrative" generator was removed — it read as
             gimmicky because it wasn't tied to anything happening right now. */}
-        <details className="rounded-xl border border-slate-200 bg-white">
-          <summary className="px-4 py-3 cursor-pointer text-[13px] font-medium text-slate-900 select-none">
+        <details className="rounded-xl border border-[var(--m-border)] bg-white">
+          <summary className="px-4 py-3 cursor-pointer text-[13px] font-medium text-[var(--m-ink)] select-none">
             Today&apos;s telemetry &amp; recent activity
           </summary>
-          <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-4">
+          <div className="px-4 pb-4 space-y-4 border-t border-[var(--m-border-soft)] pt-4">
             {/* Today telemetry — single tight row */}
             {today.sampleCount > 0 && (
               <div>
                 <div className="flex items-baseline justify-between mb-1">
                   <p className="app-eyebrow">Today's telemetry{paused && <span className="ml-2 text-[10px] text-amber-700 font-semibold">Paused</span>}</p>
-                  <span className="text-[11.5px] text-slate-500 tabular-nums">
+                  <span className="text-[11.5px] text-[var(--m-ink-3)] tabular-nums">
                     Online {fmt(onlineSeconds)} · Active {fmt(today.activeSeconds)} · Idle {Math.round(idleRatio * 100)}%
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-[var(--m-bg-soft)] overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${workPct}%`, background: 'linear-gradient(90deg, #38bdf8, #6366f1)' }}
@@ -412,11 +412,11 @@ export default function DashboardClient({
                         href={e.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-slate-900 hover:text-[var(--m-accent)] truncate"
+                        className="text-[var(--m-ink)] hover:text-[var(--m-accent)] truncate"
                       >
                         {e.title}
                       </a>
-                      <span className="ml-auto shrink-0 text-[10.5px] text-slate-400">{e.repo}</span>
+                      <span className="ml-auto shrink-0 text-[10.5px] text-[var(--m-ink-4)]">{e.repo}</span>
                     </li>
                   ))}
                 </ul>
@@ -466,32 +466,32 @@ export default function DashboardClient({
         <section className="app-card app-card-lg">
           <div className="section-title-row">
             <h3 className="app-h2">My leave requests</h3>
-            <span className="text-[12px] text-slate-500">{myLeaves.length}</span>
+            <span className="text-[12px] text-[var(--m-ink-3)]">{myLeaves.length}</span>
           </div>
           {myLeaves.length === 0 ? (
             <p className="app-sub mt-3">No requests on file.</p>
           ) : (
             <ul className="mt-3 space-y-3">
               {myLeaves.slice(0, 4).map((l) => (
-                <li key={l.id} className="rounded-xl border border-slate-100 p-3">
+                <li key={l.id} className="rounded-xl border border-[var(--m-border-soft)] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className={`pill ${LEAVE_PILL[l.status]}`}>{l.status}</span>
                     {l.status === 'pending' && (
                       <button
                         onClick={() => cancelLeave(l.id)}
                         disabled={busy === `leave-cancel-${l.id}`}
-                        className="text-[11px] text-slate-500 hover:text-rose-600"
+                        className="text-[11px] text-[var(--m-ink-3)] hover:text-rose-600"
                       >
                         Cancel
                       </button>
                     )}
                   </div>
-                  <p className="text-[13px] text-slate-900 mt-1.5 font-medium">
+                  <p className="text-[13px] text-[var(--m-ink)] mt-1.5 font-medium">
                     {fmtDateRange(l.startDate, l.endDate)}
                   </p>
-                  <p className="text-[12px] text-slate-600 mt-0.5">{l.reason}</p>
+                  <p className="text-[12px] text-[var(--m-ink-2)] mt-0.5">{l.reason}</p>
                   {l.decidedNote && (
-                    <p className="text-[11px] text-slate-500 mt-1">Manager: {l.decidedNote}</p>
+                    <p className="text-[11px] text-[var(--m-ink-3)] mt-1">Manager: {l.decidedNote}</p>
                   )}
                 </li>
               ))}
@@ -507,8 +507,8 @@ export default function DashboardClient({
           ) : (
             <ul className="mt-3 space-y-2">
               {recentBreaks.map((b) => (
-                <li key={b.id} className="text-[12px] text-slate-600">
-                  <span className="text-slate-900 font-medium">
+                <li key={b.id} className="text-[12px] text-[var(--m-ink-2)]">
+                  <span className="text-[var(--m-ink)] font-medium">
                     {new Date(b.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                   </span>{' '}
                   · {b.endedAt ? duration(b.startedAt, b.endedAt) : 'ongoing'} ·{' '}
@@ -582,13 +582,13 @@ export default function DashboardClient({
           {leaveBalance && (() => {
             const row = leaveBalance.rows.find((r) => r.type === leaveType)
             return row ? (
-              <p className="mt-1.5 text-[12px] text-slate-500">
+              <p className="mt-1.5 text-[12px] text-[var(--m-ink-3)]">
                 You have{' '}
-                <span className="font-semibold text-slate-800">{row.remaining}</span> of {row.quota}{' '}
+                <span className="font-semibold text-[var(--m-ink)]">{row.remaining}</span> of {row.quota}{' '}
                 {row.type} days left in {leaveBalance.year}.
               </p>
             ) : (
-              <p className="mt-1.5 text-[12px] text-slate-400">
+              <p className="mt-1.5 text-[12px] text-[var(--m-ink-4)]">
                 This type has no fixed annual allowance.
               </p>
             )
@@ -649,9 +649,9 @@ export default function DashboardClient({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-      <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">{label}</p>
-      <p className="mt-0.5 text-[14px] font-semibold text-slate-900">{value}</p>
+    <div className="rounded-xl border border-[var(--m-border-soft)] bg-[var(--m-bg-soft)] px-3 py-2">
+      <p className="text-[11px] text-[var(--m-ink-3)] uppercase tracking-wider font-medium">{label}</p>
+      <p className="mt-0.5 text-[14px] font-semibold text-[var(--m-ink)]">{value}</p>
     </div>
   )
 }
@@ -659,8 +659,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Row({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-slate-600">{label}</dt>
-      <dd className="font-medium text-slate-900">{value}</dd>
+      <dt className="text-[var(--m-ink-2)]">{label}</dt>
+      <dd className="font-medium text-[var(--m-ink)]">{value}</dd>
     </div>
   )
 }
@@ -676,7 +676,7 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/40"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-[var(--m-ink)]/40"
       onClick={onClose}
     >
       <div

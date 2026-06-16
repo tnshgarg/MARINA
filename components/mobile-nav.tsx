@@ -52,7 +52,7 @@ export function MobileNav({ orgName }: { orgName: string }) {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="p-2 -ml-1 rounded-md text-slate-700 hover:bg-slate-100 transition"
+          className="p-2 -ml-1 rounded-md text-[var(--m-ink-2)] hover:bg-[var(--m-bg-soft)] transition"
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
         >
@@ -69,7 +69,7 @@ export function MobileNav({ orgName }: { orgName: string }) {
         <div className="flex-1 flex items-center justify-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" width={22} height={22} alt="" aria-hidden className="block object-contain" />
-          <span className="text-[13.5px] font-semibold text-slate-900 truncate">
+          <span className="text-[13.5px] font-semibold text-[var(--m-ink)] truncate">
             {orgName}
           </span>
         </div>

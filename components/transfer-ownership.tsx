@@ -64,10 +64,10 @@ export function TransferOwnership() {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 p-4">
-      <h3 className="text-[13px] font-semibold text-slate-900">Transfer workspace ownership</h3>
-      <p className="text-[12px] text-slate-500 mt-1 leading-snug">
-        Hand <span className="font-medium text-slate-700">{org.name}</span> to another member. They become the
+    <div className="rounded-lg border border-[var(--m-border)] p-4">
+      <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">Transfer workspace ownership</h3>
+      <p className="text-[12px] text-[var(--m-ink-3)] mt-1 leading-snug">
+        Hand <span className="font-medium text-[var(--m-ink-2)]">{org.name}</span> to another member. They become the
         owner; you stay an admin and can then leave or delete your account.
       </p>
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -88,7 +88,7 @@ export function TransferOwnership() {
           type="button"
           onClick={transfer}
           disabled={busy || pick === ''}
-          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
+          className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium disabled:opacity-50 transition"
         >
           {busy ? 'Transferring…' : 'Transfer ownership'}
         </button>

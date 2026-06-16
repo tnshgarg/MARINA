@@ -45,19 +45,30 @@ export async function syncOrgViaApp(orgId: number, daysBack = 30): Promise<AppSy
 
   // Map the org's members' GitHub identities → MARINA userId.
   const memberRows = await db
-    .select({ userId: schema.users.id, githubId: schema.users.githubId, login: schema.users.login })
+    .select({ userId: schema.users.id, githubId: schema.users.githubId, login: schema.users.login, githubLogin: schema.users.githubLogin, email: schema.users.email })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
   const byGithubId = new Map<number, number>()
   const byLogin = new Map<string, number>()
+  const byEmail = new Map<string, number>()
   for (const m of memberRows) {
     if (m.githubId != null) byGithubId.set(m.githubId, m.userId)
+    // Index BOTH the app handle (== github login for OAuth users) AND the
+    // invite-supplied github username, so an author resolves whether the
+    // teammate linked via OAuth or just typed their username at invite.
     if (m.login) byLogin.set(m.login.toLowerCase(), m.userId)
+    if (m.githubLogin) byLogin.set(m.githubLogin.toLowerCase(), m.userId)
+    if (m.email) byEmail.set(m.email.toLowerCase(), m.userId)
   }
-  const matchUser = (id?: number | null, login?: string | null): number | null => {
+  // Match an author by GitHub id → login → commit-author email (catches commits
+  // whose GitHub account isn't linked but whose email is a teammate's). Only a
+  // real *login* (never an email) is surfaced as an "unlinked author" the admin
+  // can act on, so the sync result never shows a raw email they can't link.
+  const matchUser = (id?: number | null, login?: string | null, email?: string | null): number | null => {
     if (id != null && byGithubId.has(id)) return byGithubId.get(id)!
     if (login && byLogin.has(login.toLowerCase())) return byLogin.get(login.toLowerCase())!
+    if (email && byEmail.has(email.toLowerCase())) return byEmail.get(email.toLowerCase())!
     if (login) unmatched.add(login)
     return null
   }
@@ -124,7 +135,7 @@ export async function syncOrgViaApp(orgId: number, daysBack = 30): Promise<AppSy
       for (const c of commits) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cc = c as any
-        const userId = matchUser(cc.author?.id, cc.author?.login ?? cc.commit?.author?.email)
+        const userId = matchUser(cc.author?.id, cc.author?.login, cc.commit?.author?.email)
         if (userId == null) continue
         events.push({
           userId,

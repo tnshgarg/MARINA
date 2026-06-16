@@ -42,11 +42,11 @@ export default async function AuthErrorPage({
   const showHint = info.hint && (errorKey !== 'Configuration' || process.env.NODE_ENV !== 'production')
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
+    <main className="min-h-screen flex items-center justify-center bg-[var(--m-bg-soft)] px-6">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-[var(--m-border)] p-8 text-center">
         <div className="text-[36px] mb-3">⚠️</div>
-        <h1 className="text-[20px] font-semibold text-slate-900">{info.title}</h1>
-        <p className="mt-2 text-[14px] text-slate-600 leading-relaxed">{info.body}</p>
+        <h1 className="text-[20px] font-semibold text-[var(--m-ink)]">{info.title}</h1>
+        <p className="mt-2 text-[14px] text-[var(--m-ink-2)] leading-relaxed">{info.body}</p>
         {showHint && (
           <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-1">
@@ -55,10 +55,10 @@ export default async function AuthErrorPage({
             <p className="text-[13px] text-amber-900">{info.hint}</p>
           </div>
         )}
-        <p className="mt-6 text-[11px] text-slate-400">Error code: {errorKey}</p>
+        <p className="mt-6 text-[11px] text-[var(--m-ink-4)]">Error code: {errorKey}</p>
         <Link
           href="/"
-          className="mt-6 inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-[14px] font-medium transition"
+          className="mt-6 inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-[var(--m-ink)] text-white hover:bg-[var(--m-ink-2)] text-[14px] font-medium transition"
         >
           Back to home
         </Link>

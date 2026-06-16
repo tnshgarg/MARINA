@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte, isNull, like, not } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
+import { hideSeedRows } from '@/lib/dev-state'
 import { auth, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
           and(
             eq(schema.githubEvents.userId, session.appUserId),
             gte(schema.githubEvents.occurredAt, periodStart),
-            not(like(schema.githubEvents.externalId, 'seed-%')),
+            hideSeedRows(schema.githubEvents.externalId),
           )
         )
         .orderBy(desc(schema.githubEvents.occurredAt))
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
       <AnnouncementBanner viewerRole="member" />
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <header className="bg-white border-b border-[var(--m-border)] sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <CharacterAvatar characterKey={me.characterKey} name={me.name} login={me.login} size={36} />
@@ -101,7 +102,7 @@ export default async function DashboardPage() {
                 <span className="truncate">
                   {character?.name ?? me.name ?? `@${session.login}`}
                 </span>
-                <span className="text-[11px] sm:text-[12px] font-normal text-slate-500 truncate hidden xs:inline">
+                <span className="text-[11px] sm:text-[12px] font-normal text-[var(--m-ink-3)] truncate hidden xs:inline">
                   @{session.login}
                 </span>
               </h1>
@@ -111,26 +112,26 @@ export default async function DashboardPage() {
             {canSeeTeam && primaryOrgId && (
               <Link
                 href={`/org/${primaryOrgId}`}
-                className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1"
+                className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1"
               >
                 Team
               </Link>
             )}
             <Link
               href="/me/regularizations"
-              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1 hidden md:inline"
+              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden md:inline"
             >
               Attendance
             </Link>
             <Link
               href="/me/data"
-              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
+              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
             >
               My data
             </Link>
             <Link
               href="/settings"
-              className="text-slate-600 hover:text-[var(--m-accent)] transition-colors px-1"
+              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1"
             >
               Settings
             </Link>
@@ -140,7 +141,7 @@ export default async function DashboardPage() {
                 await signOut({ redirectTo: '/' })
               }}
             >
-              <button type="submit" className="text-slate-600 hover:text-rose-600 px-1">
+              <button type="submit" className="text-[var(--m-ink-2)] hover:text-rose-600 px-1">
                 <span className="hidden sm:inline">Sign out</span>
                 <span className="sm:hidden" aria-label="Sign out">
                   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

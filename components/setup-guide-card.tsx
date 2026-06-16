@@ -13,19 +13,19 @@
 export function SetupGuideCard() {
   return (
     <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)]">
         <p className="text-[11px] uppercase tracking-wider text-[var(--m-accent)] font-semibold">
           Manager toolkit
         </p>
-        <p className="text-[13.5px] font-semibold text-slate-900 mt-0.5">
+        <p className="text-[13.5px] font-semibold text-[var(--m-ink)] mt-0.5">
           Get your team onto the desktop agent
         </p>
-        <p className="text-[12px] text-slate-500 mt-0.5">
+        <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5">
           Print the setup guide or copy the download links into your onboarding email.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-[var(--m-border-soft)]">
         {/* Setup guide */}
         <div className="p-4">
           <div className="flex items-start gap-3">
@@ -36,8 +36,8 @@ export function SetupGuideCard() {
               </svg>
             </span>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-900">Employee setup guide</p>
-              <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+              <p className="text-[13px] font-semibold text-[var(--m-ink)]">Employee setup guide</p>
+              <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5 leading-snug">
                 One-page handout — invite → install → pair → first day. Print or save as PDF
                 and hand to every new hire.
               </p>
@@ -46,7 +46,7 @@ export function SetupGuideCard() {
                   href="/setup-guide"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium transition"
+                  className="px-2.5 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium transition"
                 >
                   Open guide
                 </a>
@@ -54,7 +54,7 @@ export function SetupGuideCard() {
                   href="/setup-guide"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[12px] text-slate-600 hover:text-slate-900 font-medium"
+                  className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] font-medium"
                 >
                   Print → Save as PDF
                 </a>
@@ -72,8 +72,8 @@ export function SetupGuideCard() {
               </svg>
             </span>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-900">Desktop agent download</p>
-              <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+              <p className="text-[13px] font-semibold text-[var(--m-ink)]">Desktop agent download</p>
+              <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5 leading-snug">
                 Direct links you can paste into Slack or email. The agent runs in the menubar
                 / system tray — Mac + Windows.
               </p>
@@ -82,7 +82,7 @@ export function SetupGuideCard() {
                   href="/download"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium transition"
+                  className="px-2.5 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium transition"
                 >
                   Open download page
                 </a>
@@ -92,7 +92,7 @@ export function SetupGuideCard() {
                     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.marina.in'
                     void navigator.clipboard?.writeText(`${origin}/download`)
                   }}
-                  className="text-[12px] text-slate-600 hover:text-slate-900 font-medium"
+                  className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] font-medium"
                 >
                   Copy share link
                 </button>

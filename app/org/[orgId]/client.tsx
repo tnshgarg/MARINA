@@ -137,9 +137,9 @@ const STATUS: Record<SimpleStatus, {
   dot: string          // hex for the small status dot
 }> = {
   working: { label: 'Working', pill: 'pill-good',   fg: 'text-emerald-700', ring: 'bg-emerald-500', dot: '#10b981' },
-  paused:  { label: 'Paused',  pill: 'pill-slate',  fg: 'text-slate-600',   ring: 'bg-slate-400',   dot: '#94a3b8' },
+  paused:  { label: 'Paused',  pill: 'pill-slate',  fg: 'text-[var(--m-ink-2)]',   ring: 'bg-[var(--m-ink-4)]',   dot: '#94a3b8' },
   blocked: { label: 'Blocked', pill: 'pill-bad',    fg: 'text-rose-700',    ring: 'bg-rose-500',    dot: '#f43f5e' },
-  off:     { label: 'Off',     pill: 'pill-slate',  fg: 'text-slate-500',   ring: 'bg-slate-300',   dot: '#cbd5e1' },
+  off:     { label: 'Off',     pill: 'pill-slate',  fg: 'text-[var(--m-ink-3)]',   ring: 'bg-[var(--m-ink-5)]',   dot: '#cbd5e1' },
 }
 
 /** Derive a single status from all the signals on a member. Order matters. */
@@ -387,7 +387,7 @@ export default function TeamDashboardClient({
       <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
         <div>
           <h1 className="app-h1">{greeting}</h1>
-          <p className="mt-1.5 text-[13px] text-slate-600">
+          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
             {snapshot.blockedOnYouCount > 0
               ? `${snapshot.blockedOnYouCount} teammate${snapshot.blockedOnYouCount === 1 ? '' : 's'} waiting on you · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
               : snapshot.blockerCount > 0
@@ -400,7 +400,7 @@ export default function TeamDashboardClient({
       {/* Inline stats — typography-led, no boxes. Org productivity is the
           headline KPI: HR can glance and tell whether the org as a whole is
           firing today. Anything below 45% deserves a manager's attention. */}
-      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-slate-200">
+      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-[var(--m-border)]">
         <InlineStat
           n={`${snapshot.orgProductivity}%`}
           label="org productivity today"
@@ -439,27 +439,27 @@ export default function TeamDashboardClient({
             />
           )}
 
-          <section className="rounded-xl border border-slate-200 bg-white">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3">
-              <h2 className="text-[14px] font-semibold text-slate-900">
+          <section className="rounded-xl border border-[var(--m-border)] bg-white">
+            <div className="px-5 py-3.5 border-b border-[var(--m-border-soft)] flex items-baseline justify-between gap-3">
+              <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">
                 Worth a look
                 {reviewing.length > 0 && (
-                  <span className="ml-1.5 text-slate-400 tabular-nums">{reviewing.length}</span>
+                  <span className="ml-1.5 text-[var(--m-ink-4)] tabular-nums">{reviewing.length}</span>
                 )}
               </h2>
               <Link
                 href={`/org/${orgId}/leaves`}
-                className="text-[12px] text-slate-500 hover:text-slate-900"
+                className="text-[12px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
               >
                 View leaves →
               </Link>
             </div>
             {reviewing.length === 0 ? (
-              <p className="px-5 py-8 text-center text-[12.5px] text-slate-500">
+              <p className="px-5 py-8 text-center text-[12.5px] text-[var(--m-ink-3)]">
                 All quiet — no pending leaves, no blockers, no long days. Great time to plan ahead.
               </p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[var(--m-border-soft)]">
                 {reviewing.map((r, idx) => (
                   <ReviewCard
                     key={idx}
@@ -478,18 +478,18 @@ export default function TeamDashboardClient({
           {/* Team Members */}
           <section>
             <div className="flex items-baseline gap-3 mb-3 flex-wrap">
-              <h2 className="text-[15px] font-semibold text-slate-900">Team Members</h2>
-              <span className="text-[12px] text-slate-500">
+              <h2 className="text-[15px] font-semibold text-[var(--m-ink)]">Team Members</h2>
+              <span className="text-[12px] text-[var(--m-ink-3)]">
                 {statusFilter || query ? `${filtered.length} of ${members.length}` : members.length}
               </span>
               <div className="ml-auto relative">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--m-ink-4)]" />
                 <input
                   type="search"
                   placeholder="Search…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-slate-200 bg-white text-[12.5px] outline-none focus:border-[var(--m-accent)] focus:ring-2 focus:ring-[var(--m-accent-glow)] transition"
+                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-[var(--m-border)] bg-white text-[12.5px] outline-none focus:border-[var(--m-accent)] focus:ring-2 focus:ring-[var(--m-accent-glow)] transition"
                 />
               </div>
             </div>
@@ -535,7 +535,7 @@ export default function TeamDashboardClient({
             </div>
 
             {filtered.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-[13px] text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--m-border)] p-10 text-center text-[13px] text-[var(--m-ink-3)]">
                 {statusFilter
                   ? `No one is currently ${statusFilter}.`
                   : query
@@ -563,7 +563,7 @@ export default function TeamDashboardClient({
             <div className="mt-3">
               <Link
                 href={`/org/${orgId}/members`}
-                className="text-[12.5px] text-slate-500 hover:text-slate-900"
+                className="text-[12.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
               >
                 Manage members →
               </Link>
@@ -663,7 +663,7 @@ function SlackingPanel({
           >
             <CharacterAvatar characterKey={a.characterKey} name={a.name} login={a.login} size={28} />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] text-slate-900">
+              <p className="text-[13px] text-[var(--m-ink)]">
                 <span className="font-medium">{a.name ?? `@${a.login}`}</span>
                 <span className="text-amber-700"> · {slackTopicLabel(a)}</span>
               </p>
@@ -704,10 +704,10 @@ function BlockersPanel({
 }) {
   const blockedOnYou = blockers.filter((b) => b.waitingOnYou)
   return (
-    <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-baseline justify-between gap-3 flex-wrap">
+    <section className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-[var(--m-border-soft)] flex items-baseline justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-[14px] font-semibold text-slate-900">
+          <h2 className="text-[14px] font-semibold text-[var(--m-ink)]">
             Active blockers
           </h2>
           <span className="text-[12px] text-rose-600 font-medium tabular-nums">
@@ -721,12 +721,12 @@ function BlockersPanel({
         </div>
         <Link
           href={`/org/${orgId}/breaks`}
-          className="text-[12px] text-slate-500 hover:text-slate-900"
+          className="text-[12px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
         >
           All paused →
         </Link>
       </div>
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-[var(--m-border-soft)]">
         {blockers.map((b) => {
           const duration = humanDuration(Date.now() - new Date(b.startedAt).getTime())
           const aged = Date.now() - new Date(b.startedAt).getTime() > 4 * 3600 * 1000
@@ -751,13 +751,13 @@ function BlockersPanel({
               }}
               role="button"
               tabIndex={0}
-              className={`px-5 py-3 flex items-center gap-3 flex-wrap cursor-pointer hover:bg-slate-50/70 focus:outline-none focus-visible:bg-slate-50/70 transition ${b.waitingOnYou ? 'bg-rose-50/50' : ''}`}
+              className={`px-5 py-3 flex items-center gap-3 flex-wrap cursor-pointer hover:bg-[var(--m-bg-soft)]/70 focus:outline-none focus-visible:bg-[var(--m-bg-soft)]/70 transition ${b.waitingOnYou ? 'bg-rose-50/50' : ''}`}
             >
               <CharacterAvatar characterKey={b.blockedUser.characterKey} name={b.blockedUser.name} login={b.blockedUser.login} size={28} />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] text-slate-900 truncate">
+                <p className="text-[13px] text-[var(--m-ink)] truncate">
                   <span className="font-medium">{b.blockedUser.name ?? `@${b.blockedUser.login}`}</span>
-                  <span className="text-slate-400"> waiting on </span>
+                  <span className="text-[var(--m-ink-4)]"> waiting on </span>
                   {target.kind === 'user' && (
                     <span className="inline-flex items-center gap-1 align-middle">
                       <CharacterAvatar characterKey={target.characterKey} name={target.label} size={14} />
@@ -767,7 +767,7 @@ function BlockersPanel({
                   {target.kind !== 'user' && <span className="font-medium">{target.label}</span>}
                 </p>
                 {b.reason && (
-                  <p className="text-[11.5px] text-slate-500 truncate mt-0.5">
+                  <p className="text-[11.5px] text-[var(--m-ink-3)] truncate mt-0.5">
                     {truncate(b.reason, 110)}
                   </p>
                 )}
@@ -786,7 +786,7 @@ function BlockersPanel({
                     onPing(b)
                   }}
                   disabled={busy === `ping-${b.breakId}`}
-                  className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[11.5px] font-medium disabled:opacity-50 transition"
+                  className="px-2.5 py-1 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[11.5px] font-medium disabled:opacity-50 transition"
                 >
                   {busy === `ping-${b.breakId}` ? 'Pinging…' : b.waitingOnYou ? 'Acknowledge' : 'Nudge'}
                 </button>
@@ -812,18 +812,18 @@ function InlineStat({
 }) {
   const dim = typeof n === 'number' && n === 0
   const colorClass = dim
-    ? 'text-slate-400'
+    ? 'text-[var(--m-ink-4)]'
     : tone === 'rose'
       ? 'text-rose-700'
       : tone === 'emerald'
         ? 'text-emerald-700'
         : tone === 'amber'
           ? 'text-amber-700'
-          : 'text-slate-900'
+          : 'text-[var(--m-ink)]'
   return (
     <div className="flex items-baseline gap-1.5">
       <span className={`text-[22px] font-semibold tabular-nums tracking-tight ${colorClass}`}>{n}</span>
-      <span className="text-[12px] text-slate-500">{label}</span>
+      <span className="text-[12px] text-[var(--m-ink-3)]">{label}</span>
     </div>
   )
 }
@@ -869,7 +869,7 @@ function ReviewCard({
 
   return (
     <div
-      className={`p-4 flex flex-col gap-2.5 min-w-0 ${clickable ? 'cursor-pointer hover:bg-slate-50/60 transition' : ''}`}
+      className={`p-4 flex flex-col gap-2.5 min-w-0 ${clickable ? 'cursor-pointer hover:bg-[var(--m-bg-soft)]/60 transition' : ''}`}
       onClick={clickable ? handleOpen : undefined}
       onKeyDown={
         clickable
@@ -892,22 +892,22 @@ function ReviewCard({
           size={32}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-slate-900 truncate">
+          <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
             {m?.name ?? lv?.user.name ?? `@${m?.login ?? lv?.user.login}`}
           </p>
-          <p className="text-[11px] text-slate-500 truncate">
+          <p className="text-[11px] text-[var(--m-ink-3)] truncate">
             {character?.name ?? `@${m?.login ?? lv?.user.login}`}
           </p>
         </div>
         <span className={`pill ${tone}`}>{pick.label}</span>
       </div>
-      <p className="text-[12.5px] text-slate-600 leading-snug">{pick.detail}</p>
+      <p className="text-[12.5px] text-[var(--m-ink-2)] leading-snug">{pick.detail}</p>
 
       {lv && (
-        <div className="text-[11.5px] text-slate-500 flex items-center gap-1">
+        <div className="text-[11.5px] text-[var(--m-ink-3)] flex items-center gap-1">
           <CalSmallIcon />
           <span>{fmtDateRange(lv.startDate, lv.endDate)}</span>
-          <span className="text-slate-400">· {timeAgo(lv.createdAt)}</span>
+          <span className="text-[var(--m-ink-4)]">· {timeAgo(lv.createdAt)}</span>
         </div>
       )}
 
@@ -915,14 +915,14 @@ function ReviewCard({
         {lv && isManager ? (
           <>
             <button
-              className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition flex-1"
+              className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium disabled:opacity-50 transition flex-1"
               disabled={busy === `leave-${lv.id}-approve`}
               onClick={() => onDecide(lv.id, 'approve')}
             >
               {busy === `leave-${lv.id}-approve` ? '…' : 'Approve'}
             </button>
             <button
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium disabled:opacity-50 transition flex-1"
+              className="px-3 py-1.5 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium disabled:opacity-50 transition flex-1"
               disabled={busy === `leave-${lv.id}-deny`}
               onClick={() => onDecide(lv.id, 'deny')}
             >
@@ -948,7 +948,7 @@ function ReviewCard({
             )}
           </div>
         ) : pick.kind === 'inactive' ? (
-          <span className="text-[11.5px] text-slate-500">
+          <span className="text-[11.5px] text-[var(--m-ink-3)]">
             Last active {timeSinceLabel(m?.activity)}
           </span>
         ) : pick.kind === 'long-day' ? (
@@ -1006,14 +1006,14 @@ function MemberCardView({
       role="button"
       tabIndex={0}
       aria-label={`Open details for ${m.name ?? `@${m.login}`}`}
-      className="cursor-pointer text-left w-full h-full flex flex-col rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/40 transition-all overflow-hidden"
+      className="cursor-pointer text-left w-full h-full flex flex-col rounded-2xl bg-white border border-[var(--m-border)] shadow-sm hover:shadow-md hover:border-[var(--m-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)]/40 transition-all overflow-hidden"
     >
       {/* Header */}
       <div className="px-5 pt-4 pb-3 flex items-start gap-3">
         <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={48} ring />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-[15px] font-semibold text-slate-900 truncate">
+            <h3 className="text-[15px] font-semibold text-[var(--m-ink)] truncate">
               {m.name ?? `@${m.login}`}
             </h3>
             <span className={`pill ${status.pill}`}>
@@ -1021,7 +1021,7 @@ function MemberCardView({
               {displayLabel}
             </span>
           </div>
-          <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+          <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5 truncate">
             {character ? `${character.name} · ${m.role}` : m.role}
           </p>
         </div>
@@ -1079,26 +1079,26 @@ function MemberCardView({
           when a manager wants the deeper write-up. */}
       <div className="px-5 pb-3 space-y-1.5">
         {m.recentDeliverable && (
-          <p className="text-[12.5px] text-slate-700 leading-snug flex items-start gap-1.5">
+          <p className="text-[12.5px] text-[var(--m-ink-2)] leading-snug flex items-start gap-1.5">
             <span className="text-[var(--m-accent)] mt-0.5">✓</span>
             <span className="min-w-0">
               <span className="break-words">Shipped: {m.recentDeliverable.title}</span>
-              <span className="text-slate-400"> · {timeAgo(m.recentDeliverable.completedAt)}</span>
+              <span className="text-[var(--m-ink-4)]"> · {timeAgo(m.recentDeliverable.completedAt)}</span>
             </span>
           </p>
         )}
         {m.dailyState?.reason && (
-          <p className="text-[12px] text-slate-500 leading-snug">{m.dailyState.reason}</p>
+          <p className="text-[12px] text-[var(--m-ink-3)] leading-snug">{m.dailyState.reason}</p>
         )}
         {!m.recentDeliverable && !m.dailyState?.reason && (
-          <p className="text-[12px] text-slate-400 italic">No recent activity logged today.</p>
+          <p className="text-[12px] text-[var(--m-ink-4)] italic">No recent activity logged today.</p>
         )}
       </div>
 
       {/* Action footer */}
       {isManager && (
         <div
-          className="mt-auto border-t border-slate-100 bg-slate-50/40 px-5 py-2.5 flex items-center justify-between gap-2"
+          className="mt-auto border-t border-[var(--m-border-soft)] bg-[var(--m-bg-soft)]/40 px-5 py-2.5 flex items-center justify-between gap-2"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-1.5 min-w-0">
@@ -1107,7 +1107,7 @@ function MemberCardView({
                 made the card feel judgmental. Brief tells you all you need
                 to know about activity sources. */}
             {m.activity.paused && (
-              <span className="text-[10.5px] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
+              <span className="text-[10.5px] text-[var(--m-ink-2)] bg-[var(--m-bg-soft)] border border-[var(--m-border)] px-1.5 py-0.5 rounded-full">
                 paused
               </span>
             )}
@@ -1145,7 +1145,7 @@ function MemberCardView({
                   onSchedule()
                 }}
                 disabled={busy !== null}
-                className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:border-[var(--m-accent)] hover:bg-[var(--m-accent-soft)] text-[11.5px] font-medium text-[var(--m-ink-2)] disabled:opacity-50 disabled:cursor-not-allowed transition"
                 title={`Schedule a 1:1 with ${m.name ?? `@${m.login}`}`}
               >
                 Schedule meeting
@@ -1155,7 +1155,7 @@ function MemberCardView({
                 on the card itself, so generating one here was confusing. The
                 brief lives inside the member modal's Today tab. */}
             {isSelf && (
-              <span className="text-[10.5px] text-slate-400 italic px-2">This is you</span>
+              <span className="text-[10.5px] text-[var(--m-ink-4)] italic px-2">This is you</span>
             )}
             {/* Full-page profile route — sharable URL, deep links from emails,
                 day-by-day jumping. The in-page modal still works on card
@@ -1163,7 +1163,7 @@ function MemberCardView({
             <a
               href={`/org/${orgId}/people/${m.membershipId}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-[11px] text-slate-500 hover:text-[var(--m-accent)] px-2 py-1 hover:bg-slate-100 rounded-md transition"
+              className="text-[11px] text-[var(--m-ink-3)] hover:text-[var(--m-accent)] px-2 py-1 hover:bg-[var(--m-bg-soft)] rounded-md transition"
               title="Open full profile page"
             >
               Profile ↗
@@ -1208,14 +1208,14 @@ function StatusChip({
     tone === 'good' ? 'bg-[var(--m-good)] text-white border-[var(--m-good)]' :
     tone === 'warn' ? 'bg-[var(--m-warn)] text-white border-[var(--m-warn)]' :
     tone === 'bad'  ? 'bg-[var(--m-bad)] text-white border-[var(--m-bad)]' :
-    tone === 'mute' ? 'bg-slate-700 text-white border-slate-700' :
-                      'bg-slate-900 text-white border-slate-900'
+    tone === 'mute' ? 'bg-[var(--m-ink-2)] text-white border-[var(--m-ink-2)]' :
+                      'bg-[var(--m-ink)] text-white border-[var(--m-ink)]'
   const inactiveStyles =
     tone === 'good' ? 'bg-[var(--m-good-soft)] text-[var(--m-good)] border-[var(--m-good)]/15 hover:border-[var(--m-good)]/30' :
     tone === 'warn' ? 'bg-[var(--m-warn-soft)] text-[var(--m-warn)] border-[var(--m-warn)]/15 hover:border-[var(--m-warn)]/30' :
     tone === 'bad'  ? 'bg-[var(--m-bad-soft)] text-[var(--m-bad)] border-[var(--m-bad)]/15 hover:border-[var(--m-bad)]/30' :
-    tone === 'mute' ? 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300' :
-                      'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+    tone === 'mute' ? 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] border-[var(--m-border)] hover:border-[var(--m-border)]' :
+                      'bg-white text-[var(--m-ink-2)] border-[var(--m-border)] hover:border-[var(--m-border)]'
   return (
     <button
       type="button"
@@ -1487,7 +1487,7 @@ function Spinner({ light = false }: { light?: boolean }) {
   return (
     <span
       className={`inline-block w-3 h-3 rounded-full border-2 ${
-        light ? 'border-white/40 border-t-white' : 'border-slate-300 border-t-slate-600'
+        light ? 'border-white/40 border-t-white' : 'border-[var(--m-border)] border-t-slate-600'
       } animate-spin`}
     />
   )
@@ -1507,45 +1507,45 @@ function LeavePanel({
   onDecide: (id: number, decision: 'approve' | 'deny') => void
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-        <h3 className="text-[13px] font-semibold text-slate-900">Leave Requests</h3>
+    <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">Leave Requests</h3>
         <Link
           href={`/org/${orgId}/leaves`}
-          className="text-[11.5px] text-slate-500 hover:text-slate-900"
+          className="text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
         >
           All
         </Link>
       </div>
       {leaves.length === 0 ? (
-        <p className="px-4 py-5 text-[12px] text-slate-500">No pending requests.</p>
+        <p className="px-4 py-5 text-[12px] text-[var(--m-ink-3)]">No pending requests.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-[var(--m-border-soft)]">
           {leaves.slice(0, 3).map((lv) => (
             <li key={lv.id} className="px-4 py-3 space-y-2">
               <div className="flex items-center gap-2.5">
                 <CharacterAvatar characterKey={lv.user.characterKey} name={lv.user.name} login={lv.user.login} size={28} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                  <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                     {lv.user.name ?? `@${lv.user.login}`}
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate">
+                  <p className="text-[11px] text-[var(--m-ink-3)] truncate">
                     {fmtDateRange(lv.startDate, lv.endDate)}
                   </p>
                 </div>
               </div>
-              <p className="text-[11.5px] text-slate-600 leading-snug line-clamp-2">{truncate(lv.reason, 110)}</p>
+              <p className="text-[11.5px] text-[var(--m-ink-2)] leading-snug line-clamp-2">{truncate(lv.reason, 110)}</p>
               {isManager && (
                 <div className="flex gap-1.5">
                   <button
-                    className="flex-1 px-2 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[11.5px] font-medium disabled:opacity-50 transition"
+                    className="flex-1 px-2 py-1 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[11.5px] font-medium disabled:opacity-50 transition"
                     disabled={busy === `leave-${lv.id}-approve`}
                     onClick={() => onDecide(lv.id, 'approve')}
                   >
                     Approve
                   </button>
                   <button
-                    className="flex-1 px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11.5px] font-medium disabled:opacity-50 transition"
+                    className="flex-1 px-2 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[11.5px] font-medium disabled:opacity-50 transition"
                     disabled={busy === `leave-${lv.id}-deny`}
                     onClick={() => onDecide(lv.id, 'deny')}
                   >
@@ -1567,8 +1567,8 @@ const CATEGORY_PILL: Record<BreakCategory, { label: string; cls: string }> = {
   blocked: { label: 'Blocked', cls: 'bg-rose-50 text-rose-700' },
   lunch: { label: 'Lunch', cls: 'bg-amber-50 text-amber-700' },
   errand: { label: 'Errand', cls: 'bg-orange-50 text-orange-700' },
-  personal: { label: 'Personal', cls: 'bg-slate-100 text-slate-700' },
-  other: { label: 'Paused', cls: 'bg-slate-100 text-slate-700' },
+  personal: { label: 'Personal', cls: 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]' },
+  other: { label: 'Paused', cls: 'bg-[var(--m-bg-soft)] text-[var(--m-ink-2)]' },
 }
 
 function BreakPanel({ breaks, orgId }: { breaks: RecentBreak[]; orgId: number }) {
@@ -1576,35 +1576,35 @@ function BreakPanel({ breaks, orgId }: { breaks: RecentBreak[]; orgId: number })
   const recent = breaks.filter((b) => b.endedAt)
   const visible = ongoing.length > 0 ? ongoing.slice(0, 4) : recent.slice(0, 4)
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-baseline justify-between">
-        <h3 className="text-[13px] font-semibold text-slate-900">
+    <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-[var(--m-ink)]">
           {ongoing.length > 0 ? 'Currently paused' : 'Recently paused'}
         </h3>
         <Link
           href={`/org/${orgId}/breaks`}
-          className="text-[11.5px] text-slate-500 hover:text-slate-900"
+          className="text-[11.5px] text-[var(--m-ink-3)] hover:text-[var(--m-ink)]"
         >
           All
         </Link>
       </div>
       {visible.length === 0 ? (
-        <p className="px-4 py-5 text-[12px] text-slate-500">Nobody&apos;s paused right now.</p>
+        <p className="px-4 py-5 text-[12px] text-[var(--m-ink-3)]">Nobody&apos;s paused right now.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-[var(--m-border-soft)]">
           {visible.map((b) => {
             const cat = CATEGORY_PILL[b.category ?? 'other']
             return (
               <li key={b.id} className="px-4 py-2.5 flex items-start gap-2.5">
                 <CharacterAvatar characterKey={b.user.characterKey} name={b.user.name} login={b.user.login} size={26} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-medium text-slate-900 truncate flex items-center gap-1.5">
+                  <p className="text-[12px] font-medium text-[var(--m-ink)] truncate flex items-center gap-1.5">
                     <span className="truncate">{b.user.name ?? `@${b.user.login}`}</span>
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${cat.cls}`}>
                       {cat.label}
                     </span>
                   </p>
-                  <p className="text-[11px] text-slate-500 leading-snug truncate" title={b.reason}>
+                  <p className="text-[11px] text-[var(--m-ink-3)] leading-snug truncate" title={b.reason}>
                     {truncate(b.reason, 60)}
                   </p>
                 </div>

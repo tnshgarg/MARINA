@@ -139,14 +139,14 @@ export function TeamReportClient({
       {/* Title row */}
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <nav className="text-[11.5px] text-slate-500 flex items-center gap-1.5 mb-1">
+          <nav className="text-[11.5px] text-[var(--m-ink-3)] flex items-center gap-1.5 mb-1">
             <Link href={`/org/${orgId}/teams`} className="hover:text-[var(--m-accent)]">
               Teams
             </Link>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-700">{team.name}</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-700">Report</span>
+            <span className="text-[var(--m-ink-5)]">/</span>
+            <span className="text-[var(--m-ink-2)]">{team.name}</span>
+            <span className="text-[var(--m-ink-5)]">/</span>
+            <span className="text-[var(--m-ink-2)]">Report</span>
           </nav>
           <h1 className="app-h1 flex items-center gap-2">
             <span
@@ -154,15 +154,15 @@ export function TeamReportClient({
               style={{ background: team.color ?? '#3f6b54' }}
             />
             {team.name}
-            <span className="text-[14px] font-normal text-slate-500">· team report</span>
+            <span className="text-[14px] font-normal text-[var(--m-ink-3)]">· team report</span>
           </h1>
           {team.description && (
-            <p className="mt-1 text-[13px] text-slate-500 max-w-xl">{team.description}</p>
+            <p className="mt-1 text-[13px] text-[var(--m-ink-3)] max-w-xl">{team.description}</p>
           )}
         </div>
         {lead && (
-          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px]">
-            <p className="text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+          <div className="rounded-lg border border-[var(--m-border)] bg-white px-3 py-2 text-[12px]">
+            <p className="text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mb-1">
               Lead
             </p>
             <div className="flex items-center gap-2">
@@ -172,15 +172,15 @@ export function TeamReportClient({
                 imageUrl={lead.image ?? lead.avatarUrl}
                 size={24}
               />
-              <span className="text-slate-800">{lead.name ?? `@${lead.login}`}</span>
+              <span className="text-[var(--m-ink)]">{lead.name ?? `@${lead.login}`}</span>
             </div>
           </div>
         )}
       </header>
 
       {/* Date range controls */}
-      <section className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mr-1">
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-3 flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold mr-1">
           Period
         </span>
         <input
@@ -188,15 +188,15 @@ export function TeamReportClient({
           value={fromInput}
           onChange={(e) => setFromInput(e.target.value)}
           max={toInput}
-          className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[12.5px]"
+          className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] text-[12.5px]"
         />
-        <span className="text-slate-400 text-[12px]">→</span>
+        <span className="text-[var(--m-ink-4)] text-[12px]">→</span>
         <input
           type="date"
           value={toInput}
           onChange={(e) => setToInput(e.target.value)}
           max={new Date().toISOString().slice(0, 10)}
-          className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[12.5px]"
+          className="px-2 py-1 rounded-md bg-white border border-[var(--m-border)] text-[12.5px]"
         />
         <button
           type="button"
@@ -205,14 +205,14 @@ export function TeamReportClient({
         >
           Apply
         </button>
-        <span className="text-slate-300 mx-2">|</span>
-        <button type="button" onClick={() => presetRange(7)} className="text-[12px] text-slate-600 hover:text-[var(--m-accent)]">
+        <span className="text-[var(--m-ink-5)] mx-2">|</span>
+        <button type="button" onClick={() => presetRange(7)} className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-accent)]">
           Last 7d
         </button>
-        <button type="button" onClick={() => presetRange(30)} className="text-[12px] text-slate-600 hover:text-[var(--m-accent)]">
+        <button type="button" onClick={() => presetRange(30)} className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-accent)]">
           Last 30d
         </button>
-        <button type="button" onClick={() => presetRange(90)} className="text-[12px] text-slate-600 hover:text-[var(--m-accent)]">
+        <button type="button" onClick={() => presetRange(90)} className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-accent)]">
           Last quarter
         </button>
       </section>
@@ -228,8 +228,8 @@ export function TeamReportClient({
 
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Left · per-employee table */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="grid grid-cols-[minmax(0,1.6fr)_60px_70px_80px_70px_80px] gap-3 items-center px-4 py-2.5 border-b border-slate-100 text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold">
+        <div className="lg:col-span-2 rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+          <div className="grid grid-cols-[minmax(0,1.6fr)_60px_70px_80px_70px_80px] gap-3 items-center px-4 py-2.5 border-b border-[var(--m-border-soft)] text-[10.5px] uppercase tracking-wider text-[var(--m-ink-3)] font-semibold">
             <span>Teammate</span>
             <span className="text-right">Hours</span>
             <span className="text-right">Shipped</span>
@@ -238,21 +238,21 @@ export function TeamReportClient({
             <span className="text-right">Score</span>
           </div>
           {ranked.length === 0 ? (
-            <p className="px-4 py-10 text-center text-[13px] text-slate-500">
+            <p className="px-4 py-10 text-center text-[13px] text-[var(--m-ink-3)]">
               No teammates on this team yet.
             </p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-[var(--m-border-soft)]">
               {ranked.map((m) => (
                 <li
                   key={m.userId}
-                  className="grid grid-cols-[minmax(0,1.6fr)_60px_70px_80px_70px_80px] gap-3 items-center px-4 py-3 hover:bg-slate-50/60 transition-colors"
+                  className="grid grid-cols-[minmax(0,1.6fr)_60px_70px_80px_70px_80px] gap-3 items-center px-4 py-3 hover:bg-[var(--m-bg-soft)]/60 transition-colors"
                 >
                   <Link
                     href={`/org/${orgId}/people/${m.membershipId}`}
                     className="flex items-center gap-2.5 min-w-0 hover:text-[var(--m-accent)]"
                   >
-                    <span className="text-[10.5px] text-slate-400 tabular-nums w-5 shrink-0 text-right">
+                    <span className="text-[10.5px] text-[var(--m-ink-4)] tabular-nums w-5 shrink-0 text-right">
                       {m.rank}
                     </span>
                     <CharacterAvatar
@@ -262,18 +262,18 @@ export function TeamReportClient({
                       size={28}
                     />
                     <div className="min-w-0">
-                      <p className="text-[13px] font-medium text-slate-900 truncate">
+                      <p className="text-[13px] font-medium text-[var(--m-ink)] truncate">
                         {m.name ?? `@${m.login}`}
                       </p>
-                      <p className="text-[11px] text-slate-500 truncate capitalize">
+                      <p className="text-[11px] text-[var(--m-ink-3)] truncate capitalize">
                         {m.jobTitle ?? m.discipline} · {m.role}
                       </p>
                     </div>
                   </Link>
-                  <span className="text-right text-[13px] text-slate-800 tabular-nums">{fmtH(m.workMin)}</span>
-                  <span className="text-right text-[13px] text-slate-800 tabular-nums">{m.deliverables}</span>
-                  <span className="text-right text-[13px] text-slate-800 tabular-nums">{m.githubEvents}</span>
-                  <span className={`text-right text-[13px] tabular-nums ${m.blockersOpened > 0 ? 'text-rose-700 font-semibold' : 'text-slate-500'}`}>
+                  <span className="text-right text-[13px] text-[var(--m-ink)] tabular-nums">{fmtH(m.workMin)}</span>
+                  <span className="text-right text-[13px] text-[var(--m-ink)] tabular-nums">{m.deliverables}</span>
+                  <span className="text-right text-[13px] text-[var(--m-ink)] tabular-nums">{m.githubEvents}</span>
+                  <span className={`text-right text-[13px] tabular-nums ${m.blockersOpened > 0 ? 'text-rose-700 font-semibold' : 'text-[var(--m-ink-3)]'}`}>
                     {m.blockersOpened}
                   </span>
                   <span className="text-right text-[13px] text-[var(--m-accent)] font-semibold tabular-nums">
@@ -287,12 +287,12 @@ export function TeamReportClient({
 
         {/* Right · highlights */}
         <div className="space-y-5">
-          <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
             <p className="text-[11px] uppercase tracking-widest text-emerald-700 font-semibold mb-2">
               Top performers
             </p>
             {topPerformers.length === 0 ? (
-              <p className="text-[12.5px] text-slate-500">Nobody had output in this window.</p>
+              <p className="text-[12.5px] text-[var(--m-ink-3)]">Nobody had output in this window.</p>
             ) : (
               <ol className="space-y-2">
                 {topPerformers.map((m) => (
@@ -301,7 +301,7 @@ export function TeamReportClient({
                       href={`/org/${orgId}/people/${m.membershipId}`}
                       className="flex items-center gap-2.5 hover:opacity-90"
                     >
-                      <span className="text-[14px] text-slate-400 font-display w-5 text-center">
+                      <span className="text-[14px] text-[var(--m-ink-4)] font-display w-5 text-center">
                         {m.rank}
                       </span>
                       <CharacterAvatar
@@ -311,10 +311,10 @@ export function TeamReportClient({
                         size={28}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                        <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                           {m.name ?? `@${m.login}`}
                         </p>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[11px] text-[var(--m-ink-3)] truncate">
                           {m.deliverables} shipped · {m.commits + m.prs} commits/PRs · score {m.score}
                         </p>
                       </div>
@@ -326,11 +326,11 @@ export function TeamReportClient({
           </section>
 
           {lagging.length > 0 && (
-            <section className="rounded-xl border border-slate-200 bg-white p-4">
+            <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
               <p className="text-[11px] uppercase tracking-widest text-amber-700 font-semibold mb-2">
                 Might need support
               </p>
-              <p className="text-[11px] text-slate-500 mb-2">
+              <p className="text-[11px] text-[var(--m-ink-3)] mb-2">
                 Zero output or &lt; 1h logged. Could be on leave, ramping up, or stuck.
               </p>
               <ol className="space-y-2">
@@ -347,10 +347,10 @@ export function TeamReportClient({
                         size={26}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-medium text-slate-900 truncate">
+                        <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate">
                           {m.name ?? `@${m.login}`}
                         </p>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[11px] text-[var(--m-ink-3)] truncate">
                           {fmtH(m.workMin)} logged
                           {m.leaveDays > 0 && ` · ${m.leaveDays} leave days`}
                           {m.blockersOpened > 0 && ` · ${m.blockersOpened} blockers`}
@@ -364,11 +364,11 @@ export function TeamReportClient({
           )}
 
           {recentDeliverables.length > 0 && (
-            <section className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold mb-2">
+            <section className="rounded-xl border border-[var(--m-border)] bg-white p-4">
+              <p className="text-[11px] uppercase tracking-widest text-[var(--m-ink-3)] font-semibold mb-2">
                 Shipped in this window
               </p>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--m-border-soft)]">
                 {recentDeliverables.slice(0, 10).map((d) => (
                   <li key={d.id} className="py-2">
                     {d.url ? (
@@ -376,14 +376,14 @@ export function TeamReportClient({
                         href={d.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[12.5px] text-slate-800 hover:underline"
+                        className="text-[12.5px] text-[var(--m-ink)] hover:underline"
                       >
                         {d.title}
                       </a>
                     ) : (
-                      <span className="text-[12.5px] text-slate-800">{d.title}</span>
+                      <span className="text-[12.5px] text-[var(--m-ink)]">{d.title}</span>
                     )}
-                    <p className="text-[10.5px] text-slate-500 mt-0.5">
+                    <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5">
                       {d.authorName ?? `@${d.authorLogin}`} ·{' '}
                       {new Date(d.completedAt).toLocaleDateString(undefined, {
                         month: 'short',
@@ -398,7 +398,7 @@ export function TeamReportClient({
         </div>
       </div>
 
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-[var(--m-ink-3)]">
         An employee can be on multiple teams. This report only counts their activity inside the
         selected window — overlap with other teams isn&apos;t deducted.
       </p>
@@ -408,10 +408,10 @@ export function TeamReportClient({
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">{label}</p>
-      <p className="mt-1 text-[22px] tracking-tight text-slate-900 tabular-nums">{value}</p>
-      <p className="text-[11px] text-slate-500 mt-0.5 truncate">{sub}</p>
+    <div className="rounded-xl border border-[var(--m-border)] bg-white px-4 py-3">
+      <p className="text-[10px] uppercase tracking-widest text-[var(--m-ink-3)] font-medium">{label}</p>
+      <p className="mt-1 text-[22px] tracking-tight text-[var(--m-ink)] tabular-nums">{value}</p>
+      <p className="text-[11px] text-[var(--m-ink-3)] mt-0.5 truncate">{sub}</p>
     </div>
   )
 }

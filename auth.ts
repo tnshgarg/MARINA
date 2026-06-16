@@ -3,7 +3,7 @@ import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { db, schema } from '@/lib/db/client'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { consumeMagicToken } from '@/lib/auth/magic'
 import { syncUserActivity } from '@/lib/github/sync'
 
@@ -67,25 +67,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             clientSecret: process.env.GOOGLE_SSO_CLIENT_SECRET,
             authorization: {
               params: {
-                // `consent` (rather than `select_account`) forces Google to
-                // return a refresh_token on EVERY sign-in. Without this the
-                // token only arrives on the first consent and any
-                // subsequent re-auth silently loses calendar access for
-                // returning Google-SSO users.
-                prompt: 'consent',
-                access_type: 'offline',
-                include_granted_scopes: 'true',
-                // Bundle Calendar read scopes into the sign-in flow so a
-                // Google-SSO user has their calendar populated automatically
-                // — no second click on the integrations page. We never write
-                // to the calendar from here; everything is read-only.
-                scope: [
-                  'openid',
-                  'email',
-                  'profile',
-                  'https://www.googleapis.com/auth/calendar.readonly',
-                  'https://www.googleapis.com/auth/calendar.events.readonly',
-                ].join(' '),
+                // Identity ONLY. Calendar is connected separately via the
+                // explicit "Connect my calendar" flow, which requests
+                // calendar.events WRITE (needed to schedule meetings). We
+                // deliberately do NOT bundle calendar scope into sign-in — a
+                // first-time visitor shouldn't be asked to grant calendar
+                // access just to log in (same reasoning as identity-only GitHub).
+                prompt: 'select_account',
+                scope: ['openid', 'email', 'profile'].join(' '),
               },
             },
             // Trust verified Google emails to merge accounts with existing
@@ -316,7 +305,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 where: (t, { and, eq: e }) =>
                   and(e(t.userId, row!.id), e(t.provider, 'google')),
               })
-              if (existing) {
+              // Only write calendar tokens when this sign-in actually carried
+              // calendar scope — otherwise an identity-only SSO would overwrite
+              // a previously-connected calendar token with one that can't read
+              // the calendar. (With the decoupled flow this is effectively never
+              // true for SSO; kept defensively for incremental-grant edge cases.)
+              if (existing && gotCalendar) {
                 await db
                   .update(schema.accounts)
                   .set({
@@ -327,7 +321,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     token_type: account.token_type ?? existing.token_type,
                     id_token: account.id_token ?? existing.id_token,
                   })
-                  .where(eq(schema.accounts.userId, row.id))
+                  .where(and(eq(schema.accounts.userId, row.id), eq(schema.accounts.provider, 'google')))
               }
               if (gotCalendar) {
                 // Background sync — never block the auth flow on a slow

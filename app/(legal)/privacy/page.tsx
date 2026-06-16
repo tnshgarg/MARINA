@@ -3,8 +3,8 @@ export const metadata = { title: 'Privacy Policy · MARINA' }
 export default function PrivacyPage() {
   return (
     <>
-      <h1 className="text-[28px] font-semibold text-slate-900 mb-2">Privacy Policy</h1>
-      <p className="text-[12px] text-slate-500 mb-8">Last updated: 6 June 2026 · Effective for: India (DPDP Act 2023), EU/UK (GDPR), CCPA</p>
+      <h1 className="text-[28px] font-semibold text-[var(--m-ink)] mb-2">Privacy Policy</h1>
+      <p className="text-[12px] text-[var(--m-ink-3)] mb-8">Last updated: 6 June 2026 · Effective for: India (DPDP Act 2023), EU/UK (GDPR), CCPA</p>
 
       <p>
         This Privacy Policy explains how <strong>Project MARINA</strong> (&quot;<strong>MARINA</strong>&quot;, &quot;we&quot;, &quot;us&quot;) collects, uses,

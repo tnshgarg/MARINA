@@ -82,10 +82,10 @@ export default function LeavesClient({
   ]
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-1 flex-wrap">
+    <div className="rounded-xl border border-[var(--m-border)] bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--m-border-soft)] flex items-center gap-1 flex-wrap">
         <div
-          className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+          className="inline-flex rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)] p-0.5"
           role="tablist"
         >
           {tabs.map((t) => (
@@ -96,20 +96,20 @@ export default function LeavesClient({
               aria-selected={filter === t.id}
               className={`px-3 py-1 text-[12px] font-medium rounded-md transition ${
                 filter === t.id
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[var(--m-ink)] shadow-sm border border-[var(--m-border)]'
+                  : 'text-[var(--m-ink-2)] hover:text-[var(--m-ink)]'
               }`}
             >
               {t.label}
-              <span className="ml-1 text-slate-400 tabular-nums">{t.count}</span>
+              <span className="ml-1 text-[var(--m-ink-4)] tabular-nums">{t.count}</span>
             </button>
           ))}
         </div>
       </div>
       {error && <p className="px-4 py-2 text-[12px] text-rose-600">{error}</p>}
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-[var(--m-border-soft)]">
         {filtered.length === 0 && (
-          <li className="px-5 py-10 text-center text-[12.5px] text-slate-500">
+          <li className="px-5 py-10 text-center text-[12.5px] text-[var(--m-ink-3)]">
             No requests in this view.
           </li>
         )}
@@ -118,17 +118,17 @@ export default function LeavesClient({
             <CharacterAvatar characterKey={l.user.characterKey} name={l.user.name} login={l.user.login} size={32} />
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[13px] font-medium text-slate-900">
+                <p className="text-[13px] font-medium text-[var(--m-ink)]">
                   {l.user.name ?? `@${l.user.login}`}
                 </p>
                 <span className={`pill ${STATUS_PILL[l.status]}`}>{l.status}</span>
               </div>
-              <p className="text-[11.5px] text-slate-500 mt-0.5">
+              <p className="text-[11.5px] text-[var(--m-ink-3)] mt-0.5">
                 {fmtDateRange(l.startDate, l.endDate)} · submitted {timeAgo(l.createdAt)}
               </p>
-              <p className="mt-1.5 text-[12.5px] text-slate-700 leading-snug">{l.reason}</p>
+              <p className="mt-1.5 text-[12.5px] text-[var(--m-ink-2)] leading-snug">{l.reason}</p>
               {l.decidedNote && (
-                <p className="mt-1 text-[11.5px] text-slate-500">
+                <p className="mt-1 text-[11.5px] text-[var(--m-ink-3)]">
                   Manager note: {l.decidedNote}
                 </p>
               )}
@@ -167,14 +167,14 @@ function DecisionActions({
     return (
       <div className="flex gap-1.5 self-center">
         <button
-          className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[12px] font-medium disabled:opacity-50 transition"
+          className="px-2.5 py-1 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium disabled:opacity-50 transition"
           disabled={busy === `${l.id}-approve`}
           onClick={() => onDecide('approve')}
         >
           {busy === `${l.id}-approve` ? '…' : 'Approve'}
         </button>
         <button
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium disabled:opacity-50 transition"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[12px] font-medium disabled:opacity-50 transition"
           disabled={busy === `${l.id}-deny`}
           onClick={() => onDecide('deny')}
         >
@@ -186,7 +186,7 @@ function DecisionActions({
 
   if (l.status === 'cancelled') {
     return (
-      <span className="self-center text-[11.5px] text-slate-400">
+      <span className="self-center text-[11.5px] text-[var(--m-ink-4)]">
         Cancelled by employee
       </span>
     )
@@ -201,21 +201,21 @@ function DecisionActions({
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11.5px] font-medium transition"
+          className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[11.5px] font-medium transition"
         >
           Change decision
         </button>
       ) : (
         <>
           <button
-            className="px-2.5 py-1 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-[11.5px] font-medium disabled:opacity-50 transition"
+            className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)] text-[11.5px] font-medium disabled:opacity-50 transition"
             disabled={busy === `${l.id}-${flipTo}`}
             onClick={() => onDecide(flipTo)}
           >
             {busy === `${l.id}-${flipTo}` ? '…' : flipLabel}
           </button>
           <button
-            className="px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11.5px] font-medium disabled:opacity-50 transition"
+            className="px-2.5 py-1 rounded-md bg-white border border-[var(--m-border)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-2)] text-[11.5px] font-medium disabled:opacity-50 transition"
             disabled={busy === `${l.id}-reopen`}
             onClick={() => onDecide('reopen')}
             title="Set back to pending — clears the decision"
@@ -224,7 +224,7 @@ function DecisionActions({
           </button>
           <button
             onClick={() => setOpen(false)}
-            className="text-[11px] text-slate-400 hover:text-slate-600 px-1"
+            className="text-[11px] text-[var(--m-ink-4)] hover:text-[var(--m-ink-2)] px-1"
             aria-label="Close decision actions"
           >
             ×

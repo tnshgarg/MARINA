@@ -89,7 +89,10 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       .where(
         and(
           eq(schema.leaveRequests.orgId, orgId),
-          eq(schema.leaveRequests.status, 'pending')
+          eq(schema.leaveRequests.status, 'pending'),
+          // Scope to the people this viewer manages — a team manager must not see
+          // org-wide pending leaves (with reasons) outside their reports.
+          inArray(schema.leaveRequests.userId, userIds)
         )
       )
       .orderBy(desc(schema.leaveRequests.createdAt))
@@ -181,6 +184,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
           and(
             eq(schema.leaveRequests.orgId, orgId),
             eq(schema.leaveRequests.status, 'approved'),
+            inArray(schema.leaveRequests.userId, userIds),
           )
         )
     : []
@@ -248,7 +252,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       avatarUrl: r.u.avatarUrl,
       characterKey: r.u.characterKey,
       role: r.m.role,
-      hasGithub: !!r.u.accessToken,
+      hasGithub: !!r.u.accessToken || r.u.githubId != null || !!r.u.githubLogin,
       activity: {
         activeSeconds: c?.activeSeconds ?? 0,
         idleSeconds: c?.idleSeconds ?? 0,

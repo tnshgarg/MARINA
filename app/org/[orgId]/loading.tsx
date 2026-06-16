@@ -32,7 +32,7 @@ export default function Loading() {
           <SkelCard rows={5} />
 
           <section className="app-card">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-5 border-b border-[var(--m-border-soft)] flex items-center justify-between">
               <SkelBar w={160} h={16} />
               <SkelBar w={220} h={32} />
             </div>
