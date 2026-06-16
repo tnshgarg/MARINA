@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import { useToast } from '@/components/toast'
 import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
@@ -253,9 +254,14 @@ function TeammatePicker({
   onPick: (t: Teammate) => void
 }) {
   const [q, setQ] = useState('')
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const filtered = useMemo(() => teammates.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())), [teammates, q])
-  if (!open) return null
-  return (
+  // Portal to <body> — rendered inline it inherits the page's `.fade-in`
+  // transform, which becomes the containing block for `position: fixed` and
+  // clips the overlay into that boxed, dark-edged rectangle.
+  if (!open || !mounted) return null
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 bg-slate-900/40" onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
@@ -286,7 +292,8 @@ function TeammatePicker({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

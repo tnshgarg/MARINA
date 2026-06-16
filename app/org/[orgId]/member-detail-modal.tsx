@@ -573,6 +573,7 @@ export function MemberDetailModal({
                 brief={oneOnOne}
                 loading={oneOnOneLoading}
                 onLoad={loadOneOnOne}
+                work={detail.work}
               />
 
               {/* Today's AI story — the headline signal */}
@@ -1904,99 +1905,169 @@ function OneOnOneSection({
   brief,
   loading,
   onLoad,
+  work,
 }: {
   brief: OneOnOneBrief | null;
   loading: boolean;
   onLoad: () => void;
+  work: Detail["work"];
 }) {
-  if (!brief && !loading) {
-    return (
-      <section className="rounded-xl border border-[var(--m-border)] bg-white px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
-          <p className="text-[12.5px] font-semibold text-[var(--m-ink)]">
-            Prep for your next 1:1
-          </p>
-          <p className="text-[11.5px] text-[var(--m-ink-3)]">
-            Wins to acknowledge, risks to discuss, questions to ask — grounded
-            in the last 14 days of work.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onLoad}
-          className="shrink-0 px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium transition"
-        >
-          Generate brief
-        </button>
-      </section>
-    );
-  }
-
-  if (loading) {
-    return (
-      <section className="rounded-xl border border-[var(--m-border)] bg-white px-4 py-3">
-        <p className="text-[12.5px] text-[var(--m-ink-3)]">
-          Building 1:1 brief…
-        </p>
-      </section>
-    );
-  }
-
-  if (!brief) return null;
-
   return (
     <section className="rounded-xl border border-[var(--m-accent)]/30 bg-gradient-to-br from-[var(--m-accent-soft)]/40 to-white overflow-hidden">
       <div className="px-4 py-3 border-b border-[var(--m-accent)]/15 flex items-baseline justify-between gap-3">
-        <h3 className="text-[12.5px] font-semibold text-[var(--m-accent-2)]">
-          Prep for your 1:1
-        </h3>
-        <span className="text-[10.5px] text-[var(--m-ink-4)] tabular-nums">
-          {brief.period.start} → {brief.period.end}
-        </span>
+        <h3 className="text-[12.5px] font-semibold text-[var(--m-accent-2)]">Prep for your 1:1</h3>
+        <span className="text-[10.5px] text-[var(--m-ink-4)] tabular-nums">last {work.windowDays} days</span>
       </div>
-      <div className="px-4 py-3 grid sm:grid-cols-3 gap-3">
-        <OneOnOneColumn
-          eyebrow="Wins to acknowledge"
-          tone="good"
-          items={brief.wins.map((w) => ({
-            title: w.title,
-            sub: w.detail,
-            href: w.sourceUrl,
-          }))}
-        />
-        <OneOnOneColumn
-          eyebrow="Risks to discuss"
-          tone="bad"
-          items={brief.risks.map((r) => ({
-            title: r.title,
-            sub: r.detail,
-            severity: r.severity,
-          }))}
-        />
-        <OneOnOneColumn
-          eyebrow="Questions to ask"
-          tone="info"
-          items={brief.questions.map((q) => ({ title: q, sub: "" }))}
-        />
-      </div>
-      {brief.pastCommitments.length > 0 && (
-        <div className="px-4 py-3 border-t border-[var(--m-border)] bg-[var(--m-bg-soft)]/50">
-          <p className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] mb-1">
-            From the previous brief
+
+      {/* The depth a manager actually needs: real artifacts, not just adjectives. */}
+      <OneOnOneWork work={work} />
+
+      {/* AI-style talking points — generated on demand. */}
+      {!brief && !loading && (
+        <div className="px-4 py-3 border-t border-[var(--m-border)] bg-[var(--m-bg-soft)]/40 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-[11.5px] text-[var(--m-ink-3)]">
+            Want talking points? Wins to acknowledge, risks to raise, and questions to ask.
           </p>
-          <ul className="space-y-0.5">
-            {brief.pastCommitments.map((c, i) => (
-              <li
-                key={i}
-                className="text-[12px] text-[var(--m-ink-2)] leading-snug"
-              >
-                • {c}
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            onClick={onLoad}
+            className="shrink-0 px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12px] font-medium transition"
+          >
+            Generate talking points
+          </button>
         </div>
       )}
+      {loading && (
+        <div className="px-4 py-3 border-t border-[var(--m-border)] bg-[var(--m-bg-soft)]/40">
+          <p className="text-[12px] text-[var(--m-ink-3)]">Building talking points…</p>
+        </div>
+      )}
+      {brief && (
+        <>
+          <div className="px-4 py-3 border-t border-[var(--m-border)] grid sm:grid-cols-3 gap-3">
+            <OneOnOneColumn
+              eyebrow="Wins to acknowledge"
+              tone="good"
+              items={brief.wins.map((w) => ({ title: w.title, sub: w.detail, href: w.sourceUrl }))}
+            />
+            <OneOnOneColumn
+              eyebrow="Risks to discuss"
+              tone="bad"
+              items={brief.risks.map((r) => ({ title: r.title, sub: r.detail, severity: r.severity }))}
+            />
+            <OneOnOneColumn
+              eyebrow="Questions to ask"
+              tone="info"
+              items={brief.questions.map((q) => ({ title: q, sub: "" }))}
+            />
+          </div>
+          {brief.pastCommitments.length > 0 && (
+            <div className="px-4 py-3 border-t border-[var(--m-border)] bg-[var(--m-bg-soft)]/50">
+              <p className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-3)] mb-1">
+                From the previous brief
+              </p>
+              <ul className="space-y-0.5">
+                {brief.pastCommitments.map((c, i) => (
+                  <li key={i} className="text-[12px] text-[var(--m-ink-2)] leading-snug">
+                    • {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
     </section>
+  );
+}
+
+/** The grounded-in-artifacts core of the 1:1 prep — what HR actually wants to see. */
+function OneOnOneWork({ work }: { work: Detail["work"] }) {
+  const w = work;
+  const nothing = w.prs.length === 0 && w.reviewsGiven.length === 0 && w.reviewsReceived.length === 0 && w.commitCount === 0;
+  const Chip = ({ n, label, sub }: { n: number; label: string; sub?: string }) => (
+    <span className="inline-flex items-baseline gap-1 rounded-md border border-[var(--m-border-soft)] bg-white px-2 py-1">
+      <span className="text-[12.5px] font-semibold text-[var(--m-ink)] tabular-nums">{n}</span>
+      <span className="text-[10.5px] text-[var(--m-ink-4)]">{label}</span>
+      {sub && <span className="text-[9.5px] text-[var(--m-ink-5)]">· {sub}</span>}
+    </span>
+  );
+  return (
+    <div className="px-4 py-3">
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
+        <Chip n={w.commitCount} label="commits" />
+        <Chip n={w.prs.length} label="PRs" sub={`${w.prCounts.merged} merged · ${w.prCounts.in_review} in review`} />
+        <Chip n={w.reviewsGiven.length} label="reviews given" />
+        <Chip n={w.reviewsReceived.length} label="reviews received" />
+      </div>
+
+      {w.blocked && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2 mb-3">
+          <p className="text-[12px] font-semibold text-rose-900">{w.blocked.title}</p>
+          <p className="text-[11.5px] text-rose-800/90 leading-snug">{w.blocked.detail}</p>
+        </div>
+      )}
+
+      {nothing ? (
+        <p className="text-[12px] text-[var(--m-ink-3)] italic">
+          No GitHub activity in the window — ask about non-code work (design, planning, mentoring).
+        </p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* What they shipped */}
+          <div>
+            <h4 className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-4)] mb-1.5">Shipping</h4>
+            {w.prs.length > 0 ? (
+              <ul className="space-y-1">
+                {w.prs.slice(0, 6).map((p) => (
+                  <li key={p.url}>
+                    <a href={p.url} target="_blank" rel="noreferrer" className="flex items-baseline gap-1.5 group">
+                      <PrStatusPill status={p.status} />
+                      <span className="text-[12px] text-[var(--m-ink)] group-hover:text-[var(--m-accent)] truncate">{p.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : w.recentCommitTitles.length > 0 ? (
+              <ul className="space-y-0.5">
+                {w.recentCommitTitles.slice(0, 5).map((t, i) => (
+                  <li key={i} className="text-[12px] text-[var(--m-ink-2)] truncate">· {t}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11.5px] text-[var(--m-ink-4)] italic">No PRs or commits.</p>
+            )}
+          </div>
+
+          {/* Who they collaborate with */}
+          <div>
+            <h4 className="text-[10.5px] uppercase tracking-wider font-semibold text-[var(--m-ink-4)] mb-1.5">Collaboration</h4>
+            {w.reviewsGiven.length === 0 && w.reviewsReceived.length === 0 ? (
+              <p className="text-[11.5px] text-[var(--m-ink-4)] italic">No review activity.</p>
+            ) : (
+              <ul className="space-y-1">
+                {w.reviewsGiven.slice(0, 3).map((r, i) => (
+                  <li key={`g${i}`} className="flex items-baseline gap-1.5">
+                    <VerdictPill verdict={r.verdict} />
+                    <span className="text-[12px] text-[var(--m-ink)] truncate">
+                      reviewing {r.prAuthor ? `@${r.prAuthor}` : 'a PR'}
+                    </span>
+                  </li>
+                ))}
+                {w.reviewsReceived.slice(0, 3).map((r, i) => (
+                  <li key={`r${i}`} className="flex items-baseline gap-1.5">
+                    <VerdictPill verdict={r.verdict} />
+                    <span className="text-[12px] text-[var(--m-ink-2)] truncate">
+                      <span className="text-[var(--m-ink-3)]">{r.reviewer}</span> reviewed theirs
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
