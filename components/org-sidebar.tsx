@@ -439,36 +439,45 @@ function IntegrationPins({
   rail: boolean;
   pathname: string;
 }) {
-  const items = [
-    integrations.github && { key: "github", label: "GitHub", icon: <GithubGlyph /> },
-    integrations.calendar && { key: "calendar", label: "Calendar", icon: <CalendarGlyph /> },
-    integrations.slack && { key: "slack", label: "Slack", icon: <SlackGlyph /> },
-  ].filter(Boolean) as Array<{ key: string; label: string; icon: React.ReactNode }>;
-  if (items.length === 0) return null;
+  const META: Record<string, { label: string; color: string; soft: string; icon: React.ReactNode }> = {
+    github: { label: "GitHub", color: "#1a1f2e", soft: "#ece9e1", icon: <GithubGlyph /> },
+    calendar: { label: "Calendar", color: "#3f6b54", soft: "#e8ede7", icon: <CalendarGlyph /> },
+    slack: { label: "Slack", color: "#a35e3d", soft: "#f4ebe3", icon: <SlackGlyph /> },
+  };
+  const keys = [
+    integrations.github && "github",
+    integrations.calendar && "calendar",
+    integrations.slack && "slack",
+  ].filter(Boolean) as string[];
+  if (keys.length === 0) return null;
   return (
-    <div className={rail ? "px-2 pt-2 pb-1" : "px-5 pt-2 pb-1"}>
+    <div className={rail ? "px-2 pt-2.5 pb-1" : "px-5 pt-2.5 pb-1"}>
       {!rail && (
-        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+        <p className="text-[10px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold mb-1.5">
           Connected
         </p>
       )}
       <div className={rail ? "flex flex-col items-center gap-1.5" : "flex items-center gap-1.5"}>
-        {items.map((it) => {
-          const href = `/org/${orgId}/integrations/${it.key}`;
+        {keys.map((key) => {
+          const m = META[key];
+          const href = `/org/${orgId}/integrations/${key}`;
           const active = pathname.startsWith(href);
           return (
             <NavLink
-              key={it.key}
+              key={key}
               href={href}
               prefetch
-              title={it.label}
-              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition ${
-                active
-                  ? "border-[var(--m-accent)] bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]"
-                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
-              }`}
+              title={m.label}
+              aria-label={m.label}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all hover:-translate-y-px"
+              style={{
+                color: m.color,
+                background: active ? m.soft : "#ffffff",
+                borderColor: active ? m.color : "var(--m-border)",
+                boxShadow: active ? `0 0 0 1px ${m.color}22` : "0 1px 2px rgba(26,31,46,0.05)",
+              }}
             >
-              {it.icon}
+              {m.icon}
             </NavLink>
           );
         })}
