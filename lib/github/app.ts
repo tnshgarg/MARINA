@@ -105,6 +105,31 @@ export async function installationOctokit(installationId: number): Promise<Octok
   return new Octokit({ auth: await installationToken(installationId) })
 }
 
+/**
+ * Every account this App is currently installed on (authenticated as the App
+ * itself). Used to self-heal a stale stored installation id — GitHub issues a
+ * NEW installation id every time the admin reinstalls, so the id we saved can
+ * silently 404. Listing lets us recover the current one.
+ */
+export async function listAppInstallations(): Promise<
+  Array<{ id: number; account: string | null; targetType: string | null }>
+> {
+  const res = await fetch('https://api.github.com/app/installations?per_page=100', {
+    headers: {
+      Authorization: `Bearer ${appJwt()}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  })
+  if (!res.ok) throw new Error(`list installations failed: ${res.status} ${await res.text()}`)
+  const data = (await res.json()) as Array<{
+    id: number
+    account?: { login?: string } | null
+    target_type?: string
+  }>
+  return data.map((i) => ({ id: i.id, account: i.account?.login ?? null, targetType: i.target_type ?? null }))
+}
+
 /** Where to send an org admin to install/configure the App for their org. */
 export function appInstallUrl(orgId: number): string {
   const slug = process.env.GITHUB_APP_SLUG ?? 'marina'

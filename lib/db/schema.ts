@@ -107,7 +107,10 @@ export const githubEvents = pgTable(
   },
   (t) => ({
     userOccurredIdx: index('github_events_user_occurred_idx').on(t.userId, t.occurredAt),
-    externalIdx: index('github_events_external_idx').on(t.userId, t.type, t.externalId),
+    // Unique so the sync can UPSERT — a PR's status (open→merged) and a review's
+    // verdict change over time, and we refresh the existing row instead of
+    // either duplicating it or leaving it stale.
+    externalIdx: uniqueIndex('github_events_external_uq').on(t.userId, t.type, t.externalId),
   })
 )
 

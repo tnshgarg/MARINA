@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, isNotNull } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, listMembershipsForCurrentUser, requireMembership, roleAtLeast } from '@/lib/auth/guards'
@@ -79,6 +79,21 @@ export default async function OrgLayout({
     logoUrl: (m.org as { logoUrl?: string | null }).logoUrl ?? null,
   }))
 
+  // Active integrations → the Arc-style pinned strip in the sidebar. GitHub +
+  // Slack are org-level; Calendar is per-viewer (their own Google link).
+  const myCalendar = await db.query.accounts.findFirst({
+    where: and(
+      eq(schema.accounts.userId, session.appUserId),
+      eq(schema.accounts.provider, 'google'),
+      isNotNull(schema.accounts.access_token),
+    ),
+  })
+  const integrations = {
+    github: (org as { githubInstallationId?: number | null }).githubInstallationId != null,
+    calendar: !!myCalendar,
+    slack: !!org.slackBotToken,
+  }
+
   return (
     <div className="app-shell">
       <OrgSidebar
@@ -97,6 +112,7 @@ export default async function OrgLayout({
           ),
         ]}
         orgs={orgs}
+        integrations={integrations}
         pendingLeaveCount={pendingLeaveCount}
         signOutAction={signOutAction}
       />

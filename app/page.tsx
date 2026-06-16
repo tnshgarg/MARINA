@@ -45,11 +45,6 @@ export default async function Home({
     redirect("/dashboard");
   }
 
-  async function githubSignIn() {
-    "use server";
-    await signIn("github", { redirectTo: "/" });
-  }
-
   async function googleSignIn() {
     "use server";
     await signIn("google", { redirectTo: "/" });
@@ -81,7 +76,6 @@ export default async function Home({
 
       <Hero
         sp={sp}
-        githubSignIn={githubSignIn}
         googleSignIn={googleEnabled ? googleSignIn : null}
         characters={CHARACTERS.slice(0, 8).map((c) => ({
           key: c.key,
@@ -188,12 +182,10 @@ function Nav() {
 
 function Hero({
   sp,
-  githubSignIn,
   googleSignIn,
   characters,
 }: {
   sp: { auth_error?: string };
-  githubSignIn: () => Promise<void>;
   googleSignIn: (() => Promise<void>) | null;
   characters: Array<{ key: string; name: string; color: string }>;
 }) {
@@ -236,7 +228,6 @@ function Hero({
             <div className="mt-8">
               <LandingClient
                 authError={sp.auth_error ?? null}
-                githubSignIn={githubSignIn}
                 googleSignIn={googleSignIn}
                 characters={characters}
               />

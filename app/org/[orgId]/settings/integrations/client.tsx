@@ -49,7 +49,16 @@ export default function IntegrationsClient({
       if (!res.ok) throw new Error(data?.error || 'failed')
       const errors: string[] = Array.isArray(data.errors) ? data.errors : []
       const unmatched: string[] = Array.isArray(data.unmatchedAuthors) ? data.unmatchedAuthors : []
-      const base = `Pulled from ${data.repos} repo(s) · ${data.inserted} new event(s)`
+      const bt: Record<string, number> = data.byType || {}
+      const seg: string[] = []
+      if (bt.commit) seg.push(`${bt.commit} commit${bt.commit === 1 ? '' : 's'}`)
+      if (bt.pr_opened) seg.push(`${bt.pr_opened} PR${bt.pr_opened === 1 ? '' : 's'}`)
+      if (bt.pr_reviewed) seg.push(`${bt.pr_reviewed} review${bt.pr_reviewed === 1 ? '' : 's'}`)
+      const breakdown = seg.length ? ` · ${seg.join(', ')} this period` : ''
+      const base =
+        `Pulled from ${data.repos} repo(s) · ${data.inserted} new` +
+        (data.updated ? `, ${data.updated} refreshed` : '') +
+        breakdown
       if (errors.length > 0) {
         // GitHub itself returned errors — the most useful thing to show.
         setAppSync({ kind: 'error', text: `${base} — GitHub returned errors:`, details: errors })
@@ -144,7 +153,8 @@ export default function IntegrationsClient({
             them. This replaces the old per-teammate GitHub card. */}
         <div className="mt-4 pt-3 border-t border-slate-100">
           <p className="text-[12px] text-slate-600">
-            <strong>Teammates:</strong> link your GitHub account so we can attribute each commit/PR to you.
+            <strong>Teammates:</strong> link your GitHub so we can attribute each commit/PR to you.
+            <span className="text-slate-400"> Identity only — we read your username, never your repos.</span>
             {initial.teamSize > 0 && (
               <span className="text-slate-400">
                 {' '}· {initial.githubLinked} of {initial.teamSize} linked

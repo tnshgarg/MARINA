@@ -161,6 +161,25 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "github_installation_id" integer`)
   console.log('  · 0013 orgs.github_installation_id OK')
 
+  // 0014 — Unique key on github_events (user_id, type, external_id) so the App
+  // sync can UPSERT (refresh a PR's status / a review's verdict) instead of
+  // duplicating or going stale. Dedupe any pre-existing collisions first so the
+  // unique index can be created, then drop the old non-unique index.
+  await db.execute(sql`
+    DELETE FROM "github_events" a
+    USING "github_events" b
+    WHERE a.id < b.id
+      AND a.user_id = b.user_id
+      AND a.type = b.type
+      AND a.external_id = b.external_id
+  `)
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS "github_events_external_uq"
+    ON "github_events" ("user_id","type","external_id")
+  `)
+  await db.execute(sql`DROP INDEX IF EXISTS "github_events_external_idx"`)
+  console.log('  · 0014 github_events unique (user,type,external) OK')
+
   // 0011 — Attendance regularizations (employee disputes an auto-absent day).
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS "attendance_regularizations" (

@@ -43,10 +43,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
-      // `repo` → read private repos the user can access (incl. org repos);
-      // `read:org` → enumerate the org's repos so we can pull commits from a
-      // tracked org's PRIVATE repos directly (the reliable sync path).
-      authorization: { params: { scope: 'read:user user:email repo read:org' } },
+      // Identity ONLY. Repo activity (commits/PRs/reviews, incl. private) now
+      // comes from the org-level GitHub App installation — not per-user tokens.
+      // So the only thing we need from a personal GitHub link is *who they are*
+      // (`read:user` → id + login, used to attribute commits to this account).
+      // Dropping `repo`/`read:org` removes the alarming "grant access to your
+      // repositories / organisations" consent screen that made teammates wary.
+      authorization: { params: { scope: 'read:user user:email' } },
       // Trust GitHub's verified email so an existing email/Google user can
       // click "Connect GitHub" from the dashboard and have the GitHub
       // identity merged into their account in one step, instead of being

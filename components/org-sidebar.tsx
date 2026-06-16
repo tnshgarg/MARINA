@@ -423,6 +423,83 @@ function groupHasPendingBadge(g: NavGroup): boolean {
   return (g.children ?? []).some((c) => c.badge === "pendingLeaves");
 }
 
+/**
+ * Pinned integrations strip — Arc-style. A compact row (or vertical stack when
+ * the sidebar is railed) of icon buttons for the integrations that are actually
+ * connected. Each links to that integration's detail hub.
+ */
+function IntegrationPins({
+  orgId,
+  integrations,
+  rail,
+  pathname,
+}: {
+  orgId: number;
+  integrations: { github: boolean; calendar: boolean; slack: boolean };
+  rail: boolean;
+  pathname: string;
+}) {
+  const items = [
+    integrations.github && { key: "github", label: "GitHub", icon: <GithubGlyph /> },
+    integrations.calendar && { key: "calendar", label: "Calendar", icon: <CalendarGlyph /> },
+    integrations.slack && { key: "slack", label: "Slack", icon: <SlackGlyph /> },
+  ].filter(Boolean) as Array<{ key: string; label: string; icon: React.ReactNode }>;
+  if (items.length === 0) return null;
+  return (
+    <div className={rail ? "px-2 pt-2 pb-1" : "px-5 pt-2 pb-1"}>
+      {!rail && (
+        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+          Connected
+        </p>
+      )}
+      <div className={rail ? "flex flex-col items-center gap-1.5" : "flex items-center gap-1.5"}>
+        {items.map((it) => {
+          const href = `/org/${orgId}/integrations/${it.key}`;
+          const active = pathname.startsWith(href);
+          return (
+            <NavLink
+              key={it.key}
+              href={href}
+              prefetch
+              title={it.label}
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition ${
+                active
+                  ? "border-[var(--m-accent)] bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]"
+                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              {it.icon}
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GithubGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.36-3.88-1.36-.52-1.31-1.28-1.66-1.28-1.66-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.07.78 2.15v3.19c0 .31.21.67.8.56C20.71 21.39 24 17.08 24 12 24 5.65 18.35.5 12 .5Z" />
+    </svg>
+  );
+}
+function CalendarGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+      <path d="M3 9h18M8 3v3M16 3v3" />
+    </svg>
+  );
+}
+function SlackGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6 15a2 2 0 1 1-2-2h2v2Zm1 0a2 2 0 1 1 4 0v5a2 2 0 1 1-4 0v-5Zm2-9a2 2 0 1 1 2-2h-2V6Zm0 1a2 2 0 0 1 0 4H4a2 2 0 1 1 0-4h5Zm9 2a2 2 0 1 1 2 2h-2V9Zm-1 0a2 2 0 0 1-4 0V4a2 2 0 1 1 4 0v5Zm-2 9a2 2 0 1 1-2 2v-2h2Zm0-1a2 2 0 0 1 0-4h5a2 2 0 1 1 0 4h-5Z" />
+    </svg>
+  );
+}
+
 export function OrgSidebar({
   orgId,
   orgName,
@@ -434,6 +511,7 @@ export function OrgSidebar({
   role,
   caps = [],
   orgs = [],
+  integrations = { github: false, calendar: false, slack: false },
   pendingLeaveCount = 0,
   signOutAction,
 }: {
@@ -442,6 +520,8 @@ export function OrgSidebar({
   caps?: string[];
   /** Every workspace this user belongs to — powers the org switcher. */
   orgs?: SwitcherOrg[];
+  /** Active integrations → the pinned Arc-style strip under the workspace card. */
+  integrations?: { github: boolean; calendar: boolean; slack: boolean };
   orgName: string;
   orgLogoUrl?: string | null;
   userLogin: string;
@@ -582,6 +662,11 @@ export function OrgSidebar({
           orgLogoUrl={orgLogoUrl}
           orgs={orgs}
         />
+
+        {/* Arc-style pinned strip: small icons for the workspace's *active*
+            integrations, each opening its detail hub. Hidden entirely when
+            nothing is connected, so it never adds empty chrome. */}
+        <IntegrationPins orgId={orgId} integrations={integrations} rail={rail} pathname={pathname} />
       </div>
 
       {/* Scrollable nav */}

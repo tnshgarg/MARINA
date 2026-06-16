@@ -3,6 +3,7 @@ import { and, desc, eq, gte, isNull, like, not, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { membershipWindow } from '@/lib/auth/tenant-scope'
+import { buildMemberWork } from '@/lib/people/work'
 
 export const runtime = 'nodejs'
 
@@ -777,6 +778,10 @@ export async function GET(
       .where(eq(schema.agentTokens.userId, user.id))
       .orderBy(desc(schema.agentTokens.pairedAt))
 
+    // Manager-grade "what are they working on" — PRs by status, reviews given /
+    // received, commit themes, a blocked signal — over the last 14 days.
+    const work = await buildMemberWork(orgId, user.id, 14)
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -874,6 +879,8 @@ export async function GET(
       // last week of shifts, today's calendar, and a curated risk list.
       last7DaysOutput,
       topRepos,
+      // Structured "what they're working on" — PRs by status, reviews, themes.
+      work,
       last7Shifts,
       weekMeetingsCount,
       weekMeetingsMin,

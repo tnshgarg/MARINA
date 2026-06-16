@@ -3,19 +3,21 @@
 import { useState } from 'react'
 
 /**
- * Auth widget for the landing page. Renders the email magic-link form, GitHub
- * OAuth button, and (in dev) the dev-login link. The hero copy and headline
- * live in `app/page.tsx`; this component is purely the call-to-action surface.
+ * Auth widget for the landing page. Renders the Google SSO button (when
+ * configured), the email magic-link form, and (in dev) the dev-login link.
+ *
+ * GitHub is deliberately NOT a sign-in option here: a first-time visitor
+ * shouldn't be asked to trust us with their GitHub account before they've even
+ * seen the product. GitHub is linked later — during onboarding and from the
+ * Integrations page — and only for identity (no repo access).
  *
  * Compact by design — it sits inside the hero column, not the whole hero.
  */
 export default function LandingClient({
   authError,
-  githubSignIn,
   googleSignIn,
 }: {
   authError: string | null
-  githubSignIn: () => Promise<void>
   /** null when Google SSO env vars aren't set; we hide the button rather than show a broken one. */
   googleSignIn?: (() => Promise<void>) | null
   /** kept for backwards compat with existing call sites; no longer rendered */
@@ -72,24 +74,10 @@ export default function LandingClient({
 
   return (
     <div className="max-w-md">
-      {/* Primary CTA — GitHub OAuth */}
-      <form action={githubSignIn}>
-        <button
-          type="submit"
-          className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[14.5px] font-medium shadow-[var(--m-shadow)] transition"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
-            <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.36-3.88-1.36-.52-1.31-1.28-1.66-1.28-1.66-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18A11 11 0 0 1 12 6.8c.98.01 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.07.78 2.15v3.19c0 .31.21.67.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z" />
-          </svg>
-          Get started with GitHub
-        </button>
-      </form>
-
-      {/* Secondary CTA — Google OAuth (only when configured). Sits directly
-          under GitHub so the two SSO options read as a single block, then the
-          divider separates SSO from email magic-link. */}
+      {/* Primary CTA — Google SSO (only when configured). GitHub is not offered
+          as a sign-in method on purpose; it's linked later for identity only. */}
       {googleSignIn && (
-        <form action={googleSignIn} className="mt-2">
+        <form action={googleSignIn}>
           <button
             type="submit"
             className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-white border border-[var(--m-border)] hover:border-[var(--m-ink-4)] hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)] text-[14.5px] font-medium shadow-[var(--m-shadow-sm)] transition"
@@ -100,12 +88,14 @@ export default function LandingClient({
         </form>
       )}
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-3">
-        <span className="flex-1 h-px bg-[var(--m-border)]" />
-        <span className="text-[10px] uppercase tracking-widest text-[var(--m-ink-4)]">or</span>
-        <span className="flex-1 h-px bg-[var(--m-border)]" />
-      </div>
+      {/* Divider — only meaningful when there's an SSO button above it. */}
+      {googleSignIn && (
+        <div className="flex items-center gap-3 my-3">
+          <span className="flex-1 h-px bg-[var(--m-border)]" />
+          <span className="text-[10px] uppercase tracking-widest text-[var(--m-ink-4)]">or</span>
+          <span className="flex-1 h-px bg-[var(--m-border)]" />
+        </div>
+      )}
 
       {/* Email magic link */}
       <form
