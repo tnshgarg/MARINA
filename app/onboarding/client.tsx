@@ -36,10 +36,10 @@ export default function OnboardingClient({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || data?.error || 'failed')
-      // First-run onboarding sends the brand-new owner to the invite-
-      // teammates page rather than dumping them on an empty dashboard.
-      // They can skip from there if they want to go solo.
-      router.push(`/org/${data.org.id}/setup/invite`)
+      // First-run: take the brand-new owner through Marina's welcome glance
+      // (what the product does) → invite teammates → dashboard, instead of
+      // dumping them on an empty HQ. Every step is skippable.
+      router.push(`/org/${data.org.id}/setup/welcome`)
     } catch (e) {
       setError(String(e))
       setBusy(null)

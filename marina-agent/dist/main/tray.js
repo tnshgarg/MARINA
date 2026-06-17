@@ -10,6 +10,7 @@ const heartbeat_1 = require("./heartbeat");
 const sampler_1 = require("./sampler");
 const shotter_1 = require("./shotter");
 const pairing_1 = require("./pairing");
+const onboarding_1 = require("./onboarding");
 const break_1 = require("./break");
 const leave_1 = require("./leave");
 const punch_1 = require("./punch");
@@ -25,11 +26,12 @@ function createTray() {
     tray.setIgnoreDoubleClickEvents(true);
     rebuild();
     state_1.bus.on('change', rebuild);
-    // Single-click on the tray icon opens pairing if not paired — saves users
-    // having to discover the menu.
+    // Single-click on the tray icon opens setup if not paired — saves users
+    // having to discover the menu. Routes through onboarding so consent is
+    // captured before anything is tracked.
     tray.on('click', () => {
         if (!state_1.bus.get().paired) {
-            (0, pairing_1.openPairingWindow)();
+            (0, onboarding_1.openOnboardingWindow)();
         }
     });
     return tray;
@@ -78,19 +80,19 @@ function rebuild() {
     const state = state_1.bus.get();
     // macOS: text title in the menubar. Windows: tooltip on hover.
     if (process.platform === 'darwin') {
-        tray.setTitle(`${statusGlyph()} MARINA`);
+        tray.setTitle(`${statusGlyph()} Marina`);
     }
     else {
-        tray.setToolTip(`MARINA · ${statusLine()}`);
+        tray.setToolTip(`Marina · ${statusLine()}`);
     }
     const items = [
         { label: statusLine(), enabled: false },
     ];
     if (!state.paired) {
-        // Top-of-menu pairing CTA when not paired so users can never miss it
+        // Top-of-menu setup CTA when not paired so users can never miss it
         items.push({
-            label: '🔗  Pair this device…',
-            click: () => (0, pairing_1.openPairingWindow)(),
+            label: '✨  Set up Marina…',
+            click: () => (0, onboarding_1.openOnboardingWindow)(),
         });
     }
     else if (state.userLogin) {
@@ -158,7 +160,7 @@ function rebuild() {
     }
     items.push({ type: 'separator' });
     items.push({
-        label: 'Quit Project MARINA',
+        label: 'Quit Marina',
         click: async () => {
             await (0, uploader_1.drainOnQuit)();
             electron_1.app.quit();

@@ -1,6 +1,6 @@
 import { Notification, powerMonitor, shell } from 'electron'
 import { bus } from './state'
-import { openPairingWindow } from './pairing'
+import { openOnboardingWindow } from './onboarding'
 import { openPunchOutWindow, performPunchIn } from './punch'
 import { openBreakWindow } from './break'
 
@@ -75,9 +75,9 @@ function tick(): void {
   if (!s.paired) {
     if (canFire('unpaired_reminder')) {
       notify({
-        title: 'MARINA · Pair this device',
-        body: 'Click the MARINA icon in your menu bar to finish setup.',
-        onClick: () => openPairingWindow(),
+        title: 'Marina · Finish setup',
+        body: 'Click the Marina icon in your menu bar to pair this device.',
+        onClick: () => openOnboardingWindow(),
       })
     }
     return

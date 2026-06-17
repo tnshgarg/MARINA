@@ -12,6 +12,8 @@ import { CelebrationsWidget } from '@/components/celebrations-widget'
 import { BlockerResolver } from '@/components/blocker-resolver'
 import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 import { TeamChat } from '@/components/team-chat'
+import { MarinaBrief, marinaBriefLine } from '@/components/marina-brief'
+import { DashboardTour } from '@/components/dashboard-tour'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
 type DailyState = 'High' | 'Steady' | 'Blocked' | 'Disengaged' | 'PossiblyDummying' | 'NoData'
@@ -383,24 +385,16 @@ export default function TeamDashboardClient({
     <>
       <LivePoll router={router} />
 
-      {/* Page header */}
-      <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
-        <div>
-          <h1 className="app-h1">{greeting}</h1>
-          <p className="mt-1.5 text-[13px] text-[var(--m-ink-2)]">
-            {snapshot.blockedOnYouCount > 0
-              ? `${snapshot.blockedOnYouCount} teammate${snapshot.blockedOnYouCount === 1 ? '' : 's'} waiting on you · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
-              : snapshot.blockerCount > 0
-                ? `${snapshot.blockerCount} blocker${snapshot.blockerCount === 1 ? '' : 's'} across the team · ${snapshot.activeCount} of ${snapshot.totalMembers} shipping today`
-                : `${snapshot.activeCount} of ${snapshot.totalMembers} shipping today · ${snapshot.onLeaveCount} on leave`}
-          </p>
-        </div>
+      {/* Marina's morning brief — the persona-led hero. She greets the manager
+          and tells them, in her own voice, what (if anything) needs them. */}
+      <div data-tour="brief">
+        <MarinaBrief greeting={greeting} line={marinaBriefLine(snapshot)} />
       </div>
 
       {/* Inline stats — typography-led, no boxes. Org productivity is the
           headline KPI: HR can glance and tell whether the org as a whole is
           firing today. Anything below 45% deserves a manager's attention. */}
-      <div className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-[var(--m-border)]">
+      <div data-tour="stats" className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-[var(--m-border)]">
         <InlineStat
           n={`${snapshot.orgProductivity}%`}
           label="org productivity today"
@@ -476,7 +470,7 @@ export default function TeamDashboardClient({
           </section>
 
           {/* Team Members */}
-          <section>
+          <section data-tour="members">
             <div className="flex items-baseline gap-3 mb-3 flex-wrap">
               <h2 className="text-[15px] font-semibold text-[var(--m-ink)]">Team Members</h2>
               <span className="text-[12px] text-[var(--m-ink-3)]">
@@ -618,6 +612,9 @@ export default function TeamDashboardClient({
       {/* Flagship: ask the AI about the whole team (scoped to who you can see).
           Floating right-dock launcher; only managers/admins reach this page. */}
       <TeamChat orgId={orgId} />
+
+      {/* Marina's first-run, skippable coachmark tour of this dashboard. */}
+      <DashboardTour />
     </>
   )
 }

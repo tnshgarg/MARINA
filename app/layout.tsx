@@ -9,10 +9,11 @@ export const metadata: Metadata = {
   description:
     "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for remote teams.",
   icons: {
-    // /logo.svg is the brand mark (sage M with a gold triangle). SVG scales
-    // perfectly across every device pixel ratio — no need for size variants.
-    icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/logo.svg" }],
+    // Favicon/tab + apple-touch use the rounded-square "M" monogram tile
+    // (/icon.svg). The circle mark (/logo.svg) is the same monogram for inline
+    // lockups. SVG scales perfectly across every device pixel ratio.
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
   },
 };
 

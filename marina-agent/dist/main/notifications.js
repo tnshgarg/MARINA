@@ -4,7 +4,7 @@ exports.startNotifications = startNotifications;
 exports.stopNotifications = stopNotifications;
 const electron_1 = require("electron");
 const state_1 = require("./state");
-const pairing_1 = require("./pairing");
+const onboarding_1 = require("./onboarding");
 const punch_1 = require("./punch");
 const break_1 = require("./break");
 // Last fire time per notification kind. Throttles are set generously so we
@@ -59,9 +59,9 @@ function tick() {
     if (!s.paired) {
         if (canFire('unpaired_reminder')) {
             notify({
-                title: 'MARINA · Pair this device',
-                body: 'Click the MARINA icon in your menu bar to finish setup.',
-                onClick: () => (0, pairing_1.openPairingWindow)(),
+                title: 'Marina · Finish setup',
+                body: 'Click the Marina icon in your menu bar to pair this device.',
+                onClick: () => (0, onboarding_1.openOnboardingWindow)(),
             });
         }
         return;

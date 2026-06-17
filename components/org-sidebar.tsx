@@ -3,6 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { CharacterAvatar } from "@/components/character-avatar";
+import { MarinaMark } from "@/components/marina-mark";
 import { NavLink } from "@/components/nav-link";
 import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher, type SwitcherOrg } from "@/components/org-switcher";
@@ -644,9 +645,6 @@ export function OrgSidebar({
               <p className="font-semibold text-[15px] tracking-tight text-[var(--m-ink)] group-hover:text-[var(--m-accent)] transition-colors">
                 MARINA
               </p>
-              <p className="text-[11px] text-[var(--m-ink-4)] truncate">
-                Your team, your way.
-              </p>
             </div>
           </NavLink>
           {/* Desktop-only collapse toggle. Hidden on mobile (the sidebar is a
@@ -881,19 +879,11 @@ function RailToggleIcon({ rail }: { rail: boolean }) {
 }
 
 function LogoMark() {
-  // Use the canonical /logo.svg so the sidebar mark always matches the
-  // landing page nav, the favicon and the email letterhead. Sized at 32×32
-  // because the sidebar header gives this slot room to breathe.
-  return (
-    <img
-      src="/logo.svg"
-      width={32}
-      height={32}
-      alt=""
-      aria-hidden
-      className="block object-contain"
-    />
-  );
+  // Marina's "M" monogram mark IS the brand — same mark in the sidebar, the
+  // morning brief, the tour, the onboarding and the favicon, so the product
+  // reads as one identity everywhere. Decorative here (the "MARINA" wordmark
+  // sits right beside it).
+  return <MarinaMark size={26} className="shrink-0" label="" />;
 }
 function PulseIcon() {
   return (

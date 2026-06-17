@@ -1,4 +1,4 @@
-import { app, globalShortcut, Notification } from 'electron'
+import { app, globalShortcut } from 'electron'
 import { AGENT_VERSION, DEFAULT_SERVER_BASE_URL, STORE_KEYS } from './config'
 import { get, readToken, set } from './store'
 import { bus } from './state'
@@ -7,8 +7,9 @@ import { startUploader, stopUploader, drainOnQuit } from './uploader'
 import { stopSampler } from './sampler'
 import { stopShotter } from './shotter'
 import { startHeartbeat, stopHeartbeat, pingOnce } from './heartbeat'
-import { hasConsented, registerConsentIpc, showConsentWindow } from './consent'
-import { openPairingWindow, registerPairingIpc } from './pairing'
+import { hasConsented, registerConsentIpc } from './consent'
+import { registerPairingIpc } from './pairing'
+import { openOnboardingWindow, registerOnboardingIpc } from './onboarding'
 import { registerBreakIpc, openBreakWindow } from './break'
 import { registerLeaveIpc } from './leave'
 import { registerPunchIpc } from './punch'
@@ -78,6 +79,7 @@ app.whenReady().then(async () => {
   })
 
   registerConsentIpc()
+  registerOnboardingIpc()
   registerBreakIpc()
   registerLeaveIpc()
   registerPunchIpc()
@@ -112,37 +114,19 @@ app.whenReady().then(async () => {
     globalShortcut.unregisterAll()
   })
 
-  // First-run consent gate.
-  if (!hasConsented()) {
-    const accepted = await showConsentWindow()
-    if (!accepted) {
-      app.quit()
-      return
-    }
-  }
-
-  // If we already have a valid token, start the always-on services.
-  // Heartbeat will start/stop the sampler+shotter based on punch state.
+  // First-run flow. If this device is already paired AND consent is on record,
+  // boot straight into the always-on services. Otherwise run onboarding — one
+  // guided flow that covers consent + pairing + how-to and starts services the
+  // moment pairing completes (via the onPaired callback above). Consent is a
+  // hard gate, enforced because every "not paired" entry point routes here.
   const token = readToken()
-  if (token) {
+  if (token && hasConsented()) {
     bus.patch({ paired: true })
     startHeartbeat()
     startUploader()
     startNotifications()
     await pingOnce() // initial state sync — heartbeat reconciles tracking
   } else {
-    // First-run / unpaired: open the pairing window immediately and surface a
-    // notification — on a menubar-only macOS app, users sometimes miss the
-    // pairing window even with focus tricks.
-    openPairingWindow()
-    try {
-      const n = new Notification({
-        title: 'Welcome to MARINA',
-        body: 'Pair this device to your team. Click the MARINA icon in the menu bar if you don\'t see the pairing window.',
-      })
-      n.show()
-    } catch {
-      // Notifications may not be available in all dev environments
-    }
+    openOnboardingWindow()
   }
 })

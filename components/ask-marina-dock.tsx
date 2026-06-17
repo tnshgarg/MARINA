@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { MarinaMark, MarinaPulse } from '@/components/marina-mark'
 
 export type DockTurn = {
   role: 'user' | 'assistant'
@@ -126,6 +127,7 @@ export function AskMarinaDock({
       {!open && (
         <button
           type="button"
+          data-tour="ask-marina"
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-[150] inline-flex items-center gap-2 pl-3.5 pr-4 py-2.5 rounded-full bg-[var(--m-accent)] hover:bg-[var(--m-accent-2)] text-white text-[13px] font-semibold shadow-[var(--m-shadow-xl)] transition group"
           aria-label={launcherLabel}
@@ -152,7 +154,7 @@ export function AskMarinaDock({
           >
             <header className="shrink-0 px-4 py-3 border-b border-[var(--m-border-soft)] flex items-center justify-between gap-2 bg-[var(--m-accent-soft)]/40">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[var(--m-accent-2)] shrink-0"><SparkIcon /></span>
+                <MarinaMark size={22} className="shrink-0" label="" />
                 <p className="text-[13px] font-semibold text-[var(--m-accent-2)] truncate">{title}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -200,11 +202,8 @@ export function AskMarinaDock({
                     <DockChatTurn key={i} turn={t} />
                   ))}
                   {busy && (
-                    <div className="flex items-center gap-2 text-[12.5px] text-[var(--m-ink-3)]">
-                      <span className="relative inline-flex shrink-0">
-                        <span className="absolute inset-0 rounded-full bg-[var(--m-accent)]/40 animate-ping" />
-                        <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-accent)]" />
-                      </span>
+                    <div className="flex items-center gap-2.5 text-[12.5px] text-[var(--m-ink-3)]">
+                      <MarinaPulse size={20} label="Marina is thinking" />
                       Thinking…
                     </div>
                   )}

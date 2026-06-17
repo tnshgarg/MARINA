@@ -6,6 +6,7 @@ import { pingOnce } from './heartbeat'
 import { startSampler, stopSampler } from './sampler'
 import { startShotter, stopShotter } from './shotter'
 import { openPairingWindow } from './pairing'
+import { openOnboardingWindow } from './onboarding'
 import { openBreakWindow } from './break'
 import { openLeaveWindow } from './leave'
 import { openPunchOutWindow, performPunchIn } from './punch'
@@ -25,11 +26,12 @@ export function createTray(): Tray {
   tray.setIgnoreDoubleClickEvents(true)
   rebuild()
   bus.on('change', rebuild)
-  // Single-click on the tray icon opens pairing if not paired — saves users
-  // having to discover the menu.
+  // Single-click on the tray icon opens setup if not paired — saves users
+  // having to discover the menu. Routes through onboarding so consent is
+  // captured before anything is tracked.
   tray.on('click', () => {
     if (!bus.get().paired) {
-      openPairingWindow()
+      openOnboardingWindow()
     }
   })
   return tray
@@ -73,9 +75,9 @@ function rebuild(): void {
   const state = bus.get()
   // macOS: text title in the menubar. Windows: tooltip on hover.
   if (process.platform === 'darwin') {
-    tray.setTitle(`${statusGlyph()} MARINA`)
+    tray.setTitle(`${statusGlyph()} Marina`)
   } else {
-    tray.setToolTip(`MARINA · ${statusLine()}`)
+    tray.setToolTip(`Marina · ${statusLine()}`)
   }
 
   const items: Electron.MenuItemConstructorOptions[] = [
@@ -83,10 +85,10 @@ function rebuild(): void {
   ]
 
   if (!state.paired) {
-    // Top-of-menu pairing CTA when not paired so users can never miss it
+    // Top-of-menu setup CTA when not paired so users can never miss it
     items.push({
-      label: '🔗  Pair this device…',
-      click: () => openPairingWindow(),
+      label: '✨  Set up Marina…',
+      click: () => openOnboardingWindow(),
     })
   } else if (state.userLogin) {
     items.push({ label: `@${state.userLogin}`, enabled: false })
@@ -153,7 +155,7 @@ function rebuild(): void {
 
   items.push({ type: 'separator' })
   items.push({
-    label: 'Quit Project MARINA',
+    label: 'Quit Marina',
     click: async () => {
       await drainOnQuit()
       app.quit()

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/toast'
+import { celebrate } from '@/components/celebration'
 
 type Deliverable = {
   id: number
@@ -30,6 +32,7 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
   const [kind, setKind] = useState<string>(defaultKind(discipline))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const toast = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -75,6 +78,12 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
       setItems((prev) => [data.deliverable, ...prev])
       setTitle('')
       setUrl('')
+      celebrate()
+      toast.push({
+        kind: 'success',
+        title: 'Shipped — nice work.',
+        body: "I've put it in front of your manager. — Marina",
+      })
       router.refresh()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))

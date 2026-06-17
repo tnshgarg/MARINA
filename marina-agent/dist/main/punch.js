@@ -28,7 +28,7 @@ async function performPunchIn() {
         void (0, heartbeat_1.pingOnce)();
         if (!res.alreadyOpen) {
             new electron_1.Notification({
-                title: 'MARINA · Punched in',
+                title: 'Marina · Punched in',
                 body: 'Tracking is on. Have a great shift.',
             }).show();
         }
@@ -97,7 +97,7 @@ function registerPunchIpc() {
             (0, heartbeat_1.reconcileTrackingNow)();
             void (0, heartbeat_1.pingOnce)();
             new electron_1.Notification({
-                title: 'MARINA · Punched out',
+                title: 'Marina · Punched out',
                 body: `Summary scored ${res.verification.score}/100 (${res.verification.status})`,
             }).show();
             return { ok: true, verification: res.verification };

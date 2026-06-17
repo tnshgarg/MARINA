@@ -6,6 +6,7 @@ import { CharacterAvatar } from '@/components/character-avatar'
 import { Modal } from '@/components/modal'
 import { TutorialHint } from '@/components/tutorial-hint'
 import { useToast } from '@/components/toast'
+import { celebrate } from '@/components/celebration'
 
 type Detail = {
   blocker: {
@@ -259,10 +260,13 @@ export function BlockerResolver({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((data as { error?: string })?.error || `HTTP ${res.status}`)
       const mins = (data as { minutesBlocked?: number }).minutesBlocked ?? 0
+      const dur = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`
+      const who = detail?.blockedUser?.name?.split(' ')[0] ?? detail?.blockedUser?.login ?? 'They'
+      celebrate()
       toast.push({
         kind: 'success',
-        title: 'Blocker resolved',
-        body: `Total time blocked: ${mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`}`,
+        title: `${who} is unblocked`,
+        body: `That's ${dur} back in their day. Nice work. — Marina`,
       })
       onResolved?.()
       router.refresh()

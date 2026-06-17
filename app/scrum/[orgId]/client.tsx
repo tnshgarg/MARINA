@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { TutorialHint } from '@/components/tutorial-hint'
+import { celebrate } from '@/components/celebration'
 
 type Member = {
   membershipId: number
@@ -189,6 +190,15 @@ export default function ScrumClient({
       else next.add(userId)
       return next
     })
+    // Standup just wrapped — this toggle covered the last remaining teammate.
+    // Celebrate the finish (the whole point of Scrum Mode is to end fast).
+    if (
+      nextCovered &&
+      members.length > 0 &&
+      members.every((m) => m.userId === userId || covered.has(m.userId))
+    ) {
+      celebrate({ y: 140, count: 90 })
+    }
     ;(async () => {
       try {
         const res = await fetch(`/api/orgs/${orgId}/scrum/coverage`, {

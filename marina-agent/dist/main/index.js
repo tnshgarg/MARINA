@@ -11,6 +11,7 @@ const shotter_1 = require("./shotter");
 const heartbeat_1 = require("./heartbeat");
 const consent_1 = require("./consent");
 const pairing_1 = require("./pairing");
+const onboarding_1 = require("./onboarding");
 const break_1 = require("./break");
 const leave_1 = require("./leave");
 const punch_1 = require("./punch");
@@ -73,6 +74,7 @@ electron_1.app.whenReady().then(async () => {
         userLogin: (0, store_1.get)(config_1.STORE_KEYS.userLogin) ?? null,
     });
     (0, consent_1.registerConsentIpc)();
+    (0, onboarding_1.registerOnboardingIpc)();
     (0, break_1.registerBreakIpc)();
     (0, leave_1.registerLeaveIpc)();
     (0, punch_1.registerPunchIpc)();
@@ -104,18 +106,13 @@ electron_1.app.whenReady().then(async () => {
     electron_1.app.on('will-quit', () => {
         electron_1.globalShortcut.unregisterAll();
     });
-    // First-run consent gate.
-    if (!(0, consent_1.hasConsented)()) {
-        const accepted = await (0, consent_1.showConsentWindow)();
-        if (!accepted) {
-            electron_1.app.quit();
-            return;
-        }
-    }
-    // If we already have a valid token, start the always-on services.
-    // Heartbeat will start/stop the sampler+shotter based on punch state.
+    // First-run flow. If this device is already paired AND consent is on record,
+    // boot straight into the always-on services. Otherwise run onboarding — one
+    // guided flow that covers consent + pairing + how-to and starts services the
+    // moment pairing completes (via the onPaired callback above). Consent is a
+    // hard gate, enforced because every "not paired" entry point routes here.
     const token = (0, store_1.readToken)();
-    if (token) {
+    if (token && (0, consent_1.hasConsented)()) {
         state_1.bus.patch({ paired: true });
         (0, heartbeat_1.startHeartbeat)();
         (0, uploader_1.startUploader)();
@@ -123,20 +120,7 @@ electron_1.app.whenReady().then(async () => {
         await (0, heartbeat_1.pingOnce)(); // initial state sync — heartbeat reconciles tracking
     }
     else {
-        // First-run / unpaired: open the pairing window immediately and surface a
-        // notification — on a menubar-only macOS app, users sometimes miss the
-        // pairing window even with focus tricks.
-        (0, pairing_1.openPairingWindow)();
-        try {
-            const n = new electron_1.Notification({
-                title: 'Welcome to MARINA',
-                body: 'Pair this device to your team. Click the MARINA icon in the menu bar if you don\'t see the pairing window.',
-            });
-            n.show();
-        }
-        catch {
-            // Notifications may not be available in all dev environments
-        }
+        (0, onboarding_1.openOnboardingWindow)();
     }
 });
 //# sourceMappingURL=index.js.map

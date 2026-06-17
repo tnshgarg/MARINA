@@ -2,7 +2,7 @@
   "name": "marina-agent",
   "version": "0.2.0",
   "private": true,
-  "description": "Project MARINA — cross-platform desktop agent (macOS + Windows)",
+  "description": "Marina — cross-platform desktop agent (macOS + Windows)",
   "main": "dist/main/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json && pnpm copy:assets",
@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "co.marina.agent",
-    "productName": "Project MARINA",
+    "productName": "Marina",
     "asar": true,
     "directories": {
       "buildResources": "build",
@@ -64,7 +64,7 @@
           ]
         }
       ],
-      "publisherName": "Project MARINA Private Limited",
+      "publisherName": "Marina Private Limited",
       "verifyUpdateCodeSignature": false
     },
     "nsis": {
@@ -73,7 +73,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Project MARINA"
+      "shortcutName": "Marina"
     }
   }
 }

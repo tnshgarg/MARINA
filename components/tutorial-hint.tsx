@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { MarinaMark } from '@/components/marina-mark'
 
 /**
- * Dismissible inline "first-time tip" callout. Persists the dismissal in
- * localStorage so each tip is shown at most once per (browser, user). Use
- * for surfaces that are powerful but non-obvious — Blocker Resolver, Scrum
- * Mode, capability editor — without forcing a full product tour.
+ * Dismissible inline "first-time tip" — spoken by Marina, not a generic
+ * tooltip. Her orb fronts every hint so it reads as your chief of staff
+ * leaning in with a quick pointer, and dismissal persists in localStorage so
+ * each tip shows at most once per (browser, user).
  *
  * Pattern:
  *   <TutorialHint id="scrum-mode-intro" title="Standup, on rails">
@@ -53,23 +54,23 @@ export function TutorialHint({
     setVisible(false)
   }
 
+  // `tone` tints the card (border/bg/title). Marina's orb is intentionally
+  // always sage — it's her identity, the same everywhere she appears — so it
+  // doesn't take a tone colour.
   const colors = {
     sage: {
       border: 'border-[var(--m-accent)]/30',
       bg: 'bg-[var(--m-accent-soft)]/40',
-      icon: 'text-[var(--m-accent)]',
       title: 'text-[var(--m-accent)]',
     },
     clay: {
       border: 'border-[var(--m-clay)]/30',
       bg: 'bg-[var(--m-clay-soft)]/40',
-      icon: 'text-[var(--m-clay-deep)]',
       title: 'text-[var(--m-clay-deep)]',
     },
     gold: {
       border: 'border-[var(--m-gold)]/30',
       bg: 'bg-[var(--m-gold-soft)]/40',
-      icon: 'text-[var(--m-gold)]',
       title: 'text-[var(--m-gold)]',
     },
   }[tone]
@@ -79,23 +80,16 @@ export function TutorialHint({
       className={`relative rounded-lg border ${colors.border} ${colors.bg} px-3.5 py-3 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed`}
       role="note"
     >
-      <div className="flex items-start gap-2.5">
-        <svg
-          width={16}
-          height={16}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.8}
-          className={`shrink-0 mt-0.5 ${colors.icon}`}
-          aria-hidden
-        >
-          <circle cx={12} cy={12} r={9} />
-          <path d="M12 8v5M12 16h.01" strokeLinecap="round" />
-        </svg>
+      <div className="flex items-start gap-3">
+        {/* Decorative here — the visible "· from Marina" already attributes it,
+            so the orb stays aria-hidden to avoid announcing "Marina" twice. */}
+        <MarinaMark size={26} className="shrink-0 mt-0.5" label="" />
         <div className="flex-1 min-w-0">
           <p className={`text-[11.5px] font-semibold uppercase tracking-wider mb-0.5 ${colors.title}`}>
             {title}
+            <span className="ml-1.5 normal-case tracking-normal font-normal text-[var(--m-ink-4)]">
+              · from Marina
+            </span>
           </p>
           <div>{children}</div>
         </div>

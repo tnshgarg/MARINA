@@ -79,7 +79,7 @@ export function registerDoneIpc(): void {
       // Toast the user — same UX shape as the punch flow.
       try {
         const n = new Notification({
-          title: 'Logged on MARINA',
+          title: 'Logged on Marina',
           body: title.length > 80 ? `${title.slice(0, 78)}…` : title,
           silent: true,
         })

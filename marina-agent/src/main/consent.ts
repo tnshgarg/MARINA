@@ -27,7 +27,7 @@ export async function showConsentWindow(): Promise<boolean> {
   consentWindow = new BrowserWindow({
     width: 540,
     height: 600,
-    title: 'Project MARINA — Consent',
+    title: 'Marina — Consent',
     resizable: false,
     minimizable: false,
     maximizable: false,

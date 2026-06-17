@@ -109,11 +109,11 @@ export default function SetupGuidePage() {
                   On Mac
                 </p>
                 <ol className="mt-1.5 text-[12.5px] text-[var(--m-ink)] space-y-1 list-decimal pl-5 leading-snug">
-                  <li>Download <strong>MARINA.dmg</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
-                  <li>Open the DMG and drag MARINA.app to Applications.</li>
-                  <li>Open it once — click <strong>Open</strong> on the Gatekeeper prompt.</li>
-                  <li>Grant <strong>Accessibility</strong> (System Settings → Privacy &amp; Security → Accessibility).</li>
-                  <li>The MARINA leaf appears in your menubar (top right).</li>
+                  <li>Download <strong>Marina.dmg</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
+                  <li>Open the DMG and drag <strong>Marina</strong> into Applications.</li>
+                  <li>Launch Marina from Applications. macOS blocks it the first time — follow <strong>“If macOS says it can&apos;t verify Marina”</strong> just below.</li>
+                  <li>Grant <strong>Accessibility</strong> (System Settings → Privacy &amp; Security → Accessibility) so it can tell active from idle.</li>
+                  <li>A <strong>welcome window opens automatically</strong> — continue setup there.</li>
                 </ol>
               </div>
               <div>
@@ -121,42 +121,77 @@ export default function SetupGuidePage() {
                   On Windows
                 </p>
                 <ol className="mt-1.5 text-[12.5px] text-[var(--m-ink)] space-y-1 list-decimal pl-5 leading-snug">
-                  <li>Download <strong>MARINA-Setup.exe</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
-                  <li>Run the installer. Click <strong>Yes</strong> on SmartScreen if it appears.</li>
-                  <li>MARINA starts in the system tray (bottom right, click <strong>^</strong> to expand).</li>
-                  <li>Pin it to the tray: right-click the tray → Taskbar settings → toggle MARINA on.</li>
+                  <li>Download <strong>Marina-Setup.exe</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
+                  <li>Run the installer. If SmartScreen warns you, click <strong>More info → Run anyway</strong>.</li>
+                  <li>Marina starts in the system tray (bottom right, click <strong>^</strong> to expand) and opens its <strong>welcome window</strong>.</li>
+                  <li>Pin it to the tray: right-click the tray → Taskbar settings → toggle Marina on.</li>
                 </ol>
               </div>
             </div>
           </Section>
 
-          <Section title="Step 3 — Pair the agent (1 min)">
-            <ol className="text-[13.5px] text-[var(--m-ink)] space-y-1.5 list-decimal pl-5 leading-relaxed">
-              <li>Click the MARINA leaf icon — it says <em>“Not paired yet”</em>.</li>
-              <li>Click <strong>Pair this device</strong>. A 6-digit code appears (valid for 5 min).</li>
-              <li>On the web at <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">app.marina.in</code>, open <strong>Settings → Devices</strong>.</li>
-              <li>Click <strong>Pair new device</strong>, type the code, hit <strong>Pair</strong>.</li>
-              <li>The agent says <strong>“Paired — welcome, [your name]”</strong>. You&apos;re set.</li>
+          {/* macOS Gatekeeper — the #1 thing that stops new hires. Make it loud. */}
+          <section className="mb-6 break-inside-avoid rounded-lg border border-[var(--m-clay)] bg-[var(--m-clay-soft)] p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[15px]" aria-hidden="true">🍎</span>
+              <h2 className="font-display text-[17px] text-[var(--m-clay-deep)] leading-tight">
+                If macOS says it can&apos;t verify Marina
+              </h2>
+            </div>
+            <p className="text-[12.5px] text-[var(--m-ink)] leading-relaxed">
+              The first time you open it, macOS may show:
+              <span className="block mt-1.5 italic text-[var(--m-ink-2)] border-l-2 border-[var(--m-clay)] pl-3">
+                “Apple could not verify ‘Marina’ is free of malware that may harm your Mac or
+                compromise your privacy.”
+              </span>
+            </p>
+            <p className="mt-2 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
+              This is expected — Marina is distributed directly to your company, not through the Mac
+              App Store, so Apple hasn&apos;t notarized it. It&apos;s safe to open. Here&apos;s how:
+            </p>
+            <ol className="mt-2 text-[12.5px] text-[var(--m-ink)] space-y-1 list-decimal pl-5 leading-relaxed">
+              <li>On that message, click <strong>Done</strong> (do <em>not</em> click “Move to Trash”).</li>
+              <li>Open <strong>System Settings → Privacy &amp; Security</strong>.</li>
+              <li>Scroll to the <strong>Security</strong> section. You&apos;ll see <em>“Marina was blocked to protect your Mac.”</em> Click <strong>Open Anyway</strong>.</li>
+              <li>Confirm with Touch ID or your password, then click <strong>Open Anyway</strong> once more.</li>
             </ol>
+            <p className="mt-2 text-[12px] text-[var(--m-ink-3)] leading-relaxed">
+              On macOS Sonoma and earlier you can instead <strong>right-click Marina in Applications →
+              Open → Open</strong>. You only do this once — after that it launches normally.
+            </p>
+          </section>
+
+          <Section title="Step 3 — Pair the agent (1 min)">
+            <p className="text-[13.5px] text-[var(--m-ink)] leading-relaxed">
+              When Marina first opens, a <strong>welcome window</strong> walks you through what it does,
+              your privacy, and connecting this computer. At the <strong>“Connect this Mac”</strong> step:
+            </p>
+            <ol className="mt-2 text-[13.5px] text-[var(--m-ink)] space-y-1.5 list-decimal pl-5 leading-relaxed">
+              <li>On the web at <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">app.marina.in</code>, open <strong>Settings → Pair a device</strong> and click <strong>Generate code</strong>.</li>
+              <li>Type the <strong>8-character code</strong> into the welcome window (it&apos;s valid for 10 minutes).</li>
+              <li>Click <strong>Pair device</strong>. You&apos;ll see <strong>“Welcome, [your name]”</strong> and a quick tour of the menu-bar actions.</li>
+            </ol>
+            <p className="mt-2 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
+              Lost the window? Click the <strong>Marina</strong> icon in your menu bar (top-right) →
+              <strong> Set up Marina</strong> to reopen it.
+            </p>
           </Section>
 
           <Section title="Step 4 — Your first day (2 min)">
             <p className="text-[13.5px] text-[var(--m-ink)] leading-relaxed">
-              The shortcuts that matter (right-click the leaf icon to see the full menu):
+              Everything is one click in the menu bar — click the <strong>Marina</strong> icon (top-right)
+              to punch in or out, take a break, request leave, mark work as done, pause tracking, or open
+              your dashboard. Two actions also have global keyboard shortcuts:
             </p>
             <table className="mt-2 w-full text-[12.5px]">
               <tbody>
-                <ShortcutRow keys="⌘⇧L / Ctrl+Shift+L" what="Mark work as done — quick deliverable log" />
+                <ShortcutRow keys="⌘⇧D / Ctrl+Shift+D" what="Mark work as done — quick deliverable log" />
                 <ShortcutRow keys="⌘⇧B / Ctrl+Shift+B" what="Take a break (Coffee / Lunch / Personal / Blocked)" />
-                <ShortcutRow keys="⌘⇧P / Ctrl+Shift+P" what="Pause tracking temporarily" />
-                <ShortcutRow keys="⌘⇧M / Ctrl+Shift+M" what="Show today&apos;s meetings" />
-                <ShortcutRow keys="⌘↩ / Ctrl+Enter" what="Join your next meeting" />
-                <ShortcutRow keys="⌘⇧/ / Ctrl+Shift+/" what="Show all shortcuts" />
               </tbody>
             </table>
             <p className="mt-3 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
-              Your day: punch in when you open your laptop · log deliverables with ⌘⇧L when you finish
-              something · mark yourself blocked if you&apos;re stuck · punch out at end of day.
+              Your day: punch in when you open your laptop · log deliverables with ⌘⇧D when you finish
+              something · take a break when you step away · punch out at end of day.
             </p>
           </Section>
 
