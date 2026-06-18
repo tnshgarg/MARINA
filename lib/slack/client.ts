@@ -117,6 +117,24 @@ export async function resolveSlackUserId(
 }
 
 /**
+ * Look up a Slack user's email by their Slack user id (needs `users:read.email`).
+ * Used for link-on-first-use: map a Slack identity to a MARINA member when we
+ * don't have their slackUserId cached yet.
+ */
+export async function slackUserEmail(
+  install: SlackInstall,
+  slackUserId: string,
+): Promise<string | null> {
+  const res = await callSlack<{ user?: { profile?: { email?: string } } }>(
+    'users.info',
+    install.botToken,
+    new URLSearchParams({ user: slackUserId }),
+  )
+  if (!res.ok) return null
+  return res.user?.profile?.email ?? null
+}
+
+/**
  * Send a direct message to a Slack user. We open the IM channel first (idempotent
  * per Slack — repeated `conversations.open` returns the same channel) and then
  * post the message into it. Pass `text` for the fallback (notifications) and

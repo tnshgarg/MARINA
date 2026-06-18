@@ -7,6 +7,7 @@ import { afterResponse } from '@/lib/after'
 import { createDeliverable } from '@/lib/deliverables/create'
 import { notify } from '@/lib/notify/send'
 import { getSlackInstall, sendSlackDm } from '@/lib/slack/client'
+import { resolveMembershipBySlack } from '@/lib/slack/identity'
 
 export const runtime = 'nodejs'
 
@@ -61,14 +62,8 @@ export async function POST(req: Request) {
   // user has a MARINA membership (Slack workspace can include guests etc.),
   // so we lazily try to resolve and tell them to link if it fails.
   async function findCallerMembership() {
-    const m = await db.query.memberships.findFirst({
-      where: and(
-        eq(schema.memberships.orgId, org!.id),
-        eq(schema.memberships.slackUserId, slackUserId),
-        isNull(schema.memberships.endedAt),
-      ),
-    })
-    return m ?? null
+    // Link-on-first-use: direct slackUserId match, else resolve via email.
+    return resolveMembershipBySlack(org!.id, slackUserId)
   }
 
   switch (sub) {
