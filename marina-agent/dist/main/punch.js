@@ -98,7 +98,12 @@ function registerPunchIpc() {
             void (0, heartbeat_1.pingOnce)();
             new electron_1.Notification({
                 title: 'Marina · Punched out',
-                body: `Summary scored ${res.verification.score}/100 (${res.verification.status})`,
+                // Only surface a score when the summary was actually verified. When
+                // verification is off (status 'skipped') a "0/100" would read as a
+                // failure, so just acknowledge the log.
+                body: res.verification.status === 'skipped'
+                    ? 'Your summary is logged. Have a good one.'
+                    : `Summary scored ${res.verification.score}/100 (${res.verification.status})`,
             }).show();
             return { ok: true, verification: res.verification };
         }

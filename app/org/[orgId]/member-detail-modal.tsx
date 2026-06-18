@@ -1181,8 +1181,8 @@ function ShiftsTab({
 
       <Section title="See full punch-in / punch-out history">
         <p className="text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
-          Daily punch records, AI-verified work summaries, and verification
-          scores are kept under the org-wide Shifts page.
+          Daily punch records and work summaries are kept under the org-wide
+          Shifts page.
         </p>
         <Link
           href={`/org/${orgId}/shifts`}

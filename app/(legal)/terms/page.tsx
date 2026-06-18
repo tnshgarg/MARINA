@@ -56,7 +56,7 @@ export default function TermsPage() {
       <h2 className="text-[18px] font-semibold mt-8 mb-2">6. Warranties and disclaimers</h2>
       <p>
         The Service is provided &quot;as is&quot;. We don&apos;t guarantee that AI-generated narratives
-        or verification scores are accurate — they are decision-support outputs, not authoritative
+        or summaries are accurate — they are decision-support outputs, not authoritative
         labels. Customers must apply human judgement before acting on them.
       </p>
 

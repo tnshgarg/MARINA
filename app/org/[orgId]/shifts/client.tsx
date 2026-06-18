@@ -151,10 +151,13 @@ export default function ShiftsClient({
   orgId,
   range,
   shifts,
+  showVerification = false,
 }: {
   orgId: number
   range: RangeKey
   shifts: ShiftDTO[]
+  /** GATEKEPT: AI verification UI (score / verified / suspect) only shows when on. */
+  showVerification?: boolean
 }) {
   const groups = useMemo(() => groupByEmployee(shifts), [shifts])
 
@@ -189,7 +192,7 @@ export default function ShiftsClient({
         <div>
           <h1 className="app-h1">People</h1>
           <p className="mt-1.5 text-[13px] text-[color:var(--m-ink-3)]">
-            Punch-in / punch-out history with AI-verified work summaries, grouped by person.
+            Punch-in / punch-out history with work summaries, grouped by person.
           </p>
         </div>
         <RangeChips orgId={orgId} active={range} />
@@ -212,14 +215,17 @@ export default function ShiftsClient({
           <div className="stat-label">Hours worked</div>
           <div className="stat-sub">Completed shifts only</div>
         </div>
-        <div className="app-card app-card-tight h-full">
-          <div className="stat-num tabular-nums">
-            {totals.avgScore != null ? `${totals.avgScore}` : '—'}
-            {totals.avgScore != null && <span className="text-[14px] text-[color:var(--m-ink-4)]">/100</span>}
+        {/* GATEKEPT: AI verification score card hidden while screenshots are off. */}
+        {showVerification && (
+          <div className="app-card app-card-tight h-full">
+            <div className="stat-num tabular-nums">
+              {totals.avgScore != null ? `${totals.avgScore}` : '—'}
+              {totals.avgScore != null && <span className="text-[14px] text-[color:var(--m-ink-4)]">/100</span>}
+            </div>
+            <div className="stat-label">Avg verification</div>
+            <div className="stat-sub">AI confidence score</div>
           </div>
-          <div className="stat-label">Avg verification</div>
-          <div className="stat-sub">AI confidence score</div>
-        </div>
+        )}
       </div>
 
       {/* Currently punched in */}
@@ -369,12 +375,14 @@ function ShiftDetail({ shift: s }: { shift: ShiftDTO }) {
         </span>
         {isActive ? (
           <span className="pill pill-good">on the clock</span>
-        ) : (
+        ) : s.verificationStatus !== 'skipped' ? (
+          // 'skipped' = not AI-verified (gatekept, or budget). Show no verdict
+          // pill rather than a misleading "skipped · 0/100".
           <span className={`pill ${pillFor(s.verificationStatus)}`}>
             {s.verificationStatus}
             {s.verificationScore != null ? ` · ${s.verificationScore}/100` : ''}
           </span>
-        )}
+        ) : null}
       </div>
 
       {s.workSummary && (

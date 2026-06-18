@@ -96,7 +96,7 @@ export default function OrgSettingsClient({
           <div>
             <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Slack notifications</h2>
             <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
-              Get pinged when employees take a break, request leave, or punch out with a suspicious summary.
+              Get pinged when employees take a break, request leave, or flag themselves blocked.
               {hasSlack && <span className="ml-1 text-emerald-600 font-medium">· Configured</span>}
             </p>
           </div>

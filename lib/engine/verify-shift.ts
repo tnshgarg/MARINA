@@ -2,6 +2,7 @@ import { and, eq, gte, lte, sum } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { generateWithFallback } from '@/lib/ai/registry'
 import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 import type { ShiftVerificationStatus, Shift } from '@/lib/db/schema'
 
 export type VerifyResult = {
@@ -115,6 +116,15 @@ export async function verifyShiftSummary(
   shift: Shift,
   summary: string
 ): Promise<VerifyResult> {
+  // GATEKEPT: shift verification depends on screen/scene evidence to judge a
+  // summary fairly. Without it the score floors and everyone reads as "suspect"
+  // (proven by the load test). So while screenshots are off we DON'T verify or
+  // score — the summary is recorded as-is, no AI call, no suspicion, no spend.
+  // The full verifier below is preserved, just unreached.
+  if (!SCREENSHOTS_ENABLED) {
+    return { status: 'skipped', score: 0, notes: '', provider: 'none', model: 'none' }
+  }
+
   // AI budget gate — every punch-out triggers this, so cap it. When the org's
   // monthly allowance is spent we skip verification rather than spend.
   const budgetOrgId = (shift as { orgId?: number | null }).orgId ?? null

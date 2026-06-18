@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, requireScope } from '@/lib/auth/guards'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 import ShiftsClient, { type RangeKey, type ShiftDTO, RANGES } from './client'
 
 export const dynamic = 'force-dynamic'
@@ -89,5 +90,8 @@ export default async function ShiftsPage({
     punchedInVia: s.punchedInVia,
   }))
 
-  return <ShiftsClient orgId={orgId} range={range} shifts={shifts} />
+  // GATEKEPT: the AI verification column (score / verified / suspect) depends on
+  // screen evidence, so it's hidden while the screenshot feature is off — the
+  // page still shows the shift times + summaries, just no AI judgment.
+  return <ShiftsClient orgId={orgId} range={range} shifts={shifts} showVerification={SCREENSHOTS_ENABLED} />
 }

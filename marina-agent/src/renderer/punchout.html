@@ -54,7 +54,7 @@
   <body>
     <p class="eyebrow">Marina · End of shift</p>
     <h1 id="title">What did you work on today?</h1>
-    <p class="hint">Tell your manager what you shipped. Be specific — Marina cross-checks your summary against your actual commits, PRs, and focus time. Honest detail scores high; vague summaries score low.</p>
+    <p class="hint">Tell your manager what you shipped today. A specific line or two — it goes straight onto their dashboard.</p>
 
     <div class="info-row">
       <span>Shift duration: <strong class="timer" id="duration">00:00</strong></span>
@@ -70,7 +70,7 @@
         autofocus
       ></textarea>
       <div class="ai-note" id="ai-note">
-        🛡️ <strong>How verification works:</strong> An AI compares your summary against actual telemetry from your shift (commits, PRs, active apps, focus time). Score ≥70 = verified. &lt;40 = suspect (your manager will see the flag).
+        ✍️ A clear line or two is enough — it lands on your manager's dashboard so your work speaks for itself.
       </div>
       <div class="actions">
         <span class="counter" id="counter">0 chars</span>
@@ -140,7 +140,7 @@
         if (busy) return
         busy = true
         $('submit').disabled = true
-        $('submit').textContent = 'Verifying…'
+        $('submit').textContent = 'Punching out…'
         $('msg').className = ''
         $('msg').textContent = ''
         try {
@@ -150,10 +150,19 @@
             $('form').hidden = true
             const r = $('result')
             r.hidden = false
-            r.className = 'result ' + (v.status || 'unverified')
-            $('result-label').textContent = 'Verification · ' + v.status
-            $('result-score').textContent = v.score + ' / 100'
-            $('result-notes').textContent = v.notes || ''
+            // GATEKEPT: when the summary isn't AI-verified (status 'skipped'),
+            // show a plain confirmation instead of a "0 / 100" verdict.
+            if (!v || v.status === 'skipped') {
+              r.className = 'result'
+              $('result-label').textContent = 'Punched out'
+              $('result-score').textContent = ''
+              $('result-notes').textContent = 'Your summary is logged. Have a good evening.'
+            } else {
+              r.className = 'result ' + (v.status || 'unverified')
+              $('result-label').textContent = 'Verification · ' + v.status
+              $('result-score').textContent = v.score + ' / 100'
+              $('result-notes').textContent = v.notes || ''
+            }
             if (timerInterval) clearInterval(timerInterval)
           } else {
             $('msg').className = 'err'

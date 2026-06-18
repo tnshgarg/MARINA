@@ -687,7 +687,7 @@ function BriefPane({
                   No summary captured yet.
                 </p>
               )}
-              {brief.shiftStatus && (
+              {brief.shiftStatus && brief.shiftStatus !== 'skipped' && (
                 <p className="mt-2 text-[11px] uppercase tracking-wider text-[var(--m-ink-4)]">
                   Verification · {brief.shiftStatus}
                 </p>
