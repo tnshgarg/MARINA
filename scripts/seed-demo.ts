@@ -441,7 +441,6 @@ async function main(): Promise<void> {
     for (let d = 1; d <= 5; d++) {
       const start = new Date(today9am.getTime() - d * 24 * 60 * 60_000)
       const end = new Date(start.getTime() + (7 + Math.random() * 2) * 60 * 60_000)
-      const score = 70 + Math.floor(Math.random() * 28)
       await db.insert(schema.shifts).values({
         userId: u.id,
         orgId: org.id,
@@ -450,11 +449,10 @@ async function main(): Promise<void> {
         punchedOutAt: end,
         punchedOutVia: 'agent',
         workSummary: SAMPLE_SUMMARIES[Math.floor(Math.random() * SAMPLE_SUMMARIES.length)],
-        verificationStatus: score >= 70 ? 'verified' : 'suspect',
-        verificationScore: score,
-        verificationNotes: 'Summary matches commits, PRs, and IDE focus time during the shift window.',
-        verificationProvider: 'demo/seeded',
-        verifiedAt: end,
+        // Verification is gatekept (depends on screenshot evidence) — seeded
+        // shifts mirror the shipped, un-judged state so the demo never shows a
+        // 'verified'/'suspect' pill.
+        verificationStatus: 'skipped',
       })
     }
   }
@@ -840,6 +838,48 @@ async function main(): Promise<void> {
     })
     console.log(`[seed-demo] scheduled a sample 1:1 with @sneha`)
   }
+
+  // ─── Review cycle + past 1:1s ─────────────────────────────────────────────
+  // Gives the Reviews & 1:1s page real data to test: an open cycle whose window
+  // covers the seeded narratives (→ "review on file"), plus a spread of PAST
+  // 1:1s with mixed recency so the cadence column shows both fresh and overdue.
+  const ymd = (d: Date) => d.toISOString().slice(0, 10)
+  await db.insert(schema.reviewCycles).values({
+    orgId: org.id,
+    name: 'H1 2026 review',
+    periodStart: ymd(new Date(now.getTime() - 30 * 24 * 60 * 60_000)),
+    periodEnd: ymd(new Date(now.getTime() + 1 * 24 * 60 * 60_000)),
+    status: 'open',
+    createdByUserId: owner.id,
+  })
+  console.log('[seed-demo] opened a review cycle (H1 2026 review)')
+
+  const ONE_ON_ONES: Array<{ login: string; daysAgo: number }> = [
+    { login: 'arjun', daysAgo: 6 },
+    { login: 'priya', daysAgo: 12 },
+    { login: 'rahul', daysAgo: 23 },
+    { login: 'noah', daysAgo: 39 },
+    { login: 'logan', daysAgo: 52 }, // overdue (>45d)
+    { login: 'dev', daysAgo: 64 }, //   overdue
+  ]
+  let oneOnOnesSeeded = 0
+  for (const o of ONE_ON_ONES) {
+    const uid = byLogin.get(o.login)
+    if (!uid || uid === owner.id) continue
+    const startAt = new Date(now.getTime() - o.daysAgo * 24 * 60 * 60_000)
+    startAt.setHours(11, 0, 0, 0)
+    await db.insert(schema.scheduledMeetings).values({
+      orgId: org.id,
+      organiserUserId: owner.id,
+      attendeeUserId: uid,
+      title: `1:1 with @${o.login}`,
+      agenda: 'Progress, blockers, growth.',
+      startAt,
+      endAt: new Date(startAt.getTime() + 30 * 60_000),
+    })
+    oneOnOnesSeeded++
+  }
+  console.log(`[seed-demo] scheduled ${oneOnOnesSeeded} past 1:1s (mixed cadence)`)
 
   // ─── Teams ────────────────────────────────────────────────────────────────
   // Map login → membershipId so we can wire team leads + members cleanly.
