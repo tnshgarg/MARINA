@@ -64,6 +64,8 @@ export async function GET(req: Request) {
     'users:read',
     'users:read.email',
     'im:write',
+    'im:history',
+    'app_mentions:read',
     'channels:read',
     'groups:read',
   ].join(',')

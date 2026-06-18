@@ -154,6 +154,46 @@ export async function sendSlackChannel(
 }
 
 /**
+ * Publish the App Home tab for a user. The view is a `{ type: 'home', blocks }`
+ * object — Slack replaces the user's Home tab with it. Idempotent; call it on
+ * every `app_home_opened` and after any action that changes the user's state.
+ */
+export async function publishHomeView(
+  install: SlackInstall,
+  slackUserId: string,
+  view: unknown,
+): Promise<SlackResult<Record<string, unknown>>> {
+  return callSlack('views.publish', install.botToken, { user_id: slackUserId, view })
+}
+
+/**
+ * Open a modal in response to an interaction. `triggerId` is single-use and
+ * expires ~3s after the user's click, so call this promptly (inline, not in
+ * afterResponse).
+ */
+export async function openModal(
+  install: SlackInstall,
+  triggerId: string,
+  view: unknown,
+): Promise<SlackResult<{ view: { id: string } }>> {
+  return callSlack('views.open', install.botToken, { trigger_id: triggerId, view })
+}
+
+/** Post an ephemeral message visible only to one user in a channel. */
+export async function postEphemeral(
+  install: SlackInstall,
+  channel: string,
+  slackUserId: string,
+  payload: { text: string; blocks?: unknown[] },
+): Promise<SlackResult<{ message_ts: string }>> {
+  return callSlack('chat.postEphemeral', install.botToken, {
+    channel,
+    user: slackUserId,
+    ...payload,
+  })
+}
+
+/**
  * Ensure a membership has its `slackUserId` resolved. Looks up by user.email
  * on cache-miss. Caches the result (positive or null) and returns the id.
  * Cheap to call repeatedly — the lookup is skipped if `slackResolvedAt` is
