@@ -9,6 +9,7 @@ const store_1 = require("./store");
 const state_1 = require("./state");
 const sampler_1 = require("./sampler");
 const shotter_1 = require("./shotter");
+const config_1 = require("./config");
 let timer = null;
 /**
  * Tracking is gated by BOTH punch state and pause:
@@ -20,7 +21,10 @@ function reconcileTracking() {
     const shouldTrack = !!s.activeShift && !s.paused;
     if (shouldTrack) {
         (0, sampler_1.startSampler)();
-        (0, shotter_1.startShotter)();
+        // GATEKEPT: screenshot capture is off for now. The shotter is never started
+        // while SCREENSHOTS_ENABLED is false; flip the flag to bring it back.
+        if (config_1.SCREENSHOTS_ENABLED)
+            (0, shotter_1.startShotter)();
     }
     else {
         (0, sampler_1.stopSampler)({ flush: true });

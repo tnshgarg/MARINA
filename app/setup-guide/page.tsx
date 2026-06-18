@@ -78,7 +78,7 @@ export default function SetupGuidePage() {
             </ul>
             <p className="mt-3 text-[12.5px] text-[var(--m-ink-2)] leading-relaxed">
               <strong>What it does NOT do:</strong> read your messages, emails, files, or browser history.
-              No screenshots unless you explicitly opt in. No tracking outside your working hours.
+              No screen capture, no keystroke logging, no tracking outside your working hours.
               You can pause anytime.
             </p>
           </Section>
@@ -221,7 +221,7 @@ export default function SetupGuidePage() {
                 <ul className="space-y-1 list-disc pl-5 text-[var(--m-ink)]">
                   <li>Messages, emails, document contents</li>
                   <li>Window titles or URLs (unless opted in)</li>
-                  <li>Screenshots (unless opted in)</li>
+                  <li>Your screen — never captured</li>
                   <li>Anything during pause or off-hours</li>
                 </ul>
               </div>

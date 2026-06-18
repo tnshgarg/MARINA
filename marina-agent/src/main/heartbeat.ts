@@ -3,6 +3,7 @@ import { STORE_KEYS, set } from './store'
 import { bus } from './state'
 import { startSampler, stopSampler } from './sampler'
 import { startShotter, stopShotter } from './shotter'
+import { SCREENSHOTS_ENABLED } from './config'
 
 let timer: NodeJS.Timeout | null = null
 
@@ -16,7 +17,9 @@ function reconcileTracking(): void {
   const shouldTrack = !!s.activeShift && !s.paused
   if (shouldTrack) {
     startSampler()
-    startShotter()
+    // GATEKEPT: screenshot capture is off for now. The shotter is never started
+    // while SCREENSHOTS_ENABLED is false; flip the flag to bring it back.
+    if (SCREENSHOTS_ENABLED) startShotter()
   } else {
     stopSampler({ flush: true })
     stopShotter()

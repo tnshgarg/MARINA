@@ -157,7 +157,7 @@ export function LogDeliverableCard({ discipline }: { discipline?: string }) {
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11.5px] text-[var(--m-ink-3)]">
             Logging at <span className="font-medium text-[var(--m-ink-2)]">{new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>.
-            We'll pin the screenshot at that moment for honest verification.
+            Your manager sees it on their dashboard.
           </p>
           <button
             type="submit"

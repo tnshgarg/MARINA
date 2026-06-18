@@ -134,7 +134,7 @@ export function StoryCard({ endpoint }: { endpoint: string }) {
           </p>
           <p className="app-sub mt-1 max-w-md mx-auto">
             Generate to see a timeline + prose narrative of meetings, coding, breaks, and more —
-            stitched from your screenshots, agent samples, and GitHub events.
+            stitched from your agent activity, focus time, and GitHub events.
           </p>
         </div>
       )}

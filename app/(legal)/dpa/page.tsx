@@ -59,7 +59,7 @@ export default function DPAPage() {
         <li><strong>OpenAI, LLC</strong> (US) — AI inference (gpt-4o-mini) for narrative + verification.</li>
         <li><strong>Resend</strong> (US, EU) — transactional email.</li>
         <li><strong>Slack</strong> (US) — only if Controller configures Slack webhook.</li>
-        <li><strong>Cloudflare R2</strong> or <strong>Vercel Blob</strong> — screenshot blob storage (48h retention).</li>
+        <li><strong>Cloudflare R2</strong> or <strong>Vercel Blob</strong> — file/avatar blob storage.</li>
       </ul>
 
       <h2 className="text-[18px] font-semibold mt-8 mb-2">7. Cross-border transfers</h2>
@@ -83,7 +83,7 @@ export default function DPAPage() {
       <p>
         See <a href="/security">/security</a>. Summary: TLS 1.3 everywhere, sha256-hashed tokens at
         rest, Keychain-backed local token storage, sandboxed Electron preload, rate limiting on agent
-        endpoints, audit log of every privileged action, 48-hour screenshot purge, owner-only org
+        endpoints, audit log of every privileged action, owner-only org
         settings, automatic database backups with point-in-time recovery.
       </p>
 

@@ -23,7 +23,8 @@ export default function PrivacyPage() {
         <li><strong>Account info:</strong> name, email, GitHub login, avatar, character selection.</li>
         <li><strong>GitHub activity:</strong> commits, PRs opened, PR reviews, issues closed — fetched via OAuth at the User&apos;s consent.</li>
         <li><strong>Workstation telemetry (Mac/Windows agent):</strong> active app name, idle time, optionally foreground window title — only between punch-in and punch-out, and only after explicit on-device consent.</li>
-        <li><strong>Disclosed-randomized screenshots:</strong> 2–4 captures per active hour, ONLY if the Customer enables this and the User accepts. Original images are deleted within <strong>48 hours</strong>; only AI-derived labels persist.</li>
+        {/* GATEKEPT (screenshot feature disabled for now — restore with the feature):
+        <li><strong>Disclosed-randomized screenshots:</strong> 2–4 captures per active hour, ONLY if the Customer enables this and the User accepts. Original images are deleted within <strong>48 hours</strong>; only AI-derived labels persist.</li> */}
         <li><strong>HR data:</strong> punch-in/out shifts with work summaries, breaks with reasons, leave requests with types and dates.</li>
         <li><strong>Audit logs:</strong> who did what, when, from where — for security and compliance.</li>
       </ul>
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
       <ul className="list-disc pl-6 space-y-1">
         <li>Keystrokes, mouse positions, or file contents.</li>
         <li>Workstation activity while tracking is paused or the User is off-clock.</li>
-        <li>Screenshots while a video-call app (Zoom, Meet, Teams, Webex, FaceTime, BlueJeans) is in the foreground.</li>
+        <li>Screenshots or screen contents of any kind.</li>
         <li>Activity from your personal device — only the device on which you install the agent and explicitly consent.</li>
       </ul>
 
@@ -65,8 +66,9 @@ export default function PrivacyPage() {
 
       <h2 className="text-[18px] font-semibold mt-8 mb-2">6. Retention</h2>
       <ul className="list-disc pl-6 space-y-1">
+        {/* GATEKEPT (screenshot feature disabled for now):
         <li>Screenshots (raw): <strong>48 hours</strong>, auto-purged.</li>
-        <li>Derived screenshot labels: 12 months.</li>
+        <li>Derived screenshot labels: 12 months.</li> */}
         <li>GitHub events, narratives, activity, shifts, breaks, leaves: kept for the duration of your subscription.</li>
         <li>Audit logs: 24 months.</li>
         <li>After Customer deletion: 30-day rolling backup window, then full erasure.</li>

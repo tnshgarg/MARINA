@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 
 /**
  * Shared header/navigation chrome for the personal console pages under /me/*.
@@ -20,7 +21,10 @@ type PersonalPage = 'data' | 'regularizations' | 'shots'
 const NAV: { key: PersonalPage; label: string; href: string }[] = [
   { key: 'data', label: 'My data', href: '/me/data' },
   { key: 'regularizations', label: 'Attendance', href: '/me/regularizations' },
-  { key: 'shots', label: 'My shots', href: '/me/shots' },
+  // GATEKEPT: the "My shots" (screenshots) tab is hidden while the feature is off.
+  ...(SCREENSHOTS_ENABLED
+    ? [{ key: 'shots' as PersonalPage, label: 'My shots', href: '/me/shots' }]
+    : []),
 ]
 
 export default function PersonalPageHeader({

@@ -9,6 +9,7 @@ import {
   requireSession,
 } from '@/lib/auth/guards'
 import { computeSignalsForUser } from '@/lib/people/risk'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,16 +124,22 @@ export default async function MyDataPage() {
           ? 'Active'
           : 'No device paired',
     },
-    {
-      title: 'Screenshots',
-      why: 'Captured only when a desktop agent is paired and you have given explicit consent. Your manager sees derived labels, never the raw image — and pixels auto-purge after 48 hours.',
-      status: screenshotsActive ? 'on' : 'off',
-      statusLabel: screenshotsActive
-        ? 'Paired & consented'
-        : agentPaired
-          ? 'Not consented'
-          : 'Off — no consent',
-    },
+    // GATEKEPT: the Screenshots row is hidden while the feature is off, so the
+    // "what we track" page never advertises it. Preserved behind the flag.
+    ...(SCREENSHOTS_ENABLED
+      ? [
+          {
+            title: 'Screenshots',
+            why: 'Captured only when a desktop agent is paired and you have given explicit consent. Your manager sees derived labels, never the raw image — and pixels auto-purge after 48 hours.',
+            status: screenshotsActive ? 'on' : 'off',
+            statusLabel: screenshotsActive
+              ? 'Paired & consented'
+              : agentPaired
+                ? 'Not consented'
+                : 'Off — no consent',
+          } as Track,
+        ]
+      : []),
   ]
 
   const STATUS_PILL: Record<Track['status'], string> = {

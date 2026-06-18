@@ -7,6 +7,7 @@ import { getBlobStore, shotKey } from '@/lib/storage/blob'
 import { getVisionProvider, progressScore } from '@/lib/ai/vision'
 import { canSpend, estimateCostCents, recordSpend } from '@/lib/ai/budget'
 import { log } from '@/lib/log/log'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 import type { VisionAnalysis } from '@/lib/ai/vision'
 
 export const runtime = 'nodejs'
@@ -24,6 +25,13 @@ type Body = {
 export async function POST(req: Request) {
   const agent = await authenticateAgent(req)
   if (!agent) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  // GATEKEPT: screenshot capture/analysis is disabled for now. We still 200 so
+  // any older agent that posts treats it like a pause (no error/retry storm)
+  // and uploads nothing further. Everything below is preserved, just unreached.
+  if (!SCREENSHOTS_ENABLED) {
+    return NextResponse.json({ ok: true, discarded: true, disabled: true })
+  }
 
   const limit = checkLimit('screenshots', agent.token.id)
   if (!limit.ok) {

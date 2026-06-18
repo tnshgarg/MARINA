@@ -141,8 +141,11 @@ export async function computeDailyState(userId: number, day: Date | string = new
     }
   }
 
-  // Disengaged: online but distracted with no output.
-  if (onlineHours > 3 && outputCount === 0 && (focusWorkRatio < 30 || bestRun >= 3)) {
+  // Disengaged: online but distracted with no output. A low focus ratio only
+  // counts as "distracted" when we actually have screenshots to back it up —
+  // with screenshots off (shotCount === 0) focusWorkRatio is 0 by absence, not
+  // by evidence, so we must NOT label someone Disengaged on that alone.
+  if (onlineHours > 3 && outputCount === 0 && ((shotCount > 0 && focusWorkRatio < 30) || bestRun >= 3)) {
     return {
       state: 'Disengaged',
       outputCount,

@@ -1,7 +1,9 @@
 import { and, desc, eq, gte } from 'drizzle-orm'
+import { redirect } from 'next/navigation'
 import { db, schema } from '@/lib/db/client'
 import { requireSessionOrRedirect } from '@/lib/auth/guards'
 import PersonalPageHeader from '@/components/personal-page-header'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +15,9 @@ const SIGNAL_PILL = {
 
 export default async function MyShotsPage() {
   const session = await requireSessionOrRedirect()
+  // GATEKEPT: feature disabled — a direct visit shouldn't surface the
+  // screenshots gallery, so send people to their data page instead.
+  if (!SCREENSHOTS_ENABLED) redirect('/me/data')
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
   const rows = await db

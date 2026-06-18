@@ -24,6 +24,12 @@ export const DEFAULT_SERVER_BASE_URL: string = (() => {
   return PROD_SERVER_BASE_URL
 })()
 export const POLICY_VERSION = 'v1'
+
+// GATEKEPT: the screenshot-capture feature is disabled for the first release
+// (privacy + AI-cost risk). The shotter is never started while this is false.
+// Nothing is deleted — the full capture code is preserved and just not wired.
+// Flip with MARINA_SCREENSHOTS_ENABLED=true (matches the web app's flag).
+export const SCREENSHOTS_ENABLED: boolean = process.env.MARINA_SCREENSHOTS_ENABLED === 'true'
 export const DEFAULT_DEVICE_LABEL = (() => {
   try {
     return hostname() || 'Mac'

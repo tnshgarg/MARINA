@@ -102,7 +102,7 @@ export default function DownloadPage() {
           />
           <Pillar
             label="Private by default"
-            body="Window titles are off by default. Screenshots only if you opt in. Pause anytime."
+            body="Window titles are off by default. No screen capture. Pause anytime."
           />
           <Pillar
             label="Cross-platform"

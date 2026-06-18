@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STORE_KEYS = exports.DEFAULT_DEVICE_LABEL = exports.POLICY_VERSION = exports.DEFAULT_SERVER_BASE_URL = exports.AGENT_VERSION = void 0;
+exports.STORE_KEYS = exports.DEFAULT_DEVICE_LABEL = exports.SCREENSHOTS_ENABLED = exports.POLICY_VERSION = exports.DEFAULT_SERVER_BASE_URL = exports.AGENT_VERSION = void 0;
 const electron_1 = require("electron");
 const os_1 = require("os");
 exports.AGENT_VERSION = electron_1.app.getVersion() || '0.1.0';
@@ -26,6 +26,11 @@ exports.DEFAULT_SERVER_BASE_URL = (() => {
     return PROD_SERVER_BASE_URL;
 })();
 exports.POLICY_VERSION = 'v1';
+// GATEKEPT: the screenshot-capture feature is disabled for the first release
+// (privacy + AI-cost risk). The shotter is never started while this is false.
+// Nothing is deleted — the full capture code is preserved and just not wired.
+// Flip with MARINA_SCREENSHOTS_ENABLED=true (matches the web app's flag).
+exports.SCREENSHOTS_ENABLED = process.env.MARINA_SCREENSHOTS_ENABLED === 'true';
 exports.DEFAULT_DEVICE_LABEL = (() => {
     try {
         return (0, os_1.hostname)() || 'Mac';

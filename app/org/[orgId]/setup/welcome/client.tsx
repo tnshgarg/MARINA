@@ -222,7 +222,7 @@ function StepWhat() {
 function StepHow() {
   const steps: Array<{ n: string; title: string; body: string }> = [
     { n: '1', title: 'Your team installs a tiny agent', body: 'A lightweight Mac/Windows app that lives in the menu bar. Two-minute setup, guided.' },
-    { n: '2', title: 'I turn real work into signal', body: 'Commits, focus time, meetings, deliverables — quietly summarised. Never keystrokes or screenshots unless your team opts in.' },
+    { n: '2', title: 'I turn real work into signal', body: 'Commits, focus time, meetings, deliverables — quietly summarised. Never keystrokes, messages, or screen contents.' },
     { n: '3', title: 'You get clarity, not meetings', body: 'A morning brief, live blockers, and answers on demand. The status meeting just disappears.' },
   ]
   return (

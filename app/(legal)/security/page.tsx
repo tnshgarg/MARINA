@@ -41,8 +41,9 @@ export default function SecurityPage() {
       <Pillar
         title="Privacy-respecting tracking"
         body={[
-          'The Mac/Windows agent samples application focus every 30s. Window titles are off by default — opt-in per org. No keystroke logging, ever.',
-          'Disclosed-randomized screenshots: 2–4 per active hour, with a visible flash. Each is auto-deleted after 48 hours; only AI-derived labels persist.',
+          'The Mac/Windows agent samples application focus every 30s. Window titles are off by default — opt-in per org. No keystroke logging and no screen capture, ever.',
+          // GATEKEPT (screenshot feature disabled for now — restore with the feature):
+          // 'Disclosed-randomized screenshots: 2–4 per active hour, with a visible flash. Each is auto-deleted after 48 hours; only AI-derived labels persist.',
           'Tracking only runs between punch-in and punch-out. Pausing is a single click. Workplace-surveillance consent is recorded with timestamp + IP + policy version on agent install.',
         ]}
       />

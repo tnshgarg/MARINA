@@ -9,6 +9,7 @@ const uploader_1 = require("./uploader");
 const heartbeat_1 = require("./heartbeat");
 const sampler_1 = require("./sampler");
 const shotter_1 = require("./shotter");
+const config_1 = require("./config");
 const pairing_1 = require("./pairing");
 const onboarding_1 = require("./onboarding");
 const break_1 = require("./break");
@@ -178,7 +179,9 @@ async function togglePause() {
     }
     else {
         (0, sampler_1.startSampler)();
-        (0, shotter_1.startShotter)();
+        // GATEKEPT: screenshot capture is off for now (see config.SCREENSHOTS_ENABLED).
+        if (config_1.SCREENSHOTS_ENABLED)
+            (0, shotter_1.startShotter)();
     }
     try {
         await (0, api_1.postPause)(desired);

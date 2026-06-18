@@ -5,6 +5,7 @@ import { drainOnQuit } from './uploader'
 import { pingOnce } from './heartbeat'
 import { startSampler, stopSampler } from './sampler'
 import { startShotter, stopShotter } from './shotter'
+import { SCREENSHOTS_ENABLED } from './config'
 import { openPairingWindow } from './pairing'
 import { openOnboardingWindow } from './onboarding'
 import { openBreakWindow } from './break'
@@ -174,7 +175,8 @@ async function togglePause(): Promise<void> {
     stopShotter()
   } else {
     startSampler()
-    startShotter()
+    // GATEKEPT: screenshot capture is off for now (see config.SCREENSHOTS_ENABLED).
+    if (SCREENSHOTS_ENABLED) startShotter()
   }
 
   try {

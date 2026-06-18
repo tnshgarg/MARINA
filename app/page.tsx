@@ -715,7 +715,7 @@ function ProductSection() {
             <p className="mt-5 text-[15px] text-[var(--m-ink-2)] leading-relaxed">
               MARINA proactively surfaces what each teammate did, what's holding
               them back, and what they should focus on next — grounded in real
-              GitHub activity, calendar meetings, and screen evidence. Never a
+              GitHub activity, calendar meetings, and focus time. Never a
               hallucination.
             </p>
             <ul className="mt-6 space-y-2.5 text-[13.5px] text-[var(--m-ink-2)]">
@@ -724,7 +724,7 @@ function ProductSection() {
               </Bullet>
               <Bullet>Top apps used today, work vs non-work mix</Bullet>
               <Bullet>
-                Scenes timeline with hoverable per-window evidence
+                A daily story timeline of what they worked on
               </Bullet>
             </ul>
           </div>

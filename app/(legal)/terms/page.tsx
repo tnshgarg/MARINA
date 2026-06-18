@@ -34,7 +34,7 @@ export default function TermsPage() {
       </p>
       <ul className="list-disc pl-6 space-y-1">
         <li>Notifying employees that MARINA is in use and obtaining lawful basis (typically a signed Acceptable Use Policy — we provide a template).</li>
-        <li>Configuring optional features (window titles, screenshots) in compliance with your local laws and any applicable works-council requirements.</li>
+        <li>Configuring optional features (such as window titles) in compliance with your local laws and any applicable works-council requirements.</li>
         <li>Promptly removing offboarded employees and revoking devices.</li>
       </ul>
 

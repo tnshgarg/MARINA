@@ -7,6 +7,7 @@ import { requireMembership, HttpError, roleAtLeast } from '@/lib/auth/guards'
 import { getCompactSummaries } from '@/lib/activity/aggregate'
 import { dayBoundsUtc, upsertDailyState } from '@/lib/engine/state'
 import { detectSlackers } from '@/lib/engine/slacking'
+import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 import TeamDashboardClient from './client'
 
 export const dynamic = 'force-dynamic'
@@ -128,7 +129,9 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
 
   // Detect employees showing sustained non-work content during their shift.
   // 30-min window with at least 3 analysed screenshots, ≥60% unproductive.
-  const slackAlerts = await detectSlackers(userIds, onShiftIds, 30)
+  // GATEKEPT: this is screenshot-derived, so it's skipped (→ no alerts, the
+  // SlackingPanel never renders) while the screenshot feature is off.
+  const slackAlerts = SCREENSHOTS_ENABLED ? await detectSlackers(userIds, onShiftIds, 30) : []
 
   const settingsByUser = new Map(settingsRows.map((s) => [s.userId, s]))
 
