@@ -214,17 +214,18 @@ async function dispatch(event: NotifyEvent): Promise<void> {
       event.kind === 'state.blocked' ||
       event.kind === 'blocker.help_requested'
     if (highPriority) {
-      // DM the recipients via email if we know their addresses.
-      for (const userId of recipientIds.length > 0 ? recipientIds : [org.ownerId]) {
-        const u = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
-        if (u?.email) {
-          await sendDigestMail({
-            to: u.email,
-            subject: `[MARINA] ${rendered.title}`,
-            text: rendered.text,
-            html: `<p>${escapeHtml(rendered.text).replace(/\n/g, '<br/>')}</p>`,
-          })
-        }
+      // Email ONLY the org owner (one message) — fanning a high-priority email
+      // out to every manager per event was a real spam/bounce risk. The in-app
+      // bell + the web still surface it to all the right people; this email is
+      // just the backup ping when Slack isn't set up.
+      const owner = await db.query.users.findFirst({ where: eq(schema.users.id, org.ownerId) })
+      if (owner?.email) {
+        await sendDigestMail({
+          to: owner.email,
+          subject: `[MARINA] ${rendered.title}`,
+          text: rendered.text,
+          html: `<p>${escapeHtml(rendered.text).replace(/\n/g, '<br/>')}</p>`,
+        })
       }
     }
   }

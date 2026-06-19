@@ -54,7 +54,7 @@ export default function WelcomeClient({
           {step === 0 && <StepWelcome firstName={firstName} orgName={orgName} />}
           {step === 1 && <StepWhat />}
           {step === 2 && <StepHow />}
-          {step === 3 && <StepReady firstName={firstName} />}
+          {step === 3 && <StepReady firstName={firstName} orgId={orgId} />}
         </div>
       </section>
 
@@ -223,7 +223,7 @@ function StepHow() {
   const steps: Array<{ n: string; title: string; body: string }> = [
     { n: '1', title: 'Your team installs a tiny agent', body: 'A lightweight Mac/Windows app that lives in the menu bar. Two-minute setup, guided.' },
     { n: '2', title: 'I turn real work into signal', body: 'Commits, focus time, meetings, deliverables — quietly summarised. Never keystrokes, messages, or screen contents.' },
-    { n: '3', title: 'You get clarity, not meetings', body: 'A morning brief, live blockers, and answers on demand. The status meeting just disappears.' },
+    { n: '3', title: 'You get clarity, not meetings', body: 'A morning brief, live blockers, and answers on demand — right inside Slack or the web. The status meeting just disappears.' },
   ]
   return (
     <div>
@@ -254,7 +254,7 @@ function StepHow() {
   )
 }
 
-function StepReady({ firstName }: { firstName: string }) {
+function StepReady({ firstName, orgId }: { firstName: string; orgId: number }) {
   return (
     <div className="text-center flex flex-col items-center">
       <div className="wf-in" style={delay(0)}>
@@ -266,6 +266,16 @@ function StepReady({ firstName }: { firstName: string }) {
       <p className="wf-in mt-4 max-w-md text-[15px] leading-relaxed text-[var(--m-ink-2)]" style={delay(2)}>
         Invite a few teammates and I&apos;ll start turning their work into a clear picture for you.
         You can always do this later from the Members page.
+      </p>
+      <a
+        href={`/api/connect/slack/install?orgId=${orgId}`}
+        className="wf-in mt-7 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-[13.5px] font-medium hover:opacity-90 transition"
+        style={{ ...delay(3), background: '#4A154B' }}
+      >
+        Connect Slack — run Marina without leaving chat
+      </a>
+      <p className="wf-in mt-2 text-[12px] text-[var(--m-ink-4)]" style={delay(4)}>
+        Your team gets standups, blockers and the morning brief right in Slack. Optional, set up anytime.
       </p>
     </div>
   )

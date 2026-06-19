@@ -64,7 +64,7 @@ const modals: Array<[string, any]> = [
 for (const [name, v] of modals) {
   check(`${name} modal is valid`, validView(v) && v.type === 'modal')
   check(`${name} modal has callback_id`, typeof v.callback_id === 'string')
-  check(`${name} modal carries orgId in metadata`, v.private_metadata === JSON.stringify({ orgId: 16 }))
+  check(`${name} modal carries orgId in metadata`, (() => { try { return JSON.parse(v.private_metadata).orgId === 16 } catch { return false } })())
   check(`${name} modal has >=1 input`, inputs(v).length > 0)
 }
 check('deliverable enforces title min_length 10', JSON.stringify(deliverableModal(16)).includes('"min_length":10'))

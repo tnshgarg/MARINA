@@ -96,6 +96,28 @@ export async function getSlackInstall(orgId: number): Promise<SlackInstall | nul
   }
 }
 
+/**
+ * List the channels the bot can post to (public + private it's a member of).
+ * Powers the default-channel picker. One page (200) is plenty for the picker.
+ */
+export async function listChannels(
+  install: SlackInstall,
+): Promise<SlackResult<{ channels: { id: string; name: string; isPrivate: boolean }[] }>> {
+  const res = await callSlack<{
+    channels?: Array<{ id: string; name: string; is_archived?: boolean; is_private?: boolean }>
+  }>(
+    'conversations.list',
+    install.botToken,
+    new URLSearchParams({ types: 'public_channel,private_channel', exclude_archived: 'true', limit: '200' }),
+  )
+  if (!res.ok) return { ok: false, error: res.error }
+  const channels = (res.channels ?? [])
+    .filter((c) => !c.is_archived)
+    .map((c) => ({ id: c.id, name: c.name, isPrivate: !!c.is_private }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  return { ok: true, channels }
+}
+
 /** Look up a user's Slack ID by email. Caches the result on the membership row. */
 export async function resolveSlackUserId(
   install: SlackInstall,

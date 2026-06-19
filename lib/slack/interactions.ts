@@ -211,6 +211,21 @@ async function handleViewSubmission(
       const blockers = text('blockers')
       const install = await getSlackInstall(orgId)
       if (!install) return clear()
+      // Post to the org's default channel, else the channel the command was run
+      // from (skip DMs — a standup in a private DM helps no one).
+      let invokedChannel = ''
+      try {
+        invokedChannel = (JSON.parse(view?.private_metadata ?? '{}').channelId as string) ?? ''
+      } catch {
+        /* ignore */
+      }
+      const target =
+        install.defaultChannelId ?? (invokedChannel && !invokedChannel.startsWith('D') ? invokedChannel : null)
+      if (!target) {
+        return fieldErrors({
+          today: 'Run /marina standup in a channel, or set a default channel in Settings → Integrations → Slack.',
+        })
+      }
       const name = actor.user.name ?? `@${actor.user.login}`
       const blocks: unknown[] = [
         { type: 'section', text: { type: 'mrkdwn', text: `*${name}'s standup*` } },
@@ -218,9 +233,9 @@ async function handleViewSubmission(
         { type: 'section', text: { type: 'mrkdwn', text: `*Today*\n${today || '—'}` } },
         ...(blockers ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Blockers*\n${blockers}` } }] : []),
       ]
-      const res = await sendSlackChannel(install, { text: `${name}'s standup`, blocks })
+      const res = await sendSlackChannel(install, { text: `${name}'s standup`, blocks, channel: target })
       if (!res.ok) {
-        return fieldErrors({ today: 'No default channel set — ask an admin to set one in Settings → Integrations → Slack.' })
+        return fieldErrors({ today: "I couldn't post there — make sure Marina is in that channel." })
       }
       return clear()
     }

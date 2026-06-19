@@ -257,11 +257,15 @@ export function blockerModal(orgId: number): SlackView {
   }
 }
 
-export function standupModal(orgId: number, prefill: { yesterday: string; blockers: string }): SlackView {
+export function standupModal(
+  orgId: number,
+  prefill: { yesterday: string; blockers: string },
+  channelId?: string,
+): SlackView {
   return {
     type: 'modal',
     callback_id: 'modal_standup',
-    private_metadata: meta(orgId),
+    private_metadata: JSON.stringify({ orgId, channelId: channelId ?? '' }),
     title: { type: 'plain_text', text: 'Standup' },
     submit: { type: 'plain_text', text: 'Post' },
     close: { type: 'plain_text', text: 'Cancel' },
