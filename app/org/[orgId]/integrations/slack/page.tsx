@@ -68,21 +68,18 @@ export default async function SlackHubPage({ params }: { params: Promise<{ orgId
             )}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Card title="Default channel">
-              <p className="text-[12px] text-[var(--m-ink-4)] mb-2 leading-snug">Where the brief, standups, celebrations and digest post.</p>
-              <ChannelPicker orgId={orgId} current={install.defaultChannelId} />
-            </Card>
-            <Card title="Reachable by DM">
-              <p className="text-[23px] font-semibold tabular-nums text-[var(--m-clay-deep)] leading-none">
-                {resolvedCount}
-                <span className="text-[13px] font-medium text-[var(--m-ink-4)]"> / {memberCount} teammates</span>
-              </p>
-              {resolvedCount < memberCount && (
-                <p className="mt-2 text-[11px] text-[var(--m-ink-4)] leading-snug">Unresolved teammates are matched by email on first DM.</p>
-              )}
-            </Card>
-          </div>
+          <Card title="Channels">
+            <ChannelPicker orgId={orgId} defaultChannel={install.defaultChannelId} scrumChannel={install.scrumChannelId} />
+          </Card>
+          <Card title="Reachable by DM">
+            <p className="text-[23px] font-semibold tabular-nums text-[var(--m-clay-deep)] leading-none">
+              {resolvedCount}
+              <span className="text-[13px] font-medium text-[var(--m-ink-4)]"> / {memberCount} teammates</span>
+            </p>
+            {resolvedCount < memberCount && (
+              <p className="mt-2 text-[11px] text-[var(--m-ink-4)] leading-snug">Unresolved teammates are matched by email on first DM.</p>
+            )}
+          </Card>
 
           <p className="text-[12px] text-[var(--m-ink-4)]">
             Connecting, disconnecting, and the legacy webhook are managed under{' '}

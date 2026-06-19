@@ -20,6 +20,7 @@ export type SlackInstall = {
   botToken: string
   botUserId: string
   defaultChannelId: string | null
+  scrumChannelId: string | null
 }
 
 export type SlackResult<T> = ({ ok: true } & T) | { ok: false; error: string }
@@ -93,6 +94,7 @@ export async function getSlackInstall(orgId: number): Promise<SlackInstall | nul
     botToken: org.slackBotToken,
     botUserId: org.slackBotUserId,
     defaultChannelId: org.slackDefaultChannelId ?? null,
+    scrumChannelId: org.slackScrumChannelId ?? null,
   }
 }
 

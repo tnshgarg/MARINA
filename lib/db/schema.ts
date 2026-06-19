@@ -218,6 +218,8 @@ export const orgs = pgTable('orgs', {
   slackBotToken: text('slack_bot_token'),
   slackBotUserId: text('slack_bot_user_id'),
   slackDefaultChannelId: text('slack_default_channel_id'),
+  /** Where standup / scrum posts go. Falls back to slackDefaultChannelId. */
+  slackScrumChannelId: text('slack_scrum_channel_id'),
   slackInstalledAt: timestamp('slack_installed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -1292,6 +1294,33 @@ export const reviewCycles = pgTable(
 )
 export type ReviewCycle = typeof reviewCycles.$inferSelect
 export type NewReviewCycle = typeof reviewCycles.$inferInsert
+
+/**
+ * Stored standups — what each person said yesterday / today / is blocked on.
+ * The Slack `/marina standup` writes here (and posts to the scrum channel); the
+ * web Scrum page reads it to show "what they're working on today". One row per
+ * (user, day) — re-submitting updates it.
+ */
+export const standups = pgTable(
+  'standups',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    day: date('day').notNull(),
+    yesterday: text('yesterday').notNull().default(''),
+    today: text('today').notNull().default(''),
+    blockers: text('blockers').notNull().default(''),
+    source: text('source').notNull().default('slack'), // 'slack' | 'web'
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userDayIdx: uniqueIndex('standups_user_day_idx').on(t.userId, t.day),
+    orgDayIdx: index('standups_org_day_idx').on(t.orgId, t.day),
+  }),
+)
+export type Standup = typeof standups.$inferSelect
+export type NewStandup = typeof standups.$inferInsert
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect

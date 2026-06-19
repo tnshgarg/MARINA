@@ -74,6 +74,7 @@ type Brief = {
   productiveMin: number
   weekAvgProductiveMin: number
   weekMeetingsCount: number
+  standupToday: { yesterday: string; today: string; blockers: string } | null
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -479,6 +480,29 @@ function BriefPane({
               {brief.activeBlocker.reason && (
                 <p className="mt-1.5 text-[13.5px] text-[var(--m-ink-2)]">
                   {brief.activeBlocker.reason}
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* Today's plan — what they told the team they'd work on (standup).
+              The headline of a standup, so it leads the per-person card. */}
+          {brief.standupToday && (brief.standupToday.today || brief.standupToday.blockers) && (
+            <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-[var(--m-accent-soft)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--m-accent)]">
+                Working on today
+              </p>
+              {brief.standupToday.today ? (
+                <p className="mt-1.5 text-[15px] text-[var(--m-ink)] leading-relaxed whitespace-pre-line">
+                  {brief.standupToday.today}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[13.5px] text-[var(--m-ink-3)]">Plan not filled in yet.</p>
+              )}
+              {brief.standupToday.blockers && (
+                <p className="mt-2 text-[13px] text-[var(--m-ink-2)]">
+                  <span className="font-semibold text-[var(--m-bad)]">Blockers:</span>{' '}
+                  {brief.standupToday.blockers}
                 </p>
               )}
             </section>
@@ -954,6 +978,7 @@ function deriveBrief(detail: {
   last7Shifts?: Array<{ id: number; punchedInAt: string; totalMin: number }>
   shiftTotals?: { workMin: number; breakMin: number; idleMin: number }
   weekMeetingsCount?: number
+  standupToday?: { yesterday: string; today: string; blockers: string } | null
 }): Brief {
   const now = Date.now()
   const last24h = now - 24 * 60 * 60 * 1000
@@ -1020,6 +1045,7 @@ function deriveBrief(detail: {
     productiveMin,
     weekAvgProductiveMin,
     weekMeetingsCount: detail.weekMeetingsCount ?? 0,
+    standupToday: detail.standupToday ?? null,
   }
 }
 

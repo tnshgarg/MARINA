@@ -67,6 +67,15 @@ for (const [name, v] of modals) {
   check(`${name} modal carries orgId in metadata`, (() => { try { return JSON.parse(v.private_metadata).orgId === 16 } catch { return false } })())
   check(`${name} modal has >=1 input`, inputs(v).length > 0)
 }
+check(
+  'blocker modal adds a teammate picker when members are passed',
+  (() => {
+    const v = blockerModal(16, [{ userId: 7, name: 'Priya' }])
+    const s = JSON.stringify(v)
+    return s.includes('"block_id":"waiting_on_user"') && s.includes('static_select') && s.includes('"value":"7"')
+  })(),
+)
+check('blocker modal omits the teammate picker when no members', !JSON.stringify(blockerModal(16)).includes('waiting_on_user'))
 check('deliverable enforces title min_length 10', JSON.stringify(deliverableModal(16)).includes('"min_length":10'))
 check('punchout enforces summary min_length 20', JSON.stringify(punchOutModal(16)).includes('"min_length":20'))
 check('leave has two datepickers', (JSON.stringify(leaveModal(16)).match(/datepicker/g) || []).length === 2)
