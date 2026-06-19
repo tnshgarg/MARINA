@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  *
  * URLs are read from env so the build deployment can swap in the latest
  * artifact without a code change. Defaults point at the canonical
- * download host (marina.in/download/...) for documentation / preview
+ * download host (marina.team/download/...) for documentation / preview
  * builds.
  */
 export default function DownloadPage() {
@@ -40,11 +40,10 @@ export default function DownloadPage() {
         </h1>
         <p className="mt-5 max-w-2xl mx-auto text-[15px] md:text-[16px] text-[var(--m-ink-2)] leading-relaxed">
           A tiny menubar app. Punch in, mark work as done, log breaks, and let MARINA
-          watch focus time — without ever filling a status form. Mac and Windows, signed and
-          notarised.
+          watch focus time — without ever filling a status form.
         </p>
         <p className="mt-3 text-[11.5px] text-[var(--m-ink-4)]">
-          Released {releasedAt} · About 38 MB · Auto-updates after first install.
+          Released {releasedAt} · macOS 13+ and Windows 10/11 · Free — no account needed to install.
         </p>
       </section>
 
@@ -56,15 +55,15 @@ export default function DownloadPage() {
             title="MARINA for Mac"
             sub="Apple Silicon (M-series) + Intel · Universal 2 binary"
             requirements={[
-              'macOS 13 Ventura or later',
-              'About 80 MB of disk space',
-              'Accessibility + Screen Recording permission (set on first run)',
+              'macOS 13 Ventura or later · Apple Silicon or Intel',
+              'About 250 MB of disk space',
+              'Accessibility permission (macOS asks on first run)',
             ]}
             steps={[
-              'Download the DMG and open it.',
-              'Drag MARINA.app to your Applications folder.',
-              'Open it once from Applications — Gatekeeper will ask to confirm.',
-              'Click the leaf icon in the menubar → Pair this device, then enter the 6-digit code from Settings → Devices on the web app.',
+              'Download the DMG and drag Marina to your Applications folder.',
+              "First launch: right-click Marina → Open, then click Open to confirm (it's an independent build, so macOS asks once).",
+              'If macOS says the app is "damaged", open Terminal and run  xattr -cr /Applications/Marina.app  then open it again.',
+              'Click the leaf icon in the menubar → Pair this device, and enter the 6-digit code from Settings → Devices on the web app.',
             ]}
             url={macUrl}
             buttonLabel="Download for Mac"
@@ -75,22 +74,22 @@ export default function DownloadPage() {
           {/* Windows */}
           <PlatformCard
             tone="clay"
-            title="MARINA for Windows"
-            sub="Windows 10 / 11 · x64 + ARM64"
+            title="MARINA for Windows (beta)"
+            sub="Windows 10 / 11 · x64"
             requirements={[
-              'Windows 10 (1809) or Windows 11',
-              'About 90 MB of disk space',
-              '.NET runtime auto-installed by the installer if missing',
+              'Windows 10 (1809) or Windows 11 · 64-bit',
+              'About 120 MB of disk space',
+              'In active testing — expect rough edges',
             ]}
             steps={[
               'Download MARINA-Setup.exe and run it.',
-              'If SmartScreen pops up, click "More info" → Run anyway. We\'re signed but still building reputation with Microsoft.',
+              'Windows SmartScreen will warn (we\'re not code-signed yet): click "More info" → "Run anyway".',
               'MARINA starts in your system tray (bottom-right, click the ^ to expand).',
               'Right-click the leaf icon → Pair this device, then enter the 6-digit code from Settings → Devices on the web app.',
             ]}
             url={winUrl}
             buttonLabel="Download for Windows"
-            buttonHint=".exe · Signed installer · x64 + ARM64"
+            buttonHint=".exe · x64 · Windows 10/11"
             icon={<WindowsIcon />}
           />
         </div>
@@ -106,7 +105,7 @@ export default function DownloadPage() {
           />
           <Pillar
             label="Cross-platform"
-            body="Mac and Windows feel identical — same shortcuts, same break dialog, same Done log."
+            body="Mac today, with Windows in beta — same shortcuts, same break dialog, same Done log."
           />
         </section>
 

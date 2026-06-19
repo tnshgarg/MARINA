@@ -89,7 +89,7 @@ export function SetupGuideCard() {
                 <button
                   type="button"
                   onClick={() => {
-                    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.marina.in'
+                    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://marina.team'
                     void navigator.clipboard?.writeText(`${origin}/download`)
                   }}
                   className="text-[12px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] font-medium"

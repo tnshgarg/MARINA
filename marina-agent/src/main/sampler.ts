@@ -77,6 +77,11 @@ function scheduleFlush(): void {
   }, intervalMs)
 }
 
+// Counts consecutive ticks where active-win returned nothing while the user was
+// active — the signature of a missing/incompatible native binary (e.g. a Windows
+// build packaged on macOS). Surfaced to the UI so the failure isn't silent.
+let activeWinMisses = 0
+
 async function tick(): Promise<void> {
   const state = bus.get()
   if (state.paused) return // belt-and-suspenders: paused agents shouldn't even tick
@@ -93,6 +98,18 @@ async function tick(): Promise<void> {
     // that to the UI but keep the agent alive — heartbeat still runs.
     bus.patch({ lastError: `active-win: ${(err as Error).message}` })
     result = null
+  }
+
+  // active-win can return null (no throw) when the platform native binary is
+  // missing/incompatible — the "everything is Unknown" failure. Flag it after a
+  // sustained run of misses while the user is clearly active; reset on success.
+  if (result?.owner?.name) {
+    activeWinMisses = 0
+  } else if (idleSeconds < sampleInterval) {
+    activeWinMisses += 1
+    if (activeWinMisses === 12) {
+      bus.patch({ lastError: "Couldn't read the active window on this device — app activity may not be tracked." })
+    }
   }
 
   const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown'
