@@ -212,6 +212,14 @@ const NAV: NavGroup[] = [
     href: (o) => `/scrum/${o}`,
     openInNewTab: true,
   },
+  {
+    key: "help",
+    label: "Help & docs",
+    icon: <HelpIcon />,
+    matches: /^\/help(\/|$)/,
+    href: () => `/help`,
+    openInNewTab: true,
+  },
   // Settings — link target depends on whether the viewer can manage the
   // workspace. Plain members + managers without workspace caps land on
   // their PERSONAL /settings (agent pairing, profile) so they don't bounce.
@@ -972,6 +980,15 @@ function SparkIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3Z" strokeLinejoin="round" />
       <path d="M18 14l.7 2L21 16.7l-2.3.7L18 20l-.7-2.3L15 16.7l2.3-.7L18 14Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function HelpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx={12} cy={12} r={9} />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7" strokeLinecap="round" />
+      <circle cx={12} cy={16.5} r={0.6} fill="currentColor" stroke="none" />
     </svg>
   );
 }

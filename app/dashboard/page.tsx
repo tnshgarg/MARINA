@@ -16,6 +16,7 @@ import { getTodayStandup } from '@/lib/standups/save'
 import { StandupCard } from '@/components/standup-card'
 import { GiveRecognition } from '@/components/give-recognition'
 import { AnnouncementsFeed } from '@/components/announcements-feed'
+import { EmployeeOnboarding, type OnboardingStep } from '@/components/employee-onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -149,6 +150,50 @@ export default async function DashboardPage() {
     .limit(1)
   const hasAnyShift = anyShift.length > 0
 
+  // Employee setup checklist (dashboard onboarding). Each step auto-completes
+  // from real state: a paired agent, a resolved Slack link, a GitHub username.
+  const pairedAgent = primaryOrgId
+    ? await db
+        .select({ id: schema.agentTokens.id })
+        .from(schema.agentTokens)
+        .where(and(eq(schema.agentTokens.userId, session.appUserId), isNull(schema.agentTokens.revokedAt)))
+        .limit(1)
+    : []
+  const agentPaired = pairedAgent.length > 0
+  const githubLinked = me.githubId != null || !!me.githubLogin
+  const onboardingSteps: OnboardingStep[] = []
+  if (primaryOrgId) {
+    onboardingSteps.push({
+      key: 'agent',
+      done: agentPaired,
+      title: 'Set up the Marina desktop agent',
+      body: 'Download and pair the agent so Marina tracks your focus time automatically — no manual logging.',
+      cta: 'Set up',
+      href: '/setup-guide',
+    })
+    if (primaryOrg?.org?.slackBotToken) {
+      onboardingSteps.push({
+        key: 'slack',
+        done: !!primaryOrg.slackUserId,
+        title: 'Use Marina in Slack',
+        body: 'Open the Marina app in Slack and run /marina status once — then punch in, log work and post standups without leaving Slack.',
+        cta: 'Learn how',
+        href: '/help/marina-in-slack',
+      })
+    }
+    const disc = (primaryOrg as { discipline?: string } | null)?.discipline
+    if (disc === 'engineering' && !githubLinked) {
+      onboardingSteps.push({
+        key: 'github',
+        done: false,
+        title: 'Add your GitHub username',
+        body: 'So Marina can attribute your commits, PRs and reviews to you automatically.',
+        cta: 'Add',
+        href: '/settings',
+      })
+    }
+  }
+
   const friendlyName = me.name ?? character?.name ?? me.login ?? session.login
 
   return (
@@ -192,6 +237,12 @@ export default async function DashboardPage() {
               My data
             </Link>
             <Link
+              href="/help"
+              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
+            >
+              Help
+            </Link>
+            <Link
               href="/settings"
               className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1"
             >
@@ -216,6 +267,8 @@ export default async function DashboardPage() {
           </nav>
         </div>
       </header>
+
+      <EmployeeOnboarding steps={onboardingSteps} />
 
       {wellbeing && wellbeing.flags.length > 0 && wellbeing.level !== 'ok' ? (
         <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 space-y-3">
