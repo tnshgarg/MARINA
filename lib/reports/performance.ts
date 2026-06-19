@@ -1,6 +1,7 @@
 import { and, eq, gte, lt, lte, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { generateWithFallback } from '@/lib/ai/registry'
+import { canSpend, recordSpend, estimateCostCents } from '@/lib/ai/budget'
 
 /**
  * Performance-report data layer. Pulls every signal we have for one
@@ -200,6 +201,8 @@ export async function buildPerformanceReport({
 
   // AI narrative — grounded on the actual data, not generic praise.
   const narrative = await synthesiseNarrative({
+    orgId,
+    userId,
     employee: { name: user.name ?? `@${user.login}`, discipline: membership.discipline, jobTitle: membership.jobTitle },
     range: { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10), workingDays },
     totals,
@@ -231,6 +234,8 @@ export async function buildPerformanceReport({
 }
 
 async function synthesiseNarrative(input: {
+  orgId: number
+  userId: number
   employee: { name: string; discipline: string; jobTitle: string | null }
   range: { start: string; end: string; workingDays: number }
   totals: PerformanceReport['totals']
@@ -254,6 +259,11 @@ async function synthesiseNarrative(input: {
           ? 'Schedule a 1:1 to understand what is blocking sustained focus.'
           : 'Solid steady performance.',
   }
+
+  // Budget-gate the AI call (manager-triggered, but uncapped before — audit T3).
+  // Fall back to the rules-based narrative when the org is over its AI budget.
+  const decision = await canSpend(input.orgId, 'narrative')
+  if (!decision.allowed) return fallback
 
   try {
     const prompt = [
@@ -293,6 +303,18 @@ Use only what's above. If you don't have evidence for a section, return an empty
       },
     ]
     const out = await generateWithFallback(prompt, { temperature: 0.4, maxTokens: 600 })
+    const inTok = Math.ceil(JSON.stringify(prompt).length / 4)
+    const outTok = Math.ceil(out.text.length / 4)
+    recordSpend({
+      orgId: input.orgId,
+      userId: input.userId,
+      kind: 'narrative',
+      provider: out.provider,
+      model: out.model,
+      inputTokens: inTok,
+      outputTokens: outTok,
+      costCents: estimateCostCents({ kind: 'narrative', provider: out.provider, model: out.model, inputTokens: inTok, outputTokens: outTok }),
+    })
     const json = JSON.parse(out.text.replace(/^```json\s*|\s*```$/g, ''))
     return {
       summary: typeof json.summary === 'string' ? json.summary : fallback.summary,

@@ -259,7 +259,7 @@ export function renderManagerDailyEmail(d: ManagerDailyDigest): { subject: strin
           '',
         ]
       : []),
-    `Open MARINA: ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.marina.in'}`,
+    `Open MARINA: ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.team'}`,
     '',
     '— MARINA',
   ].join('\n')
@@ -308,7 +308,7 @@ export function renderManagerDailyEmail(d: ManagerDailyDigest): { subject: strin
   ` : ''}
 
   <p style="margin-top: 28px; font-size: 12px; color: #9ca3af;">
-    <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.marina.in'}" style="color: #3f6b54; text-decoration: none;">Open MARINA →</a>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.team'}" style="color: #3f6b54; text-decoration: none;">Open MARINA →</a>
   </p>
 </body></html>`
 

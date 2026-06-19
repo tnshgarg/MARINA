@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const org = await resolveOrgByTeam(teamId)
   if (!org) {
     return ack(
-      `MARINA isn't connected to this Slack workspace yet. An owner can connect at ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.in'}/org/<id>/settings/integrations.`,
+      `MARINA isn't connected to this Slack workspace yet. An owner can connect at ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.team'}/org/<id>/settings/integrations.`,
     )
   }
 

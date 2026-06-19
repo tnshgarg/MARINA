@@ -109,7 +109,7 @@ export default function SetupGuidePage() {
                   On Mac
                 </p>
                 <ol className="mt-1.5 text-[12.5px] text-[var(--m-ink)] space-y-1 list-decimal pl-5 leading-snug">
-                  <li>Download <strong>Marina.dmg</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
+                  <li>Download <strong>Marina.dmg</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.team/download</code>.</li>
                   <li>Open the DMG and drag <strong>Marina</strong> into Applications.</li>
                   <li>Launch Marina from Applications. macOS blocks it the first time — follow <strong>“If macOS says it can&apos;t verify Marina”</strong> just below.</li>
                   <li>Grant <strong>Accessibility</strong> (System Settings → Privacy &amp; Security → Accessibility) so it can tell active from idle.</li>
@@ -121,7 +121,7 @@ export default function SetupGuidePage() {
                   On Windows
                 </p>
                 <ol className="mt-1.5 text-[12.5px] text-[var(--m-ink)] space-y-1 list-decimal pl-5 leading-snug">
-                  <li>Download <strong>Marina-Setup.exe</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.in/download</code>.</li>
+                  <li>Download <strong>Marina-Setup.exe</strong> from <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.team/download</code>.</li>
                   <li>Run the installer. If SmartScreen warns you, click <strong>More info → Run anyway</strong>.</li>
                   <li>Marina starts in the system tray (bottom right, click <strong>^</strong> to expand) and opens its <strong>welcome window</strong>.</li>
                   <li>Pin it to the tray: right-click the tray → Taskbar settings → toggle Marina on.</li>
@@ -159,6 +159,12 @@ export default function SetupGuidePage() {
               On macOS Sonoma and earlier you can instead <strong>right-click Marina in Applications →
               Open → Open</strong>. You only do this once — after that it launches normally.
             </p>
+            <p className="mt-2 text-[12px] text-[var(--m-ink-3)] leading-relaxed">
+              Still see <strong>“Marina is damaged and can&apos;t be opened”</strong>? That&apos;s the download
+              quarantine flag. Open <strong>Terminal</strong>, paste{' '}
+              <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">xattr -cr /Applications/Marina.app</code>,
+              press Return, then open Marina again.
+            </p>
           </section>
 
           <Section title="Step 3 — Pair the agent (1 min)">
@@ -167,7 +173,7 @@ export default function SetupGuidePage() {
               your privacy, and connecting this computer. At the <strong>“Connect this Mac”</strong> step:
             </p>
             <ol className="mt-2 text-[13.5px] text-[var(--m-ink)] space-y-1.5 list-decimal pl-5 leading-relaxed">
-              <li>On the web at <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">app.marina.in</code>, open <strong>Settings → Pair a device</strong> and click <strong>Generate code</strong>.</li>
+              <li>On the web at <code className="font-mono text-[11.5px] bg-[var(--m-bg-soft)] px-1 rounded">marina.team</code>, open <strong>Settings → Pair a device</strong> and click <strong>Generate code</strong>.</li>
               <li>Type the <strong>8-character code</strong> into the welcome window (it&apos;s valid for 10 minutes).</li>
               <li>Click <strong>Pair device</strong>. You&apos;ll see <strong>“Welcome, [your name]”</strong> and a quick tour of the menu-bar actions.</li>
             </ol>
