@@ -278,14 +278,17 @@ export async function POST(req: Request) {
     }
 
     case 'out': {
-      const me = await findCallerMembership()
-      if (!me) return ack(notLinked)
+      // The trigger_id expires in ~3s, so open the modal on the fastest possible
+      // path: skip findCallerMembership here (it can make a slow users.info call)
+      // — the modal submit (modal_punchout) re-validates the actor anyway.
       const install = await getSlackInstall(org.id)
       if (install && triggerId) {
-        await openModal(install, triggerId, punchOutModal(org.id))
+        const r = await openModal(install, triggerId, punchOutModal(org.id))
+        if (!r.ok) return ack('That took too long to open — try `/marina out` again.')
         return new NextResponse(null, { status: 200 })
       }
-      return ack('Open the Marina app to punch out — it needs a quick work summary.')
+      const me = await findCallerMembership()
+      return ack(me ? 'Open the Marina app to punch out — it needs a quick work summary.' : notLinked)
     }
 
     case 'leave': {

@@ -10,7 +10,7 @@ import { createDeliverable } from '@/lib/deliverables/create'
 import { requestLeave } from '@/lib/leave/request'
 import { createBreak } from '@/lib/breaks/create'
 import { endActiveBreak } from '@/lib/breaks/end'
-import { punchIn, punchOut } from '@/lib/shifts/punch'
+import { punchIn, punchOutDeferred } from '@/lib/shifts/punch'
 import { applyLeaveDecision } from '@/lib/leave/decide'
 import { saveStandup } from '@/lib/standups/save'
 import { and, eq, isNull, ne } from 'drizzle-orm'
@@ -218,7 +218,9 @@ async function handleViewSubmission(
       return clear()
     }
     case 'modal_punchout': {
-      const r = await punchOut(actor.user.id, text('summary'))
+      // Record + close the shift fast; verification runs in the background so
+      // the modal submit always acks inside Slack's ~3s window.
+      const r = await punchOutDeferred(actor.user.id, text('summary'))
       if (!r.ok) return fieldErrors({ summary: r.error })
       refreshHome(teamId, slackUserId)
       return clear()
