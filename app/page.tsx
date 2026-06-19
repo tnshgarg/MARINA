@@ -11,6 +11,8 @@ import { HeroPreview } from "@/components/hero-preview";
 import LandingClient from "./landing-client";
 import { LandingFaq } from "@/components/landing-faq";
 import { LandingStructuredData } from "@/components/landing-structured-data";
+import { LandingTimeSaved } from "@/components/landing-time-saved";
+import { LandingHr } from "@/components/landing-hr";
 import {
   AskMarinaMockup,
   AiBriefMockup,
@@ -89,7 +91,9 @@ export default async function Home({
 
       <ProofStrip />
       <PainSection />
+      <LandingTimeSaved />
       <ValueProps />
+      <LandingHr />
       <ProductSection />
       <ShowcaseSection />
       <Workflows />
@@ -203,24 +207,25 @@ function Hero({
                 <span className="absolute inset-0 rounded-full bg-[var(--m-accent)]/40 m-slow-pulse" />
                 <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-[var(--m-accent)]" />
               </span>
-              For modern remote teams
+              For managers &amp; HR teams
             </p>
           </Reveal>
 
           <Reveal delay={80}>
             <h1 className="font-display text-[44px] md:text-[68px] leading-[1.02] tracking-tight text-[var(--m-ink)]">
-              Stop chasing status.
+              The busywork of managing
               <br />
-              <span className="italic brand-gradient-text">Start leading.</span>
+              people, <span className="italic brand-gradient-text">handled.</span>
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
             <p className="mt-6 max-w-xl text-[17px] md:text-[19px] leading-snug text-[var(--m-ink-2)] font-medium">
-              Marina is the AI chief of staff for remote teams.
+              Marina is the AI chief of staff for managers and HR.
               <span className="block mt-1.5 text-[var(--m-ink-3)] font-normal text-[15px] md:text-[16px]">
-                One 4-minute morning brief instead of ten status pings &mdash; blockers caught, standups run, reviews
-                written. You lead; Marina handles the busywork.
+                Status-chasing, standups, attendance, leave and reviews &mdash; even every birthday and 1:1 reminder.
+                Automated. Your team gets <span className="font-semibold text-[var(--m-ink-2)]">5+ hours back</span>,
+                every week.
               </span>
             </p>
           </Reveal>
@@ -336,7 +341,7 @@ function ProofStrip() {
             The painkiller, by the numbers
           </p>
           <h2 className="font-display text-[26px] md:text-[34px] leading-tight tracking-tight text-center max-w-3xl mx-auto">
-            What managers get back when MARINA goes live.
+            What managers &amp; HR get back when MARINA goes live.
           </h2>
         </Reveal>
 
