@@ -46,6 +46,19 @@ export async function getTodayStandup(
   return row ? { yesterday: row.yesterday, today: row.today, blockers: row.blockers } : null
 }
 
+/** Block Kit rendering of a standup for a channel post (shared by Slack + web). */
+export function standupBlocks(
+  name: string,
+  s: { yesterday: string; today: string; blockers: string },
+): unknown[] {
+  return [
+    { type: 'section', text: { type: 'mrkdwn', text: `*${name}'s standup*` } },
+    { type: 'section', text: { type: 'mrkdwn', text: `*Yesterday*\n${s.yesterday || '—'}` } },
+    { type: 'section', text: { type: 'mrkdwn', text: `*Today*\n${s.today || '—'}` } },
+    ...(s.blockers ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Blockers*\n${s.blockers}` } }] : []),
+  ]
+}
+
 /** Set of userIds in the org who have already submitted a standup today. */
 export async function usersWithStandupToday(orgId: number): Promise<Set<number>> {
   const rows = await db

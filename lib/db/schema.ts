@@ -1321,6 +1321,54 @@ export const standups = pgTable(
 )
 export type Standup = typeof standups.$inferSelect
 export type NewStandup = typeof standups.$inferInsert
+
+/**
+ * Peer recognition / kudos. One teammate thanks another; Marina posts a card to
+ * the announcements channel (#all-marina) and the org sees a Recognitions feed.
+ * Filed from Slack (modal) or the web — both write here.
+ */
+export const recognitions = pgTable(
+  'recognitions',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    fromUserId: integer('from_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    toUserId: integer('to_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    message: text('message').notNull().default(''),
+    source: text('source').notNull().default('web'), // 'slack' | 'web'
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('recognitions_org_idx').on(t.orgId, t.createdAt),
+    toIdx: index('recognitions_to_idx').on(t.toUserId),
+  }),
+)
+export type Recognition = typeof recognitions.$inferSelect
+export type NewRecognition = typeof recognitions.$inferInsert
+
+/**
+ * Org-wide team announcements written by a manager/admin (distinct from the
+ * platform-level `announcements` banner above, which is founder-authored and
+ * global). Persisted for a web feed and broadcast by Marina to the org's
+ * announcements channel (#all-marina).
+ */
+export const orgAnnouncements = pgTable(
+  'org_announcements',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    authorUserId: integer('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    body: text('body').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('org_announcements_org_idx').on(t.orgId, t.createdAt),
+  }),
+)
+export type OrgAnnouncement = typeof orgAnnouncements.$inferSelect
+export type NewOrgAnnouncement = typeof orgAnnouncements.$inferInsert
+
 export type Invite = typeof invites.$inferSelect
 export type NewInvite = typeof invites.$inferInsert
 export type UserSettings = typeof userSettings.$inferSelect

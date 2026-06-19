@@ -13,6 +13,7 @@ import {
   punchOutModal,
   blockerModal,
   standupModal,
+  kudosModal,
 } from '../lib/slack/views'
 
 let pass = 0
@@ -60,6 +61,7 @@ const modals: Array<[string, any]> = [
   ['punchout', punchOutModal(16, 120)],
   ['blocker', blockerModal(16)],
   ['standup', standupModal(16, { yesterday: 'shipped the thing', blockers: '' })],
+  ['kudos', kudosModal(16)],
 ]
 for (const [name, v] of modals) {
   check(`${name} modal is valid`, validView(v) && v.type === 'modal')
@@ -76,6 +78,7 @@ check(
   })(),
 )
 check('blocker modal omits the teammate picker when no members', !JSON.stringify(blockerModal(16)).includes('waiting_on_user'))
+check('kudos modal has a users_select', JSON.stringify(kudosModal(16)).includes('users_select'))
 check('deliverable enforces title min_length 10', JSON.stringify(deliverableModal(16)).includes('"min_length":10'))
 check('punchout enforces summary min_length 20', JSON.stringify(punchOutModal(16)).includes('"min_length":20'))
 check('leave has two datepickers', (JSON.stringify(leaveModal(16)).match(/datepicker/g) || []).length === 2)

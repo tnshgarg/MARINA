@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { afterResponse } from '@/lib/after'
 import { getSlackInstall, openModal, sendSlackChannel, type SlackInstall } from '@/lib/slack/client'
-import { resolveSlackActor, type SlackActor } from '@/lib/slack/identity'
+import { resolveSlackActor, resolveMembershipBySlack, type SlackActor } from '@/lib/slack/identity'
 import { publishAppHomeFor } from '@/lib/slack/home'
-import { deliverableModal, leaveModal, punchOutModal, blockerModal, standupModal } from '@/lib/slack/views'
+import { deliverableModal, leaveModal, punchOutModal, blockerModal, standupModal, kudosModal } from '@/lib/slack/views'
 import { buildStandupPrefill } from '@/lib/brief/standup'
+import { createRecognition } from '@/lib/recognitions/create'
 import { createDeliverable } from '@/lib/deliverables/create'
 import { requestLeave } from '@/lib/leave/request'
 import { createBreak } from '@/lib/breaks/create'
@@ -136,6 +137,9 @@ async function handleBlockActions(
       await openModal(install, triggerId, standupModal(orgId, prefill))
       break
     }
+    case 'open_kudos_modal':
+      await openModal(install, triggerId, kudosModal(orgId))
+      break
     case 'punch_in':
       await punchIn(actor.user.id, orgId)
       refreshHome(teamId, slackUserId)
@@ -230,6 +234,23 @@ async function handleViewSubmission(
         waitingOnUserId: Number.isInteger(waitingOnUserId) ? waitingOnUserId : null,
         waitingOnExternal: text('waiting_on_external') || null,
       })
+      refreshHome(teamId, slackUserId)
+      return clear()
+    }
+    case 'modal_kudos': {
+      const toField = values?.['to_user']?.['value'] as { selected_user?: string } | undefined
+      const toSlackId = toField?.selected_user
+      if (!toSlackId) return fieldErrors({ to_user: 'Pick a teammate.' })
+      const toM = await resolveMembershipBySlack(orgId, toSlackId)
+      if (!toM) return fieldErrors({ to_user: "I couldn't find that teammate in MARINA." })
+      const r = await createRecognition({
+        orgId,
+        fromUserId: actor.user.id,
+        toUserId: toM.userId,
+        message: text('message'),
+        source: 'slack',
+      })
+      if (!r.ok) return fieldErrors({ message: r.error })
       refreshHome(teamId, slackUserId)
       return clear()
     }
