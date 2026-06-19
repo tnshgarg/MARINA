@@ -3,13 +3,17 @@ import { afterResponse } from '@/lib/after'
 import { getSlackInstall, openModal, sendSlackChannel, type SlackInstall } from '@/lib/slack/client'
 import { resolveSlackActor, type SlackActor } from '@/lib/slack/identity'
 import { publishAppHomeFor } from '@/lib/slack/home'
-import { deliverableModal, leaveModal, punchOutModal, blockerModal } from '@/lib/slack/views'
+import { deliverableModal, leaveModal, punchOutModal, blockerModal, standupModal } from '@/lib/slack/views'
+import { buildStandupPrefill } from '@/lib/brief/standup'
 import { createDeliverable } from '@/lib/deliverables/create'
 import { requestLeave } from '@/lib/leave/request'
 import { createBreak } from '@/lib/breaks/create'
 import { endActiveBreak } from '@/lib/breaks/end'
 import { punchIn, punchOut } from '@/lib/shifts/punch'
 import { applyLeaveDecision } from '@/lib/leave/decide'
+import { saveStandup } from '@/lib/standups/save'
+import { and, eq, isNull, ne } from 'drizzle-orm'
+import { db, schema } from '@/lib/db/client'
 
 /**
  * Minimal shape of the Slack interaction payloads we read. (Slack sends much
@@ -105,12 +109,33 @@ async function handleBlockActions(
     case 'open_leave_modal':
       await openModal(install, triggerId, leaveModal(orgId))
       break
-    case 'open_blocker_modal':
-      await openModal(install, triggerId, blockerModal(orgId))
+    case 'open_blocker_modal': {
+      const members = await db
+        .select({ userId: schema.memberships.userId, name: schema.users.name, login: schema.users.login })
+        .from(schema.memberships)
+        .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
+        .where(
+          and(
+            eq(schema.memberships.orgId, orgId),
+            isNull(schema.memberships.endedAt),
+            ne(schema.memberships.userId, actor.user.id),
+          ),
+        )
+      await openModal(
+        install,
+        triggerId,
+        blockerModal(orgId, members.map((m) => ({ userId: m.userId, name: m.name ?? `@${m.login}` }))),
+      )
       break
+    }
     case 'open_punchout_modal':
       await openModal(install, triggerId, punchOutModal(orgId))
       break
+    case 'open_standup_modal': {
+      const prefill = await buildStandupPrefill(orgId, actor.user.id)
+      await openModal(install, triggerId, standupModal(orgId, prefill))
+      break
+    }
     case 'punch_in':
       await punchIn(actor.user.id, orgId)
       refreshHome(teamId, slackUserId)
@@ -195,11 +220,14 @@ async function handleViewSubmission(
       return clear()
     }
     case 'modal_blocker': {
+      const waitingRaw = selected('waiting_on_user')
+      const waitingOnUserId = waitingRaw ? Number(waitingRaw) : null
       await createBreak({
         userId: actor.user.id,
         orgId,
         category: 'blocked',
         reason: text('reason'),
+        waitingOnUserId: Number.isInteger(waitingOnUserId) ? waitingOnUserId : null,
         waitingOnExternal: text('waiting_on_external') || null,
       })
       refreshHome(teamId, slackUserId)
@@ -209,34 +237,34 @@ async function handleViewSubmission(
       const yesterday = text('yesterday')
       const today = text('today')
       const blockers = text('blockers')
+      // Persist first — the standup shows in the web Scrum page regardless of
+      // whether a Slack channel is configured.
+      await saveStandup({ orgId, userId: actor.user.id, yesterday, today, blockers, source: 'slack' })
       const install = await getSlackInstall(orgId)
       if (!install) return clear()
-      // Post to the org's default channel, else the channel the command was run
-      // from (skip DMs — a standup in a private DM helps no one).
       let invokedChannel = ''
       try {
         invokedChannel = (JSON.parse(view?.private_metadata ?? '{}').channelId as string) ?? ''
       } catch {
         /* ignore */
       }
+      // Standups post to the dedicated scrum channel, falling back to the
+      // default channel, then the channel the command was run from.
       const target =
-        install.defaultChannelId ?? (invokedChannel && !invokedChannel.startsWith('D') ? invokedChannel : null)
-      if (!target) {
-        return fieldErrors({
-          today: 'Run /marina standup in a channel, or set a default channel in Settings → Integrations → Slack.',
-        })
+        install.scrumChannelId ??
+        install.defaultChannelId ??
+        (invokedChannel && !invokedChannel.startsWith('D') ? invokedChannel : null)
+      if (target) {
+        const name = actor.user.name ?? `@${actor.user.login}`
+        const blocks: unknown[] = [
+          { type: 'section', text: { type: 'mrkdwn', text: `*${name}'s standup*` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `*Yesterday*\n${yesterday || '—'}` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `*Today*\n${today || '—'}` } },
+          ...(blockers ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Blockers*\n${blockers}` } }] : []),
+        ]
+        await sendSlackChannel(install, { text: `${name}'s standup`, blocks, channel: target })
       }
-      const name = actor.user.name ?? `@${actor.user.login}`
-      const blocks: unknown[] = [
-        { type: 'section', text: { type: 'mrkdwn', text: `*${name}'s standup*` } },
-        { type: 'section', text: { type: 'mrkdwn', text: `*Yesterday*\n${yesterday || '—'}` } },
-        { type: 'section', text: { type: 'mrkdwn', text: `*Today*\n${today || '—'}` } },
-        ...(blockers ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Blockers*\n${blockers}` } }] : []),
-      ]
-      const res = await sendSlackChannel(install, { text: `${name}'s standup`, blocks, channel: target })
-      if (!res.ok) {
-        return fieldErrors({ today: "I couldn't post there — make sure Marina is in that channel." })
-      }
+      refreshHome(teamId, slackUserId)
       return clear()
     }
     default:

@@ -231,6 +231,32 @@ export async function applyPending(): Promise<void> {
   `)
   console.log('  · 0012 review_cycles OK')
 
+  // 0016 — Slack scrum channel + stored standups (the Slack /marina standup
+  // writes here and the web Scrum page reads "what they're doing today").
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "slack_scrum_channel_id" text`)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "standups" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "day" date NOT NULL,
+      "yesterday" text NOT NULL DEFAULT '',
+      "today" text NOT NULL DEFAULT '',
+      "blockers" text NOT NULL DEFAULT '',
+      "source" text NOT NULL DEFAULT 'slack',
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS "standups_user_day_idx"
+    ON "standups" USING btree ("user_id","day")
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "standups_org_day_idx"
+    ON "standups" USING btree ("org_id","day")
+  `)
+  console.log('  · 0016 standups + orgs.slack_scrum_channel_id OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

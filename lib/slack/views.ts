@@ -229,7 +229,7 @@ export function punchOutModal(orgId: number, sinceMin?: number): SlackView {
   }
 }
 
-export function blockerModal(orgId: number): SlackView {
+export function blockerModal(orgId: number, members?: { userId: number; name: string }[]): SlackView {
   return {
     type: 'modal',
     callback_id: 'modal_blocker',
@@ -247,9 +247,27 @@ export function blockerModal(orgId: number): SlackView {
           placeholder: { type: 'plain_text', text: 'e.g. Waiting on staging creds to deploy' },
         }),
       ),
+      ...(members && members.length
+        ? [
+            input(
+              'waiting_on_user',
+              'Waiting on a teammate (optional)',
+              {
+                type: 'static_select',
+                action_id: 'value',
+                placeholder: { type: 'plain_text', text: 'Pick a teammate' },
+                options: members.slice(0, 100).map((m) => ({
+                  text: { type: 'plain_text', text: m.name.slice(0, 75) },
+                  value: String(m.userId),
+                })),
+              },
+              true,
+            ),
+          ]
+        : []),
       input(
         'waiting_on_external',
-        'Waiting on (optional)',
+        'Or someone external (optional)',
         textInput({ placeholder: { type: 'plain_text', text: 'e.g. Stripe support, the design team' } }),
         true,
       ),

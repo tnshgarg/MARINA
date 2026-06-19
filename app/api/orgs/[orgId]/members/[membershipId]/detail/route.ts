@@ -5,6 +5,7 @@ import { db, schema } from '@/lib/db/client'
 import { HttpError, ensureScopeMembership, requireScope } from '@/lib/auth/guards'
 import { membershipWindow } from '@/lib/auth/tenant-scope'
 import { buildMemberWork } from '@/lib/people/work'
+import { getTodayStandup } from '@/lib/standups/save'
 
 export const runtime = 'nodejs'
 
@@ -785,6 +786,10 @@ export async function GET(
     // received, commit themes, a blocked signal — over the last 14 days.
     const work = await buildMemberWork(orgId, user.id, 14)
 
+    // Today's self-reported standup (yesterday / today / blockers) — what the
+    // person told the team they'd work on. Powers the Scrum-mode "Today" panel.
+    const standupToday = await getTodayStandup(user.id)
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -878,6 +883,8 @@ export async function GET(
         endedAt: b.endedAt?.toISOString() ?? null,
         waitingOnExternal: b.waitingOnExternal,
       })),
+      // Today's standup (what they said they'd work on) for Scrum mode.
+      standupToday,
       // Manager-grade depth: per-day output trend, who they collaborate with,
       // last week of shifts, today's calendar, and a curated risk list.
       last7DaysOutput,
