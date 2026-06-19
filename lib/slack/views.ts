@@ -83,6 +83,7 @@ export function appHomeView(m: AppHomeModel): SlackView {
   if (p.activeShift) els.push(button('Punch out', 'open_punchout_modal', { style: 'danger' }))
   else els.push(button('Punch in', 'punch_in', { style: 'primary' }))
   els.push(button('Log work', 'open_deliverable_modal'))
+  els.push(button('Give kudos', 'open_kudos_modal'))
   els.push(button('Request leave', 'open_leave_modal'))
   if (p.activeBreak?.category === 'blocked') els.push(button('Resolve blocker', 'resolve_blocker', { style: 'primary' }))
   else if (p.activeBreak) els.push(button('End break', 'end_break'))
@@ -270,6 +271,33 @@ export function blockerModal(orgId: number, members?: { userId: number; name: st
         'Or someone external (optional)',
         textInput({ placeholder: { type: 'plain_text', text: 'e.g. Stripe support, the design team' } }),
         true,
+      ),
+    ],
+  }
+}
+
+export function kudosModal(orgId: number): SlackView {
+  return {
+    type: 'modal',
+    callback_id: 'modal_kudos',
+    private_metadata: meta(orgId),
+    title: { type: 'plain_text', text: 'Give kudos' },
+    submit: { type: 'plain_text', text: 'Send' },
+    close: { type: 'plain_text', text: 'Cancel' },
+    blocks: [
+      input('to_user', 'Who deserves a shout-out?', {
+        type: 'users_select',
+        action_id: 'value',
+        placeholder: { type: 'plain_text', text: 'Pick a teammate' },
+      }),
+      input(
+        'message',
+        'What did they do well?',
+        textInput({
+          multiline: true,
+          max_length: 500,
+          placeholder: { type: 'plain_text', text: 'e.g. Saved the release with a clutch hotfix' },
+        }),
       ),
     ],
   }

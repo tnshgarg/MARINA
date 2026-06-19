@@ -11,6 +11,11 @@ import { getCharacter } from '@/lib/characters/data'
 import DashboardClient from './client'
 import { AnnouncementBanner } from '@/components/announcement-banner'
 import { computeSignalsForUser, type PersonSignals } from '@/lib/people/risk'
+import { buildStandupPrefill } from '@/lib/brief/standup'
+import { getTodayStandup } from '@/lib/standups/save'
+import { StandupCard } from '@/components/standup-card'
+import { GiveRecognition } from '@/components/give-recognition'
+import { AnnouncementsFeed } from '@/components/announcements-feed'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +82,63 @@ export default async function DashboardPage() {
   let wellbeing: PersonSignals | null = null
   if (primaryOrgId) {
     wellbeing = await computeSignalsForUser(primaryOrgId, session.appUserId)
+  }
+
+  // Member "team space": file a standup, give kudos, read announcements — the
+  // web half of the Slack standup/recognition/announcement features, scoped to
+  // the member's primary org so it works for the common single-org case.
+  let teamSpace: null | {
+    standupPrefill: { yesterday: string; blockers: string }
+    todayStandup: { yesterday: string; today: string; blockers: string } | null
+    teammates: { userId: number; name: string }[]
+    announcements: {
+      id: number
+      title: string | null
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorLogin: string
+    }[]
+  } = null
+  if (primaryOrgId) {
+    const [prefill, todayStandup, mates, anns] = await Promise.all([
+      buildStandupPrefill(primaryOrgId, session.appUserId),
+      getTodayStandup(session.appUserId),
+      db
+        .select({ userId: schema.memberships.userId, name: schema.users.name, login: schema.users.login })
+        .from(schema.memberships)
+        .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
+        .where(and(eq(schema.memberships.orgId, primaryOrgId), isNull(schema.memberships.endedAt))),
+      db
+        .select({
+          id: schema.orgAnnouncements.id,
+          title: schema.orgAnnouncements.title,
+          body: schema.orgAnnouncements.body,
+          createdAt: schema.orgAnnouncements.createdAt,
+          authorName: schema.users.name,
+          authorLogin: schema.users.login,
+        })
+        .from(schema.orgAnnouncements)
+        .innerJoin(schema.users, eq(schema.orgAnnouncements.authorUserId, schema.users.id))
+        .where(eq(schema.orgAnnouncements.orgId, primaryOrgId))
+        .orderBy(desc(schema.orgAnnouncements.createdAt))
+        .limit(5),
+    ])
+    teamSpace = {
+      standupPrefill: prefill,
+      todayStandup,
+      teammates: mates
+        .filter((m) => m.userId !== session.appUserId)
+        .map((m) => ({ userId: m.userId, name: m.name ?? `@${m.login}` })),
+      announcements: anns.map((a) => ({
+        id: a.id,
+        title: a.title,
+        body: a.body,
+        createdAt: a.createdAt.toISOString(),
+        authorName: a.authorName,
+        authorLogin: a.authorLogin,
+      })),
+    }
   }
 
   // For the welcome tour we need to know if this user has *ever* punched in.
@@ -187,6 +249,16 @@ export default async function DashboardPage() {
               The balance now appears only inside the leave-request flow. */}
         </div>
       ) : null}
+
+      {teamSpace && primaryOrgId && (
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3 lg:grid-cols-2 items-start">
+          <StandupCard orgId={primaryOrgId} prefill={teamSpace.standupPrefill} existing={teamSpace.todayStandup} />
+          <div className="grid gap-3">
+            <GiveRecognition orgId={primaryOrgId} teammates={teamSpace.teammates} />
+            <AnnouncementsFeed items={teamSpace.announcements} />
+          </div>
+        </div>
+      )}
 
       <DashboardClient
         orgId={primaryOrgId}

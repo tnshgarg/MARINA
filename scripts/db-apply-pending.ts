@@ -257,6 +257,34 @@ export async function applyPending(): Promise<void> {
   `)
   console.log('  · 0016 standups + orgs.slack_scrum_channel_id OK')
 
+  // 0017 — Peer recognition (kudos) + org announcements. Both post to the
+  // announcements channel via Marina and have web feeds.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "recognitions" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "from_user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "to_user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "message" text NOT NULL DEFAULT '',
+      "source" text NOT NULL DEFAULT 'web',
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "recognitions_org_idx" ON "recognitions" USING btree ("org_id","created_at")`)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "recognitions_to_idx" ON "recognitions" USING btree ("to_user_id")`)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "org_announcements" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "author_user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "title" text,
+      "body" text NOT NULL DEFAULT '',
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "org_announcements_org_idx" ON "org_announcements" USING btree ("org_id","created_at")`)
+  console.log('  · 0017 recognitions + org_announcements OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'
