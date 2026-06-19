@@ -4,6 +4,7 @@ import { and, eq, isNull, isNotNull, sql } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { getSlackInstall } from '@/lib/slack/client'
 import { HubHeader, Card, EmptyState } from '../ui'
+import ChannelPicker from './channel-picker'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,11 +70,8 @@ export default async function SlackHubPage({ params }: { params: Promise<{ orgId
 
           <div className="grid sm:grid-cols-2 gap-3">
             <Card title="Default channel">
-              {install.defaultChannelId ? (
-                <p className="font-mono text-[13px] text-[var(--m-ink)]">#{install.defaultChannelId}</p>
-              ) : (
-                <p className="text-[12.5px] text-[var(--m-ink-3)] italic">Not set — channel posts are off until you pick one in settings.</p>
-              )}
+              <p className="text-[12px] text-[var(--m-ink-4)] mb-2 leading-snug">Where the brief, standups, celebrations and digest post.</p>
+              <ChannelPicker orgId={orgId} current={install.defaultChannelId} />
             </Card>
             <Card title="Reachable by DM">
               <p className="text-[23px] font-semibold tabular-nums text-[var(--m-clay-deep)] leading-none">
@@ -87,7 +85,7 @@ export default async function SlackHubPage({ params }: { params: Promise<{ orgId
           </div>
 
           <p className="text-[12px] text-[var(--m-ink-4)]">
-            Connect, disconnect, the default channel, and the legacy webhook are all managed under{' '}
+            Connecting, disconnecting, and the legacy webhook are managed under{' '}
             <Link href={`/org/${orgId}/settings/integrations`} className="text-[var(--m-accent)] hover:underline">
               Settings → Integrations
             </Link>

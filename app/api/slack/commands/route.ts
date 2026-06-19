@@ -319,7 +319,7 @@ export async function POST(req: Request) {
       const install = await getSlackInstall(org.id)
       if (install && triggerId) {
         const prefill = await buildStandupPrefill(org.id, me.userId)
-        await openModal(install, triggerId, standupModal(org.id, prefill))
+        await openModal(install, triggerId, standupModal(org.id, prefill, channelId))
         return new NextResponse(null, { status: 200 })
       }
       return ack('Open the Marina app to post your standup.')
