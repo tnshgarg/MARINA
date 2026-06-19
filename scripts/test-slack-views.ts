@@ -29,7 +29,7 @@ const inputs = (v: any) => v.blocks.filter((b: any) => b.type === 'input')
 const personal = {
   activeShift: { id: 1, sinceMin: 95 },
   deliverablesToday: { count: 2, titles: ['Shipped onboarding v2', 'Fixed the webhook retry'] },
-  myBlockers: [{ reason: 'waiting on staging creds', sinceMin: 30 }],
+  activeBreak: { category: 'blocked', reason: 'waiting on staging creds', sinceMin: 30 },
   leave: { type: 'casual', remaining: 8, quota: 12 },
   pendingLeaves: 1,
 }
@@ -40,14 +40,14 @@ const emp = appHomeView({ greeting: 'Good morning, Arjun', personal, isManager: 
 check('employee home is valid', validView(emp))
 check('employee home type=home', (emp as any).type === 'home')
 check('employee home shows Punch out (active shift)', JSON.stringify(emp).includes('open_punchout_modal'))
-check('employee home hides team pulse', !JSON.stringify(emp).includes('Team pulse'))
+check('employee home hides team section', !JSON.stringify(emp).includes('On shift'))
 check('employee home emits NO empty url button', !JSON.stringify(emp).includes('"url":""'))
 
 // Manager home (no shift, has web url)
 const mgr = appHomeView({ greeting: 'Good morning, Tanish', personal: { ...personal, activeShift: null }, isManager: true, pulse, orgId: 16, webUrl: 'https://marina.team/org/16' })
 check('manager home is valid', validView(mgr))
 check('manager home shows Punch in (no shift)', JSON.stringify(mgr).includes('"action_id":"punch_in"'))
-check('manager home shows Team pulse', JSON.stringify(mgr).includes('Team pulse'))
+check('manager home shows Team section', JSON.stringify(mgr).includes('On shift'))
 check('manager home links to dashboard', JSON.stringify(mgr).includes('marina.team/org/16'))
 
 check('link-account home is valid', validView(linkAccountHomeView('https://marina.team')))

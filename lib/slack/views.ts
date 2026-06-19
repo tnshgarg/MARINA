@@ -4,22 +4,27 @@ import type { TeamPulse } from '@/lib/brief/pulse'
 
 /**
  * PURE Block Kit view builders for the Slack surface. No DB, no I/O — given a
- * model, return a Slack view object. This is the Slack adapter's "render"
- * half of the surface abstraction; the Teams adapter will have an Adaptive-Card
- * equivalent over the same models. Kept pure so it's unit-testable.
+ * model, return a Slack view. Design goal: clean and typographic (bold labels,
+ * two-column `fields`, dividers, restrained punctuation) rather than emoji
+ * clutter. This is the Slack adapter's "render" half of the surface
+ * abstraction; the Teams adapter renders the same models as Adaptive Cards.
  */
 type Block = Record<string, unknown>
 export type SlackView = Record<string, unknown>
 
 // ---- block helpers ----
 const section = (text: string): Block => ({ type: 'section', text: { type: 'mrkdwn', text } })
+const fieldsBlock = (pairs: [string, string][]): Block => ({
+  type: 'section',
+  fields: pairs.map(([k, v]) => ({ type: 'mrkdwn', text: `*${k}*\n${v}` })),
+})
 const header = (text: string): Block => ({ type: 'header', text: { type: 'plain_text', text, emoji: true } })
 const context = (text: string): Block => ({ type: 'context', elements: [{ type: 'mrkdwn', text }] })
 const divider = (): Block => ({ type: 'divider' })
 const button = (
   text: string,
   action_id: string,
-  opts: { style?: 'primary' | 'danger'; url?: string; value?: string } = {},
+  opts: { style?: 'primary' | 'danger'; url?: string; value?: string; confirm?: unknown } = {},
 ): Block => ({ type: 'button', text: { type: 'plain_text', text, emoji: true }, action_id, ...opts })
 const actions = (elements: Block[]): Block => ({ type: 'actions', elements })
 const input = (block_id: string, label: string, element: Block, optional = false): Block => ({
@@ -42,6 +47,7 @@ function fmtMin(min: number): string {
   return m ? `${h}h ${m}m` : `${h}h`
 }
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+const leaveLabel = (type: string) => LEAVE_TYPE_LABELS[type as LeaveType] ?? 'Leave'
 
 // ---- App Home ----
 export type AppHomeModel = {
@@ -56,8 +62,9 @@ export type AppHomeModel = {
 function marinaLine(m: AppHomeModel): string {
   const p = m.personal
   const bits: string[] = []
-  bits.push(p.activeShift ? `you're on the clock (${fmtMin(p.activeShift.sinceMin)})` : `you're not punched in yet`)
-  if (p.myBlockers.length) bits.push(`${p.myBlockers.length} thing${p.myBlockers.length > 1 ? 's' : ''} blocking you`)
+  bits.push(p.activeShift ? `you're on the clock (${fmtMin(p.activeShift.sinceMin)})` : `you're off the clock`)
+  if (p.activeBreak?.category === 'blocked') bits.push('blocked on something')
+  else if (p.activeBreak) bits.push('on a break')
   if (p.deliverablesToday.count) bits.push(`${p.deliverablesToday.count} shipped today`)
   if (m.isManager && m.pulse && m.pulse.blocked) bits.push(`${m.pulse.blocked} on the team blocked`)
   return cap(bits.join(' · '))
@@ -68,70 +75,63 @@ export function appHomeView(m: AppHomeModel): SlackView {
   const blocks: Block[] = []
 
   blocks.push(header('Marina'))
-  blocks.push(section(`*${m.greeting}*\n_${marinaLine(m)}_`))
-  blocks.push(context('— Marina, your chief of staff'))
+  blocks.push(section(`*${m.greeting}*\n${marinaLine(m)}`))
+  blocks.push(context('Marina · your chief of staff'))
 
-  // Primary actions — punch in/out swaps on shift state.
-  const actionEls: Block[] = []
-  if (p.activeShift) actionEls.push(button('🔴 Punch out', 'open_punchout_modal', { style: 'danger' }))
-  else actionEls.push(button('🟢 Punch in', 'punch_in', { style: 'primary' }))
-  actionEls.push(button('✅ Log work', 'open_deliverable_modal'))
-  actionEls.push(button('🌴 Request leave', 'open_leave_modal'))
-  actionEls.push(button('🛑 Raise blocker', 'open_blocker_modal'))
-  blocks.push(actions(actionEls))
+  // Contextual primary actions (no emoji — labels carry the meaning).
+  const els: Block[] = []
+  if (p.activeShift) els.push(button('Punch out', 'open_punchout_modal', { style: 'danger' }))
+  else els.push(button('Punch in', 'punch_in', { style: 'primary' }))
+  els.push(button('Log work', 'open_deliverable_modal'))
+  els.push(button('Request leave', 'open_leave_modal'))
+  if (p.activeBreak?.category === 'blocked') els.push(button('Resolve blocker', 'resolve_blocker', { style: 'primary' }))
+  else if (p.activeBreak) els.push(button('End break', 'end_break'))
+  else els.push(button('Raise blocker', 'open_blocker_modal'))
+  blocks.push(actions(els))
 
   blocks.push(divider())
-
-  // Your day
   blocks.push(section('*Your day*'))
-  const shiftLine = p.activeShift
-    ? `:large_green_circle: On the clock — ${fmtMin(p.activeShift.sinceMin)}`
-    : ':white_circle: Not punched in'
-  const delivLine = p.deliverablesToday.count
-    ? `:package: Shipped today: ${p.deliverablesToday.count}\n${p.deliverablesToday.titles.map((t) => `• ${t}`).join('\n')}`
-    : ':package: Nothing logged today yet'
-  blocks.push(section(`${shiftLine}\n${delivLine}`))
-  if (p.myBlockers.length) {
-    blocks.push(
-      section(
-        `:no_entry: *You're blocked on:*\n${p.myBlockers
-          .map((b) => `• ${b.reason} _(${fmtMin(b.sinceMin)})_`)
-          .join('\n')}`,
-      ),
-    )
+  blocks.push(
+    fieldsBlock([
+      ['Status', p.activeShift ? `On the clock · ${fmtMin(p.activeShift.sinceMin)}` : 'Off the clock'],
+      ['Shipped today', String(p.deliverablesToday.count)],
+      [leaveLabel(p.leave?.type ?? 'casual'), p.leave ? `${p.leave.remaining} of ${p.leave.quota} left` : '—'],
+      ['Pending requests', p.pendingLeaves ? String(p.pendingLeaves) : '—'],
+    ]),
+  )
+  if (p.deliverablesToday.titles.length) {
+    blocks.push(context(p.deliverablesToday.titles.map((t) => `• ${t}`).join('   ')))
+  }
+  if (p.activeBreak) {
+    const label = p.activeBreak.category === 'blocked' ? 'Blocked on' : 'On a break'
+    blocks.push(section(`*${label}*\n${p.activeBreak.reason} · ${fmtMin(p.activeBreak.sinceMin)}`))
   }
 
-  // Time off
-  const leaveLine = p.leave
-    ? `:palm_tree: ${LEAVE_TYPE_LABELS[(p.leave.type as LeaveType)] ?? p.leave.type}: *${p.leave.remaining}* of ${p.leave.quota} left`
-    : ':palm_tree: Leave balance unavailable'
-  const pendingLine = p.pendingLeaves ? ` · ${p.pendingLeaves} pending` : ''
-  blocks.push(section(`${leaveLine}${pendingLine}`))
-
-  // Manager pulse
   if (m.isManager && m.pulse) {
     blocks.push(divider())
-    blocks.push(section('*Team pulse*'))
+    blocks.push(section('*Team*'))
     blocks.push(
-      section(
-        `:rocket: ${m.pulse.onShift} on-shift   :no_entry: ${m.pulse.blocked} blocked   :busts_in_silhouette: ${m.pulse.total} total`,
-      ),
+      fieldsBlock([
+        ['On shift', String(m.pulse.onShift)],
+        ['Blocked', String(m.pulse.blocked)],
+        ['Team size', String(m.pulse.total)],
+      ]),
     )
     if (m.pulse.blockers.length) {
       blocks.push(
         section(
-          `*Blocked right now:*\n${m.pulse.blockers
+          m.pulse.blockers
             .slice(0, 5)
-            .map((b) => `• *${b.name}* waiting on ${b.waitingOn} _(${fmtMin(b.sinceMin)})_`)
-            .join('\n')}`,
+            .map((b) => `*${b.name}* — waiting on ${b.waitingOn} · ${fmtMin(b.sinceMin)}`)
+            .join('\n'),
         ),
       )
     }
-    if (m.webUrl) blocks.push(actions([button('Open dashboard ↗', 'open_web', { url: m.webUrl })]))
+    if (m.webUrl) blocks.push(actions([button('Open dashboard', 'open_web', { url: m.webUrl })]))
   }
 
   blocks.push(divider())
-  blocks.push(context('💬 *Ask Marina anything* — just send me a direct message.'))
+  blocks.push(context('Ask Marina anything — just send a direct message.'))
 
   return { type: 'home', blocks }
 }
@@ -145,7 +145,7 @@ export function linkAccountHomeView(webUrl: string): SlackView {
       section(
         "I can't find your MARINA account in this workspace yet. Accept your invite (or ask an admin to add you), then reopen this tab.",
       ),
-      ...(webUrl ? [actions([button('Open MARINA ↗', 'open_web', { url: webUrl })])] : []),
+      ...(webUrl ? [actions([button('Open MARINA', 'open_web', { url: webUrl })])] : []),
     ],
   }
 }

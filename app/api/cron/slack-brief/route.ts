@@ -45,22 +45,23 @@ async function run() {
 
     const blockerLines = pulse.blockers
       .slice(0, 5)
-      .map((b) => `• *${b.name}* waiting on ${b.waitingOn} _(${b.sinceMin}m)_`)
+      .map((b) => `• *${b.name}* — waiting on ${b.waitingOn} · ${b.sinceMin}m`)
       .join('\n')
 
     const blocks: unknown[] = [
-      { type: 'header', text: { type: 'plain_text', text: '☀️ Morning brief', emoji: true } },
+      { type: 'header', text: { type: 'plain_text', text: 'Morning brief', emoji: true } },
       {
         type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `:rocket: ${pulse.onShift} on-shift   :no_entry: ${pulse.blocked} blocked   :busts_in_silhouette: ${pulse.total} total`,
-        },
+        fields: [
+          { type: 'mrkdwn', text: `*On shift*\n${pulse.onShift}` },
+          { type: 'mrkdwn', text: `*Blocked*\n${pulse.blocked}` },
+          { type: 'mrkdwn', text: `*Team*\n${pulse.total}` },
+        ],
       },
       ...(pulse.blockers.length
-        ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Worth clearing first:*\n${blockerLines}` } }]
+        ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Worth clearing first*\n${blockerLines}` } }]
         : []),
-      { type: 'context', elements: [{ type: 'mrkdwn', text: '— Marina · open the Home tab for your day' }] },
+      { type: 'context', elements: [{ type: 'mrkdwn', text: 'Marina · open the Home tab for your day' }] },
     ]
 
     const res = await sendSlackChannel(install, {

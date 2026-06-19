@@ -19,7 +19,17 @@ export async function resolveOrgByTeam(
   teamId: string,
 ): Promise<typeof schema.orgs.$inferSelect | null> {
   if (!teamId) return null
-  return (await db.query.orgs.findFirst({ where: eq(schema.orgs.slackTeamId, teamId) })) ?? null
+  // A Slack workspace should map to exactly ONE org, but a re-install against a
+  // different org can leave a stale DUPLICATE binding behind (the old bot token
+  // dies, yet the row keeps its slackTeamId). Without an explicit order,
+  // findFirst is non-deterministic and can resolve to the dead one. Resolve to
+  // the MOST RECENT install — that's the live workspace→org mapping.
+  return (
+    (await db.query.orgs.findFirst({
+      where: eq(schema.orgs.slackTeamId, teamId),
+      orderBy: (t, { desc }) => [desc(t.slackInstalledAt)],
+    })) ?? null
+  )
 }
 
 /**
