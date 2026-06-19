@@ -5,6 +5,8 @@ import { db, schema } from '@/lib/db/client'
 import { HttpError, requireSession } from '@/lib/auth/guards'
 import { seatCapError } from '@/lib/billing/seats'
 import { normalizeGithubUsername } from '@/lib/github/username'
+import { afterResponse } from '@/lib/after'
+import { welcomeNewMember } from '@/lib/onboarding/welcome'
 
 export const runtime = 'nodejs'
 
@@ -88,6 +90,7 @@ export async function POST(req: Request) {
       ),
     })
 
+    const joined = !existingAny || !!existingAny.endedAt
     if (!existingAny) {
       await db.insert(schema.memberships).values({
         orgId: invite.orgId,
@@ -101,6 +104,9 @@ export async function POST(req: Request) {
         .update(schema.memberships)
         .set({ endedAt: null, role: invite.role })
         .where(eq(schema.memberships.id, existingAny.id))
+    }
+    if (joined) {
+      afterResponse(() => welcomeNewMember(invite.orgId, session.appUserId), 'welcome new member')
     }
 
     await db

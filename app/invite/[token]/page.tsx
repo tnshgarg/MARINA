@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth, signIn } from '@/auth'
 import { db, schema } from '@/lib/db/client'
+import { afterResponse } from '@/lib/after'
+import { welcomeNewMember } from '@/lib/onboarding/welcome'
 import AcceptInviteClient from './client'
 import InviteAuthOptions from './auth-options'
 
@@ -120,6 +122,7 @@ export default async function InvitePage({
           eq(schema.memberships.userId, session.appUserId),
         ),
       })
+      const joined = !existing || !!existing.endedAt
       if (!existing) {
         await db.insert(schema.memberships).values({
           orgId: invite.orgId,
@@ -139,6 +142,10 @@ export default async function InvitePage({
         .update(schema.invites)
         .set({ acceptedAt: new Date() })
         .where(and(eq(schema.invites.id, invite.id), isNull(schema.invites.acceptedAt)))
+      if (joined) {
+        const newUserId = session.appUserId!
+        afterResponse(() => welcomeNewMember(invite.orgId, newUserId), 'welcome new member (auto)')
+      }
       // The pending-invite cookie has a 30 min TTL — we can't delete it from
       // a server component in Next 16, but it'll expire on its own and the
       // root path checks for an active membership before honouring it.

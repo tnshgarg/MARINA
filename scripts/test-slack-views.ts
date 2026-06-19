@@ -12,6 +12,7 @@ import {
   leaveModal,
   punchOutModal,
   blockerModal,
+  standupModal,
 } from '../lib/slack/views'
 
 let pass = 0
@@ -58,6 +59,7 @@ const modals: Array<[string, any]> = [
   ['leave', leaveModal(16)],
   ['punchout', punchOutModal(16, 120)],
   ['blocker', blockerModal(16)],
+  ['standup', standupModal(16, { yesterday: 'shipped the thing', blockers: '' })],
 ]
 for (const [name, v] of modals) {
   check(`${name} modal is valid`, validView(v) && v.type === 'modal')

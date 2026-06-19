@@ -8,7 +8,8 @@ import { createDeliverable } from '@/lib/deliverables/create'
 import { notify } from '@/lib/notify/send'
 import { getSlackInstall, sendSlackDm, openModal } from '@/lib/slack/client'
 import { resolveMembershipBySlack, resolveOrgByTeam } from '@/lib/slack/identity'
-import { leaveModal, punchOutModal } from '@/lib/slack/views'
+import { leaveModal, punchOutModal, standupModal } from '@/lib/slack/views'
+import { buildStandupPrefill } from '@/lib/brief/standup'
 import { endActiveBreak } from '@/lib/breaks/end'
 import { punchIn } from '@/lib/shifts/punch'
 import { getPersonalBrief } from '@/lib/brief/personal'
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
           '`/marina blocker <reason>` — flag yourself blocked\n' +
           '`/marina off [reason]` — start a break   ·   `/marina back` — end it\n' +
           '`/marina leave` — request time off\n' +
+          '`/marina standup` — post your standup\n' +
           "`/marina pulse` — today's team snapshot (managers)\n" +
           '`/marina blockers` — active blockers (managers)\n' +
           '`/marina nudge @user <message>` — DM a teammate (logged)',
@@ -309,6 +311,18 @@ export async function POST(req: Request) {
         b.leave ? `Leave — ${b.leave.remaining} of ${b.leave.quota} left` : null,
       ].filter(Boolean) as string[]
       return ack(lines.join('\n'))
+    }
+
+    case 'standup': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const install = await getSlackInstall(org.id)
+      if (install && triggerId) {
+        const prefill = await buildStandupPrefill(org.id, me.userId)
+        await openModal(install, triggerId, standupModal(org.id, prefill))
+        return new NextResponse(null, { status: 200 })
+      }
+      return ack('Open the Marina app to post your standup.')
     }
 
     default:

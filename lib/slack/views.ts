@@ -256,3 +256,46 @@ export function blockerModal(orgId: number): SlackView {
     ],
   }
 }
+
+export function standupModal(orgId: number, prefill: { yesterday: string; blockers: string }): SlackView {
+  return {
+    type: 'modal',
+    callback_id: 'modal_standup',
+    private_metadata: meta(orgId),
+    title: { type: 'plain_text', text: 'Standup' },
+    submit: { type: 'plain_text', text: 'Post' },
+    close: { type: 'plain_text', text: 'Cancel' },
+    blocks: [
+      input(
+        'yesterday',
+        'Yesterday',
+        textInput({
+          multiline: true,
+          max_length: 1500,
+          ...(prefill.yesterday ? { initial_value: prefill.yesterday } : {}),
+          placeholder: { type: 'plain_text', text: 'What you got done' },
+        }),
+      ),
+      input(
+        'today',
+        'Today',
+        textInput({
+          multiline: true,
+          max_length: 1500,
+          placeholder: { type: 'plain_text', text: "What you're focusing on" },
+        }),
+      ),
+      input(
+        'blockers',
+        'Blockers (optional)',
+        textInput({
+          multiline: true,
+          max_length: 1000,
+          ...(prefill.blockers ? { initial_value: prefill.blockers } : {}),
+          placeholder: { type: 'plain_text', text: 'Anything in your way?' },
+        }),
+        true,
+      ),
+    ],
+  }
+}
