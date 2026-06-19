@@ -7,7 +7,7 @@ import { afterResponse } from '@/lib/after'
 import { createDeliverable } from '@/lib/deliverables/create'
 import { notify } from '@/lib/notify/send'
 import { getSlackInstall, sendSlackDm } from '@/lib/slack/client'
-import { resolveMembershipBySlack } from '@/lib/slack/identity'
+import { resolveMembershipBySlack, resolveOrgByTeam } from '@/lib/slack/identity'
 
 export const runtime = 'nodejs'
 
@@ -49,9 +49,10 @@ export async function POST(req: Request) {
     NextResponse.json({ response_type: 'ephemeral', text: msg })
 
   // The bot install is stored on the org row; bind it by slack team id.
-  const org = await db.query.orgs.findFirst({
-    where: eq(schema.orgs.slackTeamId, teamId),
-  })
+  // resolveOrgByTeam picks the most-recent install when a workspace is bound to
+  // more than one org (stale duplicate from a re-install), so we don't land on
+  // a dead binding.
+  const org = await resolveOrgByTeam(teamId)
   if (!org) {
     return ack(
       `MARINA isn't connected to this Slack workspace yet. An owner can connect at ${process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.in'}/org/<id>/settings/integrations.`,
