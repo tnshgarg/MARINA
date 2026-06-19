@@ -2,12 +2,22 @@
  * Help-centre content. Structured (not MDX) so it renders through one template
  * and stays easy to edit. Each article is a list of typed blocks.
  */
+export type MockupKey =
+  | 'aiBrief'
+  | 'askMarina'
+  | 'blockerResolver'
+  | 'scrumMode'
+  | 'memberDetail'
+  | 'activityFeed'
+  | 'teams'
+
 export type Block =
   | { type: 'p'; text: string }
   | { type: 'h'; text: string }
   | { type: 'ul'; items: string[] }
   | { type: 'steps'; items: string[] }
   | { type: 'tip'; text: string }
+  | { type: 'figure'; mockup: MockupKey; caption?: string }
 
 export type Category = 'Getting started' | 'For employees' | 'For managers' | 'Privacy'
 
@@ -31,6 +41,7 @@ export const ARTICLES: Article[] = [
     minutes: 3,
     blocks: [
       { type: 'p', text: 'Marina is an AI chief of staff for remote teams. It quietly keeps track of who’s working on what, surfaces blockers before they fester, and handles the day-to-day admin — standups, time off, attendance, recognition — so managers can lead and teammates can focus.' },
+      { type: 'figure', mockup: 'aiBrief', caption: 'Your 4-minute morning brief — who shipped what, who’s blocked, what needs you.' },
       { type: 'h', text: 'The three pieces' },
       { type: 'ul', items: [
         'The web dashboard — your personal console (punch in, log work, file a standup, give kudos) and, for managers, the team views.',
@@ -75,6 +86,7 @@ export const ARTICLES: Article[] = [
       { type: 'p', text: 'If your workspace has Slack connected, Marina works as a full surface there — not just notifications. The first time you open the Marina app or run a command, Marina links you to your account automatically by email.' },
       { type: 'h', text: 'The App Home tab' },
       { type: 'p', text: 'Click “Marina” in your Slack sidebar to open your Home tab — your day at a glance, with buttons to punch in/out, log work, give kudos, request leave and raise a blocker.' },
+      { type: 'figure', mockup: 'askMarina', caption: 'Ask Marina anything about anyone — grounded, cited answers in seconds.' },
       { type: 'h', text: 'Slash commands' },
       { type: 'ul', items: [
         '/marina status — your day at a glance',
@@ -103,6 +115,7 @@ export const ARTICLES: Article[] = [
         'In Slack: run /marina standup, or tap the button in Marina’s morning reminder DM.',
       ] },
       { type: 'p', text: 'Either way it’s saved once and shared in your team’s scrum channel. Re-posting just updates today’s entry.' },
+      { type: 'figure', mockup: 'scrumMode', caption: 'Scrum mode — walk the async standup, person by person, in minutes.' },
       { type: 'h', text: 'Scrum mode (managers)' },
       { type: 'p', text: 'Managers can open Scrum mode for a projection-friendly, keyboard-driven walk through the team — each person’s “working on today”, what shipped yesterday, blockers and risks. Mark people covered with the spacebar; arrow keys move between them.' },
     ],
@@ -163,6 +176,7 @@ export const ARTICLES: Article[] = [
         'Reviews & 1:1s — Marina assembles a real, evidence-backed picture of each person’s work.',
       ] },
       { type: 'p', text: 'Everything respects scope: you see the people you actually manage, not the whole org (unless you’re an admin).' },
+      { type: 'figure', mockup: 'memberDetail', caption: 'Each teammate, understood at a glance — evidence, not vibes.' },
       { type: 'tip', text: 'Set your two Slack channels under Integrations → Slack: an announcements channel (#all-marina) and a scrum channel. Marina routes the right message to the right place.' },
     ],
   },

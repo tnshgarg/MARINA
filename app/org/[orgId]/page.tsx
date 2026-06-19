@@ -326,8 +326,10 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     (acc, m) => acc + (m.activity.activeSeconds ?? 0) + (m.activity.idleSeconds ?? 0),
     0,
   )
+  // null (not 0) when nobody has agent telemetry today — "0% productive" would
+  // be a lie when the truth is "we have no signal". The client renders "—".
   const orgProductivity =
-    totalTracked > 0 ? Math.round((totalActive / totalTracked) * 100) : 0
+    totalTracked > 0 ? Math.round((totalActive / totalTracked) * 100) : null
 
   const greeting = greetingFor(new Date(), me.name?.split(' ')[0] ?? session.login)
 

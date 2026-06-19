@@ -118,7 +118,7 @@ type Snapshot = {
   blockedOnYouCount: number
   /** Org-wide productivity 0–100, computed server-side. Shown as a KPI tile
    * at the top of the dashboard so HR has a one-glance health number. */
-  orgProductivity: number
+  orgProductivity: number | null
 }
 
 /**
@@ -396,9 +396,17 @@ export default function TeamDashboardClient({
           firing today. Anything below 45% deserves a manager's attention. */}
       <div data-tour="stats" className="mb-6 flex items-center gap-x-8 gap-y-2 flex-wrap pb-5 border-b border-[var(--m-border)]">
         <InlineStat
-          n={`${snapshot.orgProductivity}%`}
-          label="org productivity today"
-          tone={snapshot.orgProductivity >= 65 ? 'emerald' : snapshot.orgProductivity >= 45 ? 'amber' : 'rose'}
+          n={snapshot.orgProductivity == null ? '—' : `${snapshot.orgProductivity}%`}
+          label={snapshot.orgProductivity == null ? 'org productivity · no signals yet' : 'org productivity today'}
+          tone={
+            snapshot.orgProductivity == null
+              ? 'muted'
+              : snapshot.orgProductivity >= 65
+                ? 'emerald'
+                : snapshot.orgProductivity >= 45
+                  ? 'amber'
+                  : 'rose'
+          }
         />
         <InlineStat
           n={snapshot.blockerCount}
@@ -1052,8 +1060,14 @@ function MemberCardView({
           <TodayRibbon member={m} statusKey={statusKey} />
         </div>
         <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[var(--m-ink-3)]">
-          <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
-          <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
+          {m.activeShift && totalShiftSec === 0 ? (
+            <span className="text-[var(--m-ink-4)]">No agent activity tracked yet</span>
+          ) : (
+            <>
+              <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
+              <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
+            </>
+          )}
           {/* Productivity % — focus over (focus + idle). Pinned to the right of
               the focus/idle line so the manager gets a single number to read.
               Only shown once the shift has 30+ minutes of signal, otherwise
@@ -1365,19 +1379,23 @@ function RightNowLine({
 
   // Working
   const app = m.activity.topApp
+  // Telemetry-aware: only claim "Heads-down" (focused, no foreground app) when
+  // the agent is actually reporting. With no telemetry, "Heads-down" is a lie —
+  // we only know they're punched in.
+  const hasTelemetry = (m.activity.activeSeconds ?? 0) + (m.activity.idleSeconds ?? 0) > 0
   return (
     <div className={`${baseCls} text-[var(--m-ink)] min-w-0`}>
       <PulseDot tone="good" />
       <span className="text-[var(--m-ink-3)] shrink-0">Right now</span>
       {app ? (
-        <>
-          <span className="inline-flex items-center gap-1.5 min-w-0">
-            <AppGlyph app={app} />
-            <span className="font-medium truncate">{app}</span>
-          </span>
-        </>
-      ) : (
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <AppGlyph app={app} />
+          <span className="font-medium truncate">{app}</span>
+        </span>
+      ) : hasTelemetry ? (
         <span className="font-medium text-[var(--m-good)]">Heads-down</span>
+      ) : (
+        <span className="font-medium text-[var(--m-ink-3)]">On the clock</span>
       )}
     </div>
   )

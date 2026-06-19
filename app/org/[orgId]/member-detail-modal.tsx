@@ -3398,7 +3398,10 @@ function TodaySnapshot({ detail }: { detail: Detail }) {
         return { label: "Blocked", tone: "bad" };
       if (activeBreak)
         return { label: `On break · ${activeBreak.category}`, tone: "warn" };
-      if (isOnShift) return { label: "Working", tone: "good" };
+      if (isOnShift)
+        return detail.shiftTotals.workMin === 0 && detail.shiftTotals.idleMin === 0
+          ? { label: "On the clock", tone: "neutral" }
+          : { label: "Working", tone: "good" };
       return { label: "Off-clock", tone: "neutral" };
     })();
   const statusColor =
@@ -3485,7 +3488,13 @@ function TodaySnapshot({ detail }: { detail: Detail }) {
         <Tile
           label="Today"
           value={isOnShift ? fmtHm(todayMinutes) : "—"}
-          sub={isOnShift ? "on the clock" : "not punched in"}
+          sub={
+            isOnShift
+              ? detail.shiftTotals.workMin === 0 && detail.shiftTotals.idleMin === 0
+                ? "on the clock · no agent activity"
+                : "on the clock"
+              : "not punched in"
+          }
         />
         <Tile
           label="Shipped today"
