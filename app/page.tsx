@@ -9,6 +9,8 @@ import { CharacterAvatar } from "@/components/character-avatar";
 import { Reveal } from "@/components/reveal";
 import { HeroPreview } from "@/components/hero-preview";
 import LandingClient from "./landing-client";
+import { LandingFaq } from "@/components/landing-faq";
+import { LandingStructuredData } from "@/components/landing-structured-data";
 import {
   AskMarinaMockup,
   AiBriefMockup,
@@ -73,6 +75,7 @@ export default async function Home({
       </div>
 
       <Nav />
+      <LandingStructuredData />
 
       <Hero
         sp={sp}
@@ -96,6 +99,7 @@ export default async function Home({
           founding cohort for free first. The <Pricing/> component is kept
           below (unused) so it's a one-line swap to bring paid tiers back. */}
       {/* <Pricing /> */}
+      <LandingFaq />
       <EarlyAccess />
       {/*<ResourceCards />*/}
       {/*<FinalCTA
@@ -205,21 +209,18 @@ function Hero({
 
           <Reveal delay={80}>
             <h1 className="font-display text-[44px] md:text-[68px] leading-[1.02] tracking-tight text-[var(--m-ink)]">
-              Visibility across your team
+              Stop chasing status.
               <br />
-              <span className="italic brand-gradient-text">
-                without chasing
-              </span>{" "}
-              people
+              <span className="italic brand-gradient-text">Start leading.</span>
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
             <p className="mt-6 max-w-xl text-[17px] md:text-[19px] leading-snug text-[var(--m-ink-2)] font-medium">
-              The AI Chief of Staff for remote managers.
-              <span className="block mt-1 text-[var(--m-ink-3)] font-normal text-[15px] md:text-[16px]">
-                Clarity, alignment, and control &mdash; without becoming the
-                bottleneck.
+              Marina is the AI chief of staff for remote teams.
+              <span className="block mt-1.5 text-[var(--m-ink-3)] font-normal text-[15px] md:text-[16px]">
+                One 4-minute morning brief instead of ten status pings &mdash; blockers caught, standups run, reviews
+                written. You lead; Marina handles the busywork.
               </span>
             </p>
           </Reveal>

@@ -1,6 +1,26 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ARTICLES, getArticle, type Block } from '@/lib/help/articles'
+import type { ComponentType } from 'react'
+import { ARTICLES, getArticle, type Block, type MockupKey } from '@/lib/help/articles'
+import {
+  AiBriefMockup,
+  AskMarinaMockup,
+  BlockerResolverMockup,
+  ScrumModeMockup,
+  MemberDetailMockup,
+  ActivityFeedMockup,
+  TeamsMockup,
+} from '@/components/landing-showcase'
+
+const MOCKUPS: Record<MockupKey, ComponentType> = {
+  aiBrief: AiBriefMockup,
+  askMarina: AskMarinaMockup,
+  blockerResolver: BlockerResolverMockup,
+  scrumMode: ScrumModeMockup,
+  memberDetail: MemberDetailMockup,
+  activityFeed: ActivityFeedMockup,
+  teams: TeamsMockup,
+}
 
 export function generateStaticParams() {
   return ARTICLES.map((a) => ({ slug: a.slug }))
@@ -41,6 +61,19 @@ function BlockView({ b }: { b: Block }) {
           {b.text}
         </div>
       )
+    case 'figure': {
+      const Mockup = MOCKUPS[b.mockup]
+      return (
+        <figure className="mt-6">
+          <div className="rounded-xl border border-[var(--m-border)] bg-[var(--m-bg-soft)] p-3 sm:p-4 overflow-x-auto">
+            <Mockup />
+          </div>
+          {b.caption && (
+            <figcaption className="text-[12px] text-[var(--m-ink-4)] mt-2 text-center">{b.caption}</figcaption>
+          )}
+        </figure>
+      )
+    }
     default:
       return null
   }

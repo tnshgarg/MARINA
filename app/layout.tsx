@@ -4,10 +4,53 @@ import { NavProgress } from "@/components/nav-progress";
 import { ToastProvider } from "@/components/toast";
 import { TestModeBadge } from "@/components/test-mode-badge";
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://marina.team";
+
 export const metadata: Metadata = {
-  title: "MARINA · AI Chief of Staff for remote teams",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "MARINA · AI Chief of Staff for remote teams",
+    template: "%s · MARINA",
+  },
   description:
-    "The AI eyes and ears for your team — blockers, briefs, attendance, and live standups built for remote teams.",
+    "MARINA is the AI chief of staff for remote engineering teams. Auto-detected blockers, a 4-minute morning brief, async standups, attendance and recognition — clarity and control without becoming the bottleneck. Free for your first 5 teammates.",
+  applicationName: "MARINA",
+  keywords: [
+    "AI chief of staff",
+    "remote team management software",
+    "engineering management tool",
+    "async standup tool",
+    "blocker tracking",
+    "team productivity",
+    "manager dashboard",
+    "Slack standup bot",
+    "remote work software",
+    "developer activity tracking",
+  ],
+  authors: [{ name: "Project MARINA" }],
+  creator: "Project MARINA",
+  publisher: "Project MARINA Private Limited",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "MARINA",
+    url: SITE_URL,
+    title: "MARINA · The AI Chief of Staff for remote teams",
+    description:
+      "See your team without chasing people. Auto-detected blockers, a 4-minute morning brief, and async standups — clarity, alignment and control without becoming the bottleneck.",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MARINA · The AI Chief of Staff for remote teams",
+    description:
+      "See your team without chasing people. Blockers, briefs and standups — without becoming the bottleneck.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  },
   icons: {
     // Favicon/tab + apple-touch use the rounded-square "M" monogram tile
     // (/icon.svg). The circle mark (/logo.svg) is the same monogram for inline
