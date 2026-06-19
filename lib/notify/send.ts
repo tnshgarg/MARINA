@@ -288,11 +288,24 @@ function renderEvent(e: NotifyEvent): Rendered {
         text: `*${e.leaveType}* from *${e.startDate}* to *${e.endDate}*\n${e.reason}${actionLine ? `\n\n${actionLine}` : ''}`,
         color: '#c19a4d',
         broadcast: false,
-        blocks: simpleBlocks(`📅 *Leave requested · ${e.userName}*`, [
-          `*${e.leaveType}* — ${e.startDate} → ${e.endDate}`,
-          e.reason,
-          ...(links ? [`<${links.approve}|✅ Approve>   ·   <${links.deny}|❌ Deny>`] : []),
-        ]),
+        // Native Block Kit buttons so a manager approves/denies without leaving
+        // Slack. (The signed URL links above remain in `text` for the email/
+        // webhook fallback where buttons aren't available.)
+        blocks: [
+          { type: 'section', text: { type: 'mrkdwn', text: `*Leave requested · ${e.userName}*` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `*${e.leaveType}* — ${e.startDate} → ${e.endDate}\n${e.reason}` } },
+          ...(e.leaveId
+            ? [
+                {
+                  type: 'actions',
+                  elements: [
+                    { type: 'button', text: { type: 'plain_text', text: 'Approve' }, style: 'primary', action_id: 'leave_approve', value: String(e.leaveId) },
+                    { type: 'button', text: { type: 'plain_text', text: 'Deny' }, style: 'danger', action_id: 'leave_deny', value: String(e.leaveId) },
+                  ],
+                },
+              ]
+            : []),
+        ],
       }
     }
     case 'leave.decided':

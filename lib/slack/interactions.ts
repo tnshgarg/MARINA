@@ -7,7 +7,9 @@ import { deliverableModal, leaveModal, punchOutModal, blockerModal } from '@/lib
 import { createDeliverable } from '@/lib/deliverables/create'
 import { requestLeave } from '@/lib/leave/request'
 import { createBreak } from '@/lib/breaks/create'
+import { endActiveBreak } from '@/lib/breaks/end'
 import { punchIn, punchOut } from '@/lib/shifts/punch'
+import { applyLeaveDecision } from '@/lib/leave/decide'
 
 /**
  * Minimal shape of the Slack interaction payloads we read. (Slack sends much
@@ -19,6 +21,7 @@ export type InteractionPayload = {
   team?: { id?: string }
   user?: { id?: string; team_id?: string }
   trigger_id?: string
+  response_url?: string
   callback_id?: string
   actions?: Array<{ action_id?: string; value?: string }>
   view?: {
@@ -35,6 +38,20 @@ const fieldErrors = (errors: Record<string, string>) =>
 
 function refreshHome(teamId: string, slackUserId: string) {
   afterResponse(() => publishAppHomeFor(teamId, slackUserId), 'home refresh after action')
+}
+
+/** Replace the message that hosted a button (e.g. the leave-request DM). */
+async function replaceMessage(responseUrl: string | undefined, text: string): Promise<void> {
+  if (!responseUrl) return
+  try {
+    await fetch(responseUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ replace_original: true, text }),
+    })
+  } catch {
+    /* best-effort — the decision already landed in the DB */
+  }
 }
 
 export async function handleInteractivity(payload: InteractionPayload): Promise<NextResponse> {
@@ -98,6 +115,28 @@ async function handleBlockActions(
       await punchIn(actor.user.id, orgId)
       refreshHome(teamId, slackUserId)
       break
+    case 'end_break':
+      await endActiveBreak(actor.user.id)
+      refreshHome(teamId, slackUserId)
+      break
+    case 'resolve_blocker':
+      await endActiveBreak(actor.user.id, { resolution: 'self' })
+      refreshHome(teamId, slackUserId)
+      break
+    case 'leave_approve':
+    case 'leave_deny': {
+      // Manager approves/denies a leave straight from the Slack DM.
+      const leaveId = Number(payload.actions?.[0]?.value)
+      const canDecide = actor.membership.role === 'admin' || actor.membership.role === 'manager'
+      if (Number.isInteger(leaveId) && canDecide) {
+        const decision = actionId === 'leave_approve' ? 'approve' : 'deny'
+        await applyLeaveDecision({ leaveId, orgId, deciderUserId: actor.user.id, decision })
+        await replaceMessage(payload.response_url, `Leave ${decision === 'approve' ? 'approved' : 'denied'}.`)
+      } else if (!canDecide) {
+        await replaceMessage(payload.response_url, 'Only a manager or admin can decide leave.')
+      }
+      break
+    }
     default:
       // refresh_home (and anything unknown) just re-renders the Home tab.
       refreshHome(teamId, slackUserId)

@@ -6,8 +6,12 @@ import { verifySlackRequest } from '@/lib/slack/verify'
 import { afterResponse } from '@/lib/after'
 import { createDeliverable } from '@/lib/deliverables/create'
 import { notify } from '@/lib/notify/send'
-import { getSlackInstall, sendSlackDm } from '@/lib/slack/client'
+import { getSlackInstall, sendSlackDm, openModal } from '@/lib/slack/client'
 import { resolveMembershipBySlack, resolveOrgByTeam } from '@/lib/slack/identity'
+import { leaveModal, punchOutModal } from '@/lib/slack/views'
+import { endActiveBreak } from '@/lib/breaks/end'
+import { punchIn } from '@/lib/shifts/punch'
+import { getPersonalBrief } from '@/lib/brief/personal'
 
 export const runtime = 'nodejs'
 
@@ -41,17 +45,17 @@ export async function POST(req: Request) {
   const channelId = params.get('channel_id') ?? ''
   const text = (params.get('text') ?? '').trim()
   const responseUrl = params.get('response_url') ?? ''
+  const triggerId = params.get('trigger_id') ?? ''
 
   const [sub, ...rest] = text.split(/\s+/)
   const remainder = rest.join(' ').trim()
 
   const ack = (msg: string) =>
     NextResponse.json({ response_type: 'ephemeral', text: msg })
+  const notLinked = "I don't see you in MARINA yet — open the Marina app's Home tab once, then try again."
 
-  // The bot install is stored on the org row; bind it by slack team id.
   // resolveOrgByTeam picks the most-recent install when a workspace is bound to
-  // more than one org (stale duplicate from a re-install), so we don't land on
-  // a dead binding.
+  // more than one org (a stale duplicate from a re-install).
   const org = await resolveOrgByTeam(teamId)
   if (!org) {
     return ack(
@@ -71,13 +75,16 @@ export async function POST(req: Request) {
     case '':
     case 'help':
       return ack(
-        '*MARINA commands*\n' +
-          '`/marina pulse` — today\'s team snapshot\n' +
-          '`/marina blockers` — list active blockers\n' +
-          '`/marina nudge @user message` — DM a teammate (logged)\n' +
-          '`/marina blocker <reason>` — mark yourself blocked\n' +
-          '`/marina done <title>` — log a deliverable\n' +
-          '`/marina off [reason]` — start a quick break',
+        '*Marina commands*\n' +
+          '`/marina status` — your day at a glance\n' +
+          '`/marina in` — punch in   ·   `/marina out` — punch out\n' +
+          '`/marina done <title>` — log work you shipped\n' +
+          '`/marina blocker <reason>` — flag yourself blocked\n' +
+          '`/marina off [reason]` — start a break   ·   `/marina back` — end it\n' +
+          '`/marina leave` — request time off\n' +
+          "`/marina pulse` — today's team snapshot (managers)\n" +
+          '`/marina blockers` — active blockers (managers)\n' +
+          '`/marina nudge @user <message>` — DM a teammate (logged)',
       )
 
     case 'pulse':
@@ -234,7 +241,7 @@ export async function POST(req: Request) {
 
     case 'off': {
       const me = await findCallerMembership()
-      if (!me) return ack('I don\'t see you in MARINA yet. Sign in once at the dashboard.')
+      if (!me) return ack(notLinked)
       const reason = remainder || 'Quick break'
       afterResponse(async () => {
         await db.insert(schema.breaks).values({
@@ -245,11 +252,67 @@ export async function POST(req: Request) {
           category: 'personal',
         })
       }, 'slack off break')
-      return ack(`☕ Break started — _"${reason}"_. Use \`/marina back\` (coming soon) or end it from the dashboard.`)
+      return ack(`Break started — _"${reason}"_. Use \`/marina back\` to end it.`)
+    }
+
+    case 'back':
+    case 'unblock': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const r = await endActiveBreak(me.userId, sub === 'unblock' ? { resolution: 'self' } : undefined)
+      if (!r.ended) return ack("You're not on a break right now.")
+      return ack(r.wasBlocked ? 'Blocker cleared — welcome back.' : 'Break ended — welcome back.')
+    }
+
+    case 'in': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const r = await punchIn(me.userId, org.id)
+      if (!r.ok) return ack('Could not punch in — try again.')
+      return ack(r.alreadyOpen ? "You're already on the clock." : 'Punched in. Have a good one.')
+    }
+
+    case 'out': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const install = await getSlackInstall(org.id)
+      if (install && triggerId) {
+        await openModal(install, triggerId, punchOutModal(org.id))
+        return new NextResponse(null, { status: 200 })
+      }
+      return ack('Open the Marina app to punch out — it needs a quick work summary.')
+    }
+
+    case 'leave': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const install = await getSlackInstall(org.id)
+      if (install && triggerId) {
+        await openModal(install, triggerId, leaveModal(org.id))
+        return new NextResponse(null, { status: 200 })
+      }
+      return ack('Open the Marina app to request leave.')
+    }
+
+    case 'status':
+    case 'me': {
+      const me = await findCallerMembership()
+      if (!me) return ack(notLinked)
+      const b = await getPersonalBrief(me.userId, org.id)
+      const lines = [
+        '*Your day*',
+        `Status — ${b.activeShift ? `on the clock (${b.activeShift.sinceMin}m)` : 'off the clock'}`,
+        `Shipped today — ${b.deliverablesToday.count}`,
+        b.activeBreak
+          ? `${b.activeBreak.category === 'blocked' ? 'Blocked on' : 'On a break'} — ${b.activeBreak.reason}`
+          : null,
+        b.leave ? `Leave — ${b.leave.remaining} of ${b.leave.quota} left` : null,
+      ].filter(Boolean) as string[]
+      return ack(lines.join('\n'))
     }
 
     default:
-      return ack(`Unknown subcommand \`${sub}\`. Try \`/marina help\`.`)
+      return ack(`Unknown command \`${sub}\`. Try \`/marina help\`.`)
   }
   // Suppress unused-channel warning if we end up not using these.
   void channelId
@@ -282,7 +345,7 @@ async function buildPulseText(orgId: number, blockersOnly: boolean): Promise<str
     )
 
   if (blockersOnly) {
-    if (blockerRows.length === 0) return ':zap: No active blockers right now.'
+    if (blockerRows.length === 0) return 'No active blockers right now — nice.'
     return blockerRows
       .map(({ b, u }) => {
         const since = Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 60000)
@@ -302,7 +365,7 @@ async function buildPulseText(orgId: number, blockersOnly: boolean): Promise<str
 
   const lines = [
     `*Pulse for today*`,
-    `:rocket: ${onShiftCount} on-shift   :no_entry: ${blockedCount} blocked   :bust_in_silhouette: ${memberRows.length} total`,
+    `On shift: ${onShiftCount}   ·   Blocked: ${blockedCount}   ·   Team: ${memberRows.length}`,
   ]
   if (blockerRows.length > 0) {
     lines.push('', '*Blocked right now:*')
