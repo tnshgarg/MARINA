@@ -5,6 +5,7 @@ import { getBlobStore } from '@/lib/storage/blob'
 import { authorizeCron } from '@/lib/cron/auth'
 import { PLANS } from '@/lib/billing/plans'
 import { log } from '@/lib/log/log'
+import { closeStaleShifts } from '@/lib/shifts/close-stale'
 
 export const runtime = 'nodejs'
 
@@ -115,6 +116,10 @@ async function sweep() {
     .returning({ id: schema.orgs.id })
     .catch(() => [])
 
+  // Close shifts left open too long so attendance/dashboards stay honest
+  // (a forgotten punch-in shouldn't read as a 30-hour "working" day).
+  const staleShiftsClosed = await closeStaleShifts(now).catch(() => 0)
+
   log.info('cron.sweep.done', {
     examined: expired.length,
     deleted,
@@ -125,6 +130,7 @@ async function sweep() {
     notif: expiredNotif.length,
     analytics: expiredAnalytics.length,
     downgraded: downgraded.length,
+    staleShiftsClosed,
   })
   return NextResponse.json({
     ok: true,
@@ -137,6 +143,7 @@ async function sweep() {
     notifications: expiredNotif.length,
     analyticsEvents: expiredAnalytics.length,
     downgraded: downgraded.length,
+    staleShiftsClosed,
   })
 }
 
