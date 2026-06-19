@@ -473,6 +473,64 @@ export function renderDigestEmail(d: Digest): { subject: string; html: string; t
   return { subject, html, text }
 }
 
+/**
+ * Compact Block Kit version of the weekly digest, posted to the org's Slack
+ * channel alongside the owner email. Reuses the same Digest object.
+ */
+export function renderDigestSlack(d: Digest): { text: string; blocks: unknown[] } {
+  const t = d.totals
+  const pair = (k: string, v: string | number) => ({ type: 'mrkdwn', text: `*${k}*\n${v}` })
+  const blocks: unknown[] = [
+    { type: 'header', text: { type: 'plain_text', text: `Weekly digest · ${d.orgName}`, emoji: true } },
+    { type: 'context', elements: [{ type: 'mrkdwn', text: `${d.weekStart} → ${d.weekEnd}` }] },
+    {
+      type: 'section',
+      fields: [
+        pair('Commits', t.commits),
+        pair('PRs opened', t.prsOpened),
+        pair('Reviews', t.reviews),
+        pair('Blocked', t.activeBlockers),
+        pair('Pending leave', t.pendingLeaves),
+        pair('Members', t.members),
+      ],
+    },
+  ]
+  if (d.standouts.length) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Standouts*\n${d.standouts
+          .slice(0, 3)
+          .map((s) => `• *${s.user.name ?? '@' + s.user.login}* — ${s.commits} commits, ${s.prsOpened} PRs`)
+          .join('\n')}`,
+      },
+    })
+  }
+  if (d.attention.length) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Needs a look*\n${d.attention.slice(0, 4).map((a) => `• ${a.name} — ${a.detail}`).join('\n')}`,
+      },
+    })
+  }
+  if (d.outNextWeek.length) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Out next week*\n${d.outNextWeek
+          .slice(0, 5)
+          .map((o) => `• ${o.name} (${o.startDate} → ${o.endDate})`)
+          .join('\n')}`,
+      },
+    })
+  }
+  return { text: `Weekly digest — ${t.commits} commits, ${t.activeBlockers} blocked`, blocks }
+}
+
 function stat(n: number, label: string): string {
   return statText(String(n), label)
 }

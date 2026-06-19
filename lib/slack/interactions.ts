@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { afterResponse } from '@/lib/after'
-import { getSlackInstall, openModal, type SlackInstall } from '@/lib/slack/client'
+import { getSlackInstall, openModal, sendSlackChannel, type SlackInstall } from '@/lib/slack/client'
 import { resolveSlackActor, type SlackActor } from '@/lib/slack/identity'
 import { publishAppHomeFor } from '@/lib/slack/home'
 import { deliverableModal, leaveModal, punchOutModal, blockerModal } from '@/lib/slack/views'
@@ -203,6 +203,25 @@ async function handleViewSubmission(
         waitingOnExternal: text('waiting_on_external') || null,
       })
       refreshHome(teamId, slackUserId)
+      return clear()
+    }
+    case 'modal_standup': {
+      const yesterday = text('yesterday')
+      const today = text('today')
+      const blockers = text('blockers')
+      const install = await getSlackInstall(orgId)
+      if (!install) return clear()
+      const name = actor.user.name ?? `@${actor.user.login}`
+      const blocks: unknown[] = [
+        { type: 'section', text: { type: 'mrkdwn', text: `*${name}'s standup*` } },
+        { type: 'section', text: { type: 'mrkdwn', text: `*Yesterday*\n${yesterday || '—'}` } },
+        { type: 'section', text: { type: 'mrkdwn', text: `*Today*\n${today || '—'}` } },
+        ...(blockers ? [{ type: 'section', text: { type: 'mrkdwn', text: `*Blockers*\n${blockers}` } }] : []),
+      ]
+      const res = await sendSlackChannel(install, { text: `${name}'s standup`, blocks })
+      if (!res.ok) {
+        return fieldErrors({ today: 'No default channel set — ask an admin to set one in Settings → Integrations → Slack.' })
+      }
       return clear()
     }
     default:

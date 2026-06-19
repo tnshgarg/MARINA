@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { requireSession } from '@/lib/auth/guards'
 import { exchangeInstallCode } from '@/lib/slack/client'
@@ -54,6 +54,22 @@ export async function GET(req: Request) {
   // install), use it as the default broadcast channel. Otherwise we'll DM
   // people directly and the org can pick a channel later in settings.
   const defaultChannelId = exchange.incoming_webhook?.channel_id ?? null
+
+  // Install-replace: a Slack workspace maps to exactly ONE org. Clear any OTHER
+  // org previously bound to this workspace (e.g. a re-install that pointed it at
+  // a different org) so the team_id resolves unambiguously — this is the root
+  // cause of the "two orgs share one workspace → not linked" class of bug.
+  await db
+    .update(schema.orgs)
+    .set({
+      slackTeamId: null,
+      slackTeamName: null,
+      slackBotToken: null,
+      slackBotUserId: null,
+      slackDefaultChannelId: null,
+      slackInstalledAt: null,
+    })
+    .where(and(eq(schema.orgs.slackTeamId, team.id), ne(schema.orgs.id, orgId)))
 
   await db
     .update(schema.orgs)

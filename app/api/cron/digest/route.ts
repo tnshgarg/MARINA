@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { authorizeCron } from '@/lib/cron/auth'
-import { buildWeeklyDigest, renderDigestEmail } from '@/lib/digest/weekly'
+import { buildWeeklyDigest, renderDigestEmail, renderDigestSlack } from '@/lib/digest/weekly'
 import { sendDigestMail } from '@/lib/email/send'
+import { getSlackInstall, sendSlackChannel } from '@/lib/slack/client'
 import { log } from '@/lib/log/log'
 
 export const runtime = 'nodejs'
@@ -61,6 +62,15 @@ async function run() {
       })
       if (!result.ok) throw new Error(result.error ?? 'send failed')
       sent++
+
+      // Also post a compact digest to the org's Slack channel, if connected.
+      if (org.slackDefaultChannelId) {
+        const install = await getSlackInstall(org.id)
+        if (install) {
+          const slack = renderDigestSlack(digest)
+          await sendSlackChannel(install, { text: slack.text, blocks: slack.blocks })
+        }
+      }
     } catch (err) {
       errors.push({ orgId: org.id, error: String(err) })
       log.error('cron.digest.org_failed', { orgId: org.id, err: String(err) })
