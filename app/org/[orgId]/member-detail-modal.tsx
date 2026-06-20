@@ -126,7 +126,7 @@ type Detail = {
   };
   attendance28d: Array<{
     date: string;
-    kind: "present" | "absent" | "leave" | "weekend" | "today" | "future";
+    kind: "present" | "absent" | "leave" | "weekend" | "today" | "future" | "pre_join";
     minutesWorked: number;
     leaveType?: string;
     leaveReason?: string;
@@ -1007,6 +1007,8 @@ function AttendanceTab({
       label: "·",
     },
     future: { bg: "bg-transparent", fg: "text-[var(--m-ink-5)]", label: "" },
+    // Days before the member joined the org — show as empty, never crash.
+    pre_join: { bg: "bg-transparent", fg: "text-[var(--m-ink-5)]", label: "" },
   };
 
   const summary = attendance28d.reduce(
@@ -1046,7 +1048,7 @@ function AttendanceTab({
             </div>
           ))}
           {attendance28d.map((c) => {
-            const s = STYLE[c.kind];
+            const s = STYLE[c.kind] ?? STYLE.future;
             const day = Number(c.date.slice(-2));
             const tipBits: string[] = [fmtDate(c.date + "T00:00:00")];
             if (c.minutesWorked > 0)

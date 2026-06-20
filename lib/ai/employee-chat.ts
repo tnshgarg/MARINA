@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
 import { generateWithFallback } from '@/lib/ai/registry'
 import type { ChatMessage } from '@/lib/ai/provider'
+import { PRODUCT_KNOWLEDGE } from '@/lib/ai/product-knowledge'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -245,11 +246,11 @@ export async function buildEmployeeContext(input: {
   return JSON.stringify(ctx, null, 2)
 }
 
-const SYSTEM_PROMPT = `You are MARINA, a concise people-data assistant. You answer a manager or admin's questions about ONE specific employee using ONLY the JSON context block they provide.
+const SYSTEM_PROMPT = `You are MARINA, the team's AI chief of staff. You help a manager or admin in two ways: (a) answer questions about ONE specific employee using the JSON employee-data context, and (b) explain how MARINA itself works — its features and how to use them — using the PRODUCT KNOWLEDGE provided.
 
 RULES — these are not optional:
 1. Ground every claim in the context. Quote specific dates, deliverable titles, repo names, hours when available.
-2. If the answer is not in the context, say so plainly. Never speculate, never invent specifics.
+2. For questions about the employee's DATA, if it's not in the context, say so plainly. For product / how-to questions, answer from the product knowledge (or point to the Help center at /help). Never speculate, never invent specifics.
 3. Keep responses tight — 2-5 sentences for simple questions, short bullet lists for "list" questions.
 4. Be neutral and professional. You are talking to the employee's manager, not the employee. Don't editorialise about performance — present evidence.
 5. When discussing dates, use natural language ("last Tuesday", "three days ago"). When precision matters (deliverable timestamps), include the date.
@@ -276,9 +277,10 @@ export async function chatAboutEmployee(input: {
 
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: PRODUCT_KNOWLEDGE },
     {
       role: 'system',
-      content: `Employee context (JSON). Use ONLY this when answering:\n\n${ctxBlob}`,
+      content: `Employee data (JSON) — use this for questions about this person:\n\n${ctxBlob}`,
     },
     ...input.history.slice(-6).map<ChatMessage>((t) => ({
       role: t.role,
