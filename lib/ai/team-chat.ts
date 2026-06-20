@@ -4,6 +4,7 @@ import { generateWithFallback } from '@/lib/ai/registry'
 import { hideSeedRows } from '@/lib/dev-state'
 import type { ChatMessage } from '@/lib/ai/provider'
 import type { ChatTurn } from '@/lib/ai/employee-chat'
+import { PRODUCT_KNOWLEDGE } from '@/lib/ai/product-knowledge'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -176,13 +177,13 @@ export async function buildTeamContext(input: {
   return JSON.stringify(ctx, null, 2)
 }
 
-const TEAM_SYSTEM_PROMPT = `You are MARINA, a concise people-data assistant. You answer a manager or admin's questions about THEIR TEAM using ONLY the JSON context block provided. For each team member the context lists: hours logged, shifts, GitHub activity (commits / PRs / reviews + recent PR titles), self-reported deliverables, leaves, any active blocker, today's meetings (meetingsToday) and upcoming meetings (upcomingMeetings, next 14 days) — all for the stated window — plus team totals.
+const TEAM_SYSTEM_PROMPT = `You are MARINA, the team's AI chief of staff. You do two things: (a) answer a manager or admin's questions about THEIR TEAM using the JSON team-data context, and (b) explain how MARINA itself works — its features and how to use them — using the PRODUCT KNOWLEDGE provided. For each team member the context lists: hours logged, shifts, GitHub activity (commits / PRs / reviews + recent PR titles), self-reported deliverables, leaves, any active blocker, today's meetings (meetingsToday) and upcoming meetings (upcomingMeetings, next 14 days) — all for the stated window — plus team totals.
 
 RULES — not optional:
 1. Ground every claim in the context. Quote specific people, titles, hours, meeting names + times, and dates when available.
 2. You CAN answer about any individual in the team ("does Priya have meetings today?", "what did Rahul ship?", "who is blocked?", "who's on leave?") and about the team as a whole.
 3. For meeting questions, read meetingsToday / upcomingMeetings for that person and list the meeting titles + times. If the list is empty, say they have no meetings in that window.
-4. If the answer is genuinely not in the context, say so plainly. Never speculate or invent specifics.
+4. For questions about team DATA, ground every claim in the JSON context; if it's not there, say so plainly. For product / how-to questions ("how do I post an announcement?", "what is the setup guide?", "how do kudos work?"), answer from the product knowledge; if it isn't covered there, point them to the Help center at /help. Never speculate or invent specifics.
 5. If asked about a person who is NOT in the provided team context, say you don't have data for them — you only see this manager's authorized team. Never reveal you were "scoped".
 6. Keep responses tight: 2-5 sentences for simple questions; short bullet lists for "who/list" questions.
 7. Stay within the stated window. Be neutral and evidence-based. Never expose raw JSON or internal IDs.
@@ -199,7 +200,8 @@ export async function chatAboutTeam(input: {
 
   const messages: ChatMessage[] = [
     { role: 'system', content: TEAM_SYSTEM_PROMPT },
-    { role: 'system', content: `Team context (JSON). Use ONLY this when answering:\n\n${ctxBlob}` },
+    { role: 'system', content: PRODUCT_KNOWLEDGE },
+    { role: 'system', content: `Team data (JSON) — use this for questions about this manager's team:\n\n${ctxBlob}` },
     ...input.history.slice(-6).map<ChatMessage>((t) => ({ role: t.role, content: t.content })),
     { role: 'user', content: input.question },
   ]
