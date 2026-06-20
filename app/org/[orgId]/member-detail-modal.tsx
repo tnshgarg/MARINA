@@ -139,7 +139,7 @@ type Detail = {
     app?: string | null;
     detail?: string;
   }>;
-  shiftTotals: { workMin: number; breakMin: number; idleMin: number };
+  shiftTotals: { workMin: number; breakMin: number; idleMin: number; lockedMin: number };
   breaks28d: Array<{
     id: number;
     category: string;
@@ -1216,25 +1216,29 @@ function ShiftSummaryBar({
   const dur = totalMin != null ? humanDuration(totalMin) : "ongoing";
   const productive = humanDuration(totals.workMin);
   const breakDur = humanDuration(totals.breakMin);
+  const idleDur = humanDuration(totals.idleMin);
+  const lockedDur = humanDuration(totals.lockedMin);
   const productiveRatio =
     totalMin && totalMin > 0
       ? Math.round((totals.workMin / totalMin) * 100)
       : null;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       <SummaryTile
         label="In"
         value={fmtClock(shift.punchedInAt)}
         sub={end ? `out ${fmtClock(end.toISOString())}` : "ongoing"}
       />
-      <SummaryTile label="Total" value={dur} sub={null} />
+      <SummaryTile label="On the clock" value={dur} sub={null} />
       <SummaryTile
-        label="Productive"
+        label="Working"
         value={productive}
         sub={productiveRatio != null ? `${productiveRatio}% of shift` : null}
         tone="good"
       />
+      <SummaryTile label="Idle" value={idleDur} sub="on, no input" />
+      <SummaryTile label="Locked / away" value={lockedDur} sub="screen locked" />
       <SummaryTile label="On break" value={breakDur} sub={null} tone="warn" />
     </div>
   );

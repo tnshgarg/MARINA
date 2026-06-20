@@ -259,7 +259,9 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       activity: {
         activeSeconds: c?.activeSeconds ?? 0,
         idleSeconds: c?.idleSeconds ?? 0,
+        lockedSeconds: c?.lockedSeconds ?? 0,
         topApp: c?.topApp ?? null,
+        presence: c?.presence ?? null,
         paused: !!s?.trackingPausedAt,
       },
       onLeaveToday: userIdsOnLeaveToday.has(r.u.id),

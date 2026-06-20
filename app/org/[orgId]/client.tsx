@@ -45,7 +45,9 @@ type MemberCard = {
   activity: {
     activeSeconds: number
     idleSeconds: number
+    lockedSeconds: number
     topApp: string | null
+    presence: 'active' | 'idle' | 'locked' | null
     paused: boolean
   }
   onLeaveToday: boolean
@@ -1377,12 +1379,34 @@ function RightNowLine({
     )
   }
 
-  // Working
+  // Working — refine with the agent's live presence when it's reporting.
   const app = m.activity.topApp
+  const presence = m.activity.presence
   // Telemetry-aware: only claim "Heads-down" (focused, no foreground app) when
   // the agent is actually reporting. With no telemetry, "Heads-down" is a lie —
   // we only know they're punched in.
-  const hasTelemetry = (m.activity.activeSeconds ?? 0) + (m.activity.idleSeconds ?? 0) > 0
+  const hasTelemetry =
+    (m.activity.activeSeconds ?? 0) + (m.activity.idleSeconds ?? 0) + (m.activity.lockedSeconds ?? 0) > 0
+
+  if (presence === 'locked') {
+    return (
+      <div className={`${baseCls} text-[var(--m-ink-2)] min-w-0`}>
+        <Dot tone="off" />
+        <span className="text-[var(--m-ink-3)] shrink-0">Right now</span>
+        <span className="font-medium text-[var(--m-warn)]">Away · screen locked</span>
+      </div>
+    )
+  }
+  if (presence === 'idle') {
+    return (
+      <div className={`${baseCls} text-[var(--m-ink-2)] min-w-0`}>
+        <Dot tone="warn" />
+        <span className="text-[var(--m-ink-3)] shrink-0">Right now</span>
+        <span className="font-medium text-[var(--m-warn)]">Idle</span>
+        {app && <span className="text-[var(--m-ink-4)] truncate">· {app}</span>}
+      </div>
+    )
+  }
   return (
     <div className={`${baseCls} text-[var(--m-ink)] min-w-0`}>
       <PulseDot tone="good" />

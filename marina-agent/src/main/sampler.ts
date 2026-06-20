@@ -7,9 +7,15 @@ import type { PendingBatch } from './store'
 type AppBucket = {
   activeSeconds: number
   idleSeconds: number
+  lockedSeconds: number
   sampleCount: number
   lastTitle: string | null
 }
+
+// Seconds without input before we call the system "idle". Short enough to catch
+// real away-time, long enough that a pause to read/think still counts as work —
+// this is what makes the logged "working hours" honest.
+const IDLE_THRESHOLD_SECONDS = 180
 
 type ActiveWinResult = {
   owner?: { name?: string; bundleId?: string }
@@ -115,15 +121,23 @@ async function tick(): Promise<void> {
   const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown'
   const title = state.windowTitlesEnabled ? (result?.title ?? '').trim() || null : null
 
+  // Presence — active (working), idle (on but away), or locked (screen locked).
+  // getSystemIdleState handles the locked case the raw idle-seconds can't.
+  const presence = safeIdleState(IDLE_THRESHOLD_SECONDS)
+
   const bucket = buckets.get(appName) ?? {
     activeSeconds: 0,
     idleSeconds: 0,
+    lockedSeconds: 0,
     sampleCount: 0,
     lastTitle: null,
   }
-  if (idleSeconds >= sampleInterval) {
+  if (presence === 'locked') {
+    bucket.lockedSeconds += sampleInterval
+  } else if (presence === 'idle') {
     bucket.idleSeconds += sampleInterval
   } else {
+    // 'active' or 'unknown' → count as working time.
     bucket.activeSeconds += sampleInterval
   }
   bucket.sampleCount += 1
@@ -136,6 +150,14 @@ function safeIdleSeconds(): number {
     return powerMonitor.getSystemIdleTime()
   } catch {
     return 0
+  }
+}
+
+function safeIdleState(thresholdSeconds: number): 'active' | 'idle' | 'locked' | 'unknown' {
+  try {
+    return powerMonitor.getSystemIdleState(thresholdSeconds)
+  } catch {
+    return 'unknown'
   }
 }
 
@@ -158,6 +180,7 @@ function closeWindowAndEnqueue(): void {
       activeApp: app.slice(0, 128),
       activeSeconds: Math.round(b.activeSeconds),
       idleSeconds: Math.round(b.idleSeconds),
+      lockedSeconds: Math.round(b.lockedSeconds),
       sampleCount: b.sampleCount,
       windowTitle: b.lastTitle,
     })

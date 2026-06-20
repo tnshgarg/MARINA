@@ -441,6 +441,9 @@ export const localActivity = pgTable(
     activeApp: text('active_app').notNull(),
     activeSeconds: integer('active_seconds').notNull(),
     idleSeconds: integer('idle_seconds').notNull(),
+    // Screen-locked time within the window — distinct from idle (on but no
+    // input). Defaults 0 so pre-existing rows + older agents are unaffected.
+    lockedSeconds: integer('locked_seconds').notNull().default(0),
     sampleCount: integer('sample_count').notNull(),
     windowTitle: text('window_title'),
   },

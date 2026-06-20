@@ -285,6 +285,10 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS "org_announcements_org_idx" ON "org_announcements" USING btree ("org_id","created_at")`)
   console.log('  · 0017 recognitions + org_announcements OK')
 
+  // 0018 — locked-screen time on local_activity (presence: active/idle/locked).
+  await db.execute(sql`ALTER TABLE "local_activity" ADD COLUMN IF NOT EXISTS "locked_seconds" integer NOT NULL DEFAULT 0`)
+  console.log('  · 0018 local_activity.locked_seconds OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

@@ -40,6 +40,10 @@ const electron_1 = require("electron");
 const state_1 = require("./state");
 const uploader_1 = require("./uploader");
 const store_1 = require("./store");
+// Seconds without input before we call the system "idle". Short enough to catch
+// real away-time, long enough that a pause to read/think still counts as work —
+// this is what makes the logged "working hours" honest.
+const IDLE_THRESHOLD_SECONDS = 180;
 let sampleTimer = null;
 let flushTimer = null;
 let windowStart = null;
@@ -107,6 +111,10 @@ function scheduleFlush() {
             scheduleFlush();
     }, intervalMs);
 }
+// Counts consecutive ticks where active-win returned nothing while the user was
+// active — the signature of a missing/incompatible native binary (e.g. a Windows
+// build packaged on macOS). Surfaced to the UI so the failure isn't silent.
+let activeWinMisses = 0;
 async function tick() {
     const state = state_1.bus.get();
     if (state.paused)
@@ -124,18 +132,38 @@ async function tick() {
         state_1.bus.patch({ lastError: `active-win: ${err.message}` });
         result = null;
     }
+    // active-win can return null (no throw) when the platform native binary is
+    // missing/incompatible — the "everything is Unknown" failure. Flag it after a
+    // sustained run of misses while the user is clearly active; reset on success.
+    if (result?.owner?.name) {
+        activeWinMisses = 0;
+    }
+    else if (idleSeconds < sampleInterval) {
+        activeWinMisses += 1;
+        if (activeWinMisses === 12) {
+            state_1.bus.patch({ lastError: "Couldn't read the active window on this device — app activity may not be tracked." });
+        }
+    }
     const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown';
     const title = state.windowTitlesEnabled ? (result?.title ?? '').trim() || null : null;
+    // Presence — active (working), idle (on but away), or locked (screen locked).
+    // getSystemIdleState handles the locked case the raw idle-seconds can't.
+    const presence = safeIdleState(IDLE_THRESHOLD_SECONDS);
     const bucket = buckets.get(appName) ?? {
         activeSeconds: 0,
         idleSeconds: 0,
+        lockedSeconds: 0,
         sampleCount: 0,
         lastTitle: null,
     };
-    if (idleSeconds >= sampleInterval) {
+    if (presence === 'locked') {
+        bucket.lockedSeconds += sampleInterval;
+    }
+    else if (presence === 'idle') {
         bucket.idleSeconds += sampleInterval;
     }
     else {
+        // 'active' or 'unknown' → count as working time.
         bucket.activeSeconds += sampleInterval;
     }
     bucket.sampleCount += 1;
@@ -149,6 +177,14 @@ function safeIdleSeconds() {
     }
     catch {
         return 0;
+    }
+}
+function safeIdleState(thresholdSeconds) {
+    try {
+        return electron_1.powerMonitor.getSystemIdleState(thresholdSeconds);
+    }
+    catch {
+        return 'unknown';
     }
 }
 function closeWindowAndEnqueue() {
@@ -170,6 +206,7 @@ function closeWindowAndEnqueue() {
             activeApp: app.slice(0, 128),
             activeSeconds: Math.round(b.activeSeconds),
             idleSeconds: Math.round(b.idleSeconds),
+            lockedSeconds: Math.round(b.lockedSeconds),
             sampleCount: b.sampleCount,
             windowTitle: b.lastTitle,
         });
