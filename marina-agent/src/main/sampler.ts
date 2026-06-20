@@ -3,6 +3,7 @@ import { bus } from './state'
 import { enqueueBatches } from './uploader'
 import { STORE_KEYS, get } from './store'
 import type { PendingBatch } from './store'
+import { getActiveWindow, type ActiveWindowInfo } from './active-window'
 
 type AppBucket = {
   activeSeconds: number
@@ -16,11 +17,6 @@ type AppBucket = {
 // real away-time, long enough that a pause to read/think still counts as work —
 // this is what makes the logged "working hours" honest.
 const IDLE_THRESHOLD_SECONDS = 180
-
-type ActiveWinResult = {
-  owner?: { name?: string; bundleId?: string }
-  title?: string
-} | null
 
 let sampleTimer: NodeJS.Timeout | null = null
 let flushTimer: NodeJS.Timeout | null = null
@@ -95,21 +91,18 @@ async function tick(): Promise<void> {
   const sampleInterval = Math.max(5, state.sampleIntervalSeconds)
 
   const idleSeconds = safeIdleSeconds()
-  let result: ActiveWinResult = null
+  let win: ActiveWindowInfo = null
   try {
-    const { default: activeWin } = await import('active-win')
-    result = (await activeWin()) as ActiveWinResult
+    win = await getActiveWindow(state.windowTitlesEnabled)
   } catch (err) {
-    // active-win can fail if accessibility permissions are missing. Surface
-    // that to the UI but keep the agent alive — heartbeat still runs.
-    bus.patch({ lastError: `active-win: ${(err as Error).message}` })
-    result = null
+    // e.g. macOS Accessibility not granted. Surface it but keep the agent alive.
+    bus.patch({ lastError: `active-window: ${(err as Error).message}` })
+    win = null
   }
 
-  // active-win can return null (no throw) when the platform native binary is
-  // missing/incompatible — the "everything is Unknown" failure. Flag it after a
+  // Reading the foreground window can return nothing (no throw) — flag it after a
   // sustained run of misses while the user is clearly active; reset on success.
-  if (result?.owner?.name) {
+  if (win?.app) {
     activeWinMisses = 0
   } else if (idleSeconds < sampleInterval) {
     activeWinMisses += 1
@@ -118,8 +111,8 @@ async function tick(): Promise<void> {
     }
   }
 
-  const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown'
-  const title = state.windowTitlesEnabled ? (result?.title ?? '').trim() || null : null
+  const appName = (win?.app ?? 'Unknown').trim() || 'Unknown'
+  const title = state.windowTitlesEnabled ? (win?.title ?? '').trim() || null : null
 
   // Presence — active (working), idle (on but away), or locked (screen locked).
   // getSystemIdleState handles the locked case the raw idle-seconds can't.

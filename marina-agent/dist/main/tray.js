@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTray = createTray;
 exports.flashCameraIndicator = flashCameraIndicator;
 const electron_1 = require("electron");
+const node_path_1 = require("node:path");
 const state_1 = require("./state");
 const api_1 = require("./api");
 const uploader_1 = require("./uploader");
@@ -21,8 +22,21 @@ let tray = null;
 // only the menubar title. We render the visible state via setTitle().
 const TRANSPARENT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 function createTray() {
-    const image = electron_1.nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'));
-    image.setTemplateImage(true);
+    let image;
+    if (process.platform === 'win32') {
+        // Windows shows no menubar title, so it needs a real, visible tray icon —
+        // the transparent placeholder would be invisible in the system tray.
+        const loaded = electron_1.nativeImage.createFromPath((0, node_path_1.join)(__dirname, '..', 'assets', 'tray.png'));
+        image = loaded.isEmpty()
+            ? electron_1.nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'))
+            : loaded.resize({ width: 16, height: 16 });
+    }
+    else {
+        // macOS renders the visible state via setTitle(); a transparent template
+        // image keeps the menubar tidy in light + dark mode.
+        image = electron_1.nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'));
+        image.setTemplateImage(true);
+    }
     tray = new electron_1.Tray(image);
     tray.setIgnoreDoubleClickEvents(true);
     rebuild();

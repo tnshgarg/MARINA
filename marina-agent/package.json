@@ -28,6 +28,7 @@
     "appId": "co.marina.agent",
     "productName": "Marina",
     "asar": true,
+    "npmRebuild": false,
     "directories": {
       "buildResources": "build",
       "output": "release"
