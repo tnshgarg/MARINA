@@ -75,6 +75,33 @@ type Brief = {
   weekAvgProductiveMin: number
   weekMeetingsCount: number
   standupToday: { yesterday: string; today: string; blockers: string } | null
+  resolvedBlockers: Array<{ reason: string; waitingOn: string; resolution: string; endedAt: string }>
+  deliverables: Array<{ id: number; title: string; url: string | null; completedAt: string }>
+  weekMeetings: Array<{ id: number; title: string; startAt: string; endAt: string }>
+  pendingLeaves: Array<{ id: number; leaveType: string; startDate: string; endDate: string; reason: string | null }>
+  upcomingLeaves: Array<{ id: number; leaveType: string; startDate: string; endDate: string }>
+}
+
+const LEAVE_LABEL: Record<string, string> = {
+  casual: 'Casual leave',
+  sick: 'Sick leave',
+  earned: 'Earned leave',
+  compoff: 'Comp-off',
+  unpaid: 'Unpaid leave',
+  other: 'Leave',
+}
+
+/** Human label for how a blocker was resolved. */
+function resolutionText(type: string | null, note: string | null): string {
+  const base =
+    type === 'self'
+      ? 'Unblocked themselves'
+      : type === 'helped' || type === 'help'
+        ? 'A teammate helped'
+        : type === 'external'
+          ? 'External dependency cleared'
+          : 'Resolved'
+  return note ? `${base} — ${note}` : base
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -486,27 +513,28 @@ function BriefPane({
           )}
 
           {/* Today's plan — what they told the team they'd work on (standup).
-              The headline of a standup, so it leads the per-person card. */}
-          {brief.standupToday && (brief.standupToday.today || brief.standupToday.blockers) && (
-            <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-[var(--m-accent-soft)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--m-accent)]">
-                Working on today
+              Always shown; it's the headline of a standup. */}
+          <section className="mb-5 rounded-xl border border-[var(--m-border)] bg-[var(--m-accent-soft)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--m-accent)]">
+              Working on today
+            </p>
+            {brief.standupToday?.today ? (
+              <p className="mt-1.5 text-[15px] text-[var(--m-ink)] leading-relaxed whitespace-pre-line">
+                {brief.standupToday.today}
               </p>
-              {brief.standupToday.today ? (
-                <p className="mt-1.5 text-[15px] text-[var(--m-ink)] leading-relaxed whitespace-pre-line">
-                  {brief.standupToday.today}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-[13.5px] text-[var(--m-ink-3)]">Plan not filled in yet.</p>
-              )}
-              {brief.standupToday.blockers && (
-                <p className="mt-2 text-[13px] text-[var(--m-ink-2)]">
-                  <span className="font-semibold text-[var(--m-bad)]">Blockers:</span>{' '}
-                  {brief.standupToday.blockers}
-                </p>
-              )}
-            </section>
-          )}
+            ) : (
+              <p className="mt-1.5 text-[13.5px] text-[var(--m-ink-3)]">
+                No standup filed yet today — nudge them to post one with{' '}
+                <code className="text-[12px] bg-white/60 px-1 rounded">/marina standup</code>.
+              </p>
+            )}
+            {brief.standupToday?.blockers && (
+              <p className="mt-2 text-[13px] text-[var(--m-ink-2)]">
+                <span className="font-semibold text-[var(--m-bad)]">Their blockers:</span>{' '}
+                {brief.standupToday.blockers}
+              </p>
+            )}
+          </section>
 
           {brief.risks.length > 0 && (
             <section className="mb-5 flex flex-wrap gap-1.5">
@@ -628,35 +656,28 @@ function BriefPane({
               </p>
             </section>
 
-            {/* Today's meetings */}
-            {brief.todayMeetings.length > 0 && (
+            {/* Meetings this week — incl. yesterday + today, most recent first */}
+            {brief.weekMeetings.length > 0 && (
               <section className="lg:col-span-2 rounded-xl border border-[var(--m-border)] bg-white p-5">
-                <SectionHeader title="Today's calendar" hint={`${brief.todayMeetings.length} meetings`} />
-                <ul className="mt-2.5 space-y-1.5">
-                  {brief.todayMeetings.slice(0, 5).map((m) => {
-                    const start = new Date(m.startAt).getTime()
+                <SectionHeader title="Meetings this week" hint={`${brief.weekMeetings.length} total`} />
+                <ul className="mt-2.5 space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                  {brief.weekMeetings.slice(0, 12).map((m) => {
+                    const start = new Date(m.startAt)
                     const end = new Date(m.endAt).getTime()
-                    const isLive = nowTick >= start && nowTick <= end
-                    const isPast = nowTick > end
+                    const isLive = nowTick >= start.getTime() && nowTick <= end
+                    const isToday = start.toDateString() === new Date(nowTick).toDateString()
                     return (
                       <li
                         key={m.id}
-                        className={`flex items-center gap-3 text-[13px] ${
-                          isPast ? 'opacity-50' : ''
-                        }`}
+                        className={`flex items-center gap-3 text-[13px] ${!isToday && !isLive ? 'opacity-70' : ''}`}
                       >
-                        <span className="shrink-0 w-16 text-[var(--m-ink-3)] tabular-nums text-[12px]">
-                          {fmtClock(m.startAt)}
+                        <span className="shrink-0 w-24 text-[var(--m-ink-3)] tabular-nums text-[12px]">
+                          {start.toLocaleDateString(undefined, { weekday: 'short' })} {fmtClock(m.startAt)}
                         </span>
                         <span className="text-[var(--m-ink)] truncate flex-1">{m.title}</span>
                         {isLive && (
                           <span className="shrink-0 text-[10px] uppercase tracking-wider font-semibold text-[var(--m-good)]">
                             Live
-                          </span>
-                        )}
-                        {m.rsvpStatus && m.rsvpStatus !== 'accepted' && !isLive && (
-                          <span className="shrink-0 text-[10px] uppercase tracking-wider text-[var(--m-ink-4)]">
-                            {m.rsvpStatus}
                           </span>
                         )}
                       </li>
@@ -699,24 +720,93 @@ function BriefPane({
               </ul>
             </section>
 
-            {/* Latest shift summary */}
+            {/* Blockers — faced this week + how they got resolved */}
             <section className="lg:col-span-1 rounded-xl border border-[var(--m-border)] bg-white p-5">
-              <SectionHeader title="Latest shift" />
-              {brief.shiftSummary ? (
-                <p className="mt-2 text-[13px] text-[var(--m-ink-2)] leading-snug whitespace-pre-line">
-                  {brief.shiftSummary}
-                </p>
-              ) : (
-                <p className="mt-2 text-[12.5px] text-[var(--m-ink-3)] italic">
-                  No summary captured yet.
+              <SectionHeader
+                title="Blockers"
+                hint={brief.resolvedBlockers.length ? `${brief.resolvedBlockers.length} resolved` : undefined}
+              />
+              {brief.activeBlocker && (
+                <p className="mt-2 text-[12.5px] leading-snug">
+                  <span className="font-semibold text-[var(--m-bad)]">Active · </span>
+                  <span className="text-[var(--m-ink)]">
+                    {brief.activeBlocker.reason || `waiting on ${brief.activeBlocker.waitingOn}`}
+                  </span>
                 </p>
               )}
-              {brief.shiftStatus && brief.shiftStatus !== 'skipped' && (
-                <p className="mt-2 text-[11px] uppercase tracking-wider text-[var(--m-ink-4)]">
-                  Verification · {brief.shiftStatus}
-                </p>
+              {brief.resolvedBlockers.length > 0 ? (
+                <ul className="mt-2 space-y-2">
+                  {brief.resolvedBlockers.map((b, i) => (
+                    <li key={i} className="text-[12.5px] leading-snug">
+                      <span className="text-[var(--m-ink)]">{b.reason || `Waiting on ${b.waitingOn}`}</span>
+                      <span className="block text-[var(--m-good)] text-[11.5px] mt-0.5">✓ {b.resolution}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                !brief.activeBlocker && (
+                  <p className="mt-2 text-[12.5px] text-[var(--m-ink-3)] italic">No blockers this week.</p>
+                )
               )}
             </section>
+
+            {/* Time off — pending approval + upcoming */}
+            <section className="lg:col-span-1 rounded-xl border border-[var(--m-border)] bg-white p-5">
+              <SectionHeader title="Time off" />
+              {brief.pendingLeaves.length === 0 && brief.upcomingLeaves.length === 0 ? (
+                <p className="mt-2 text-[12.5px] text-[var(--m-ink-3)] italic">Nothing pending or upcoming.</p>
+              ) : (
+                <div className="mt-2 space-y-2.5">
+                  {brief.pendingLeaves.map((l) => (
+                    <div key={`p${l.id}`} className="text-[12.5px]">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-[var(--m-warn-soft)] text-[var(--m-warn)]">
+                        Needs approval
+                      </span>
+                      <p className="mt-1 text-[var(--m-ink)]">
+                        {LEAVE_LABEL[l.leaveType] ?? 'Leave'} · {fmtDateRange(l.startDate, l.endDate)}
+                      </p>
+                      {l.reason && <p className="text-[var(--m-ink-3)] text-[11.5px]">{l.reason}</p>}
+                    </div>
+                  ))}
+                  {brief.upcomingLeaves.map((l) => (
+                    <div key={`u${l.id}`} className="text-[12.5px]">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-[var(--m-good-soft)] text-[var(--m-good)]">
+                        Approved
+                      </span>
+                      <p className="mt-1 text-[var(--m-ink)]">
+                        {LEAVE_LABEL[l.leaveType] ?? 'Leave'} · {fmtDateRange(l.startDate, l.endDate)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Recent deliverables — self-reported shipped work */}
+            {brief.deliverables.length > 0 && (
+              <section className="lg:col-span-1 rounded-xl border border-[var(--m-border)] bg-white p-5">
+                <SectionHeader title="Shipped recently" hint={`${brief.deliverables.length}`} />
+                <ul className="mt-2.5 space-y-1.5">
+                  {brief.deliverables.map((d) => (
+                    <li key={d.id} className="text-[12.5px] leading-snug flex items-baseline gap-2">
+                      <span className="text-[var(--m-good)] mt-0.5 shrink-0">✓</span>
+                      {d.url ? (
+                        <a
+                          href={d.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[var(--m-ink)] hover:text-[var(--m-accent)] truncate"
+                        >
+                          {d.title}
+                        </a>
+                      ) : (
+                        <span className="text-[var(--m-ink)] truncate">{d.title}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {/* Story narrative */}
             {brief.storyNarrative && (
@@ -953,6 +1043,8 @@ function deriveBrief(detail: {
     endedAt: string | null
     waitingOnExternal: string | null
     waitingOnUserId?: number | null
+    resolutionType?: string | null
+    resolutionNote?: string | null
   }>
   latestShift: { workSummary: string | null; verificationStatus: string | null } | null
   narrative: { body: string } | null
@@ -979,6 +1071,9 @@ function deriveBrief(detail: {
   shiftTotals?: { workMin: number; breakMin: number; idleMin: number }
   weekMeetingsCount?: number
   standupToday?: { yesterday: string; today: string; blockers: string } | null
+  recentDeliverables?: Array<{ id: number; title: string; url: string | null; completedAt: string }>
+  recentLeaves?: Array<{ id: number; startDate: string; endDate: string; leaveType: string; reason: string | null; status: string }>
+  weekMeetings?: Array<{ id: number; title: string; startAt: string; endAt: string }>
 }): Brief {
   const now = Date.now()
   const last24h = now - 24 * 60 * 60 * 1000
@@ -1021,6 +1116,26 @@ function deriveBrief(detail: {
   const yesterdayPrsOpened = count('pr_opened')
   const yesterdayReviews = count('pr_reviewed')
   const yesterdayIssuesClosed = count('issue_closed')
+
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const resolvedBlockers = detail.recentBreaks
+    .filter((b) => b.category === 'blocked' && b.endedAt)
+    .slice(0, 4)
+    .map((b) => ({
+      reason: b.reason,
+      waitingOn: b.waitingOnExternal ?? 'a teammate',
+      resolution: resolutionText(b.resolutionType ?? null, b.resolutionNote ?? null),
+      endedAt: b.endedAt as string,
+    }))
+  const deliverables = (detail.recentDeliverables ?? []).slice(0, 6)
+  const weekMeetings = detail.weekMeetings ?? []
+  const pendingLeaves = (detail.recentLeaves ?? [])
+    .filter((l) => l.status === 'pending')
+    .map((l) => ({ id: l.id, leaveType: l.leaveType, startDate: l.startDate, endDate: l.endDate, reason: l.reason }))
+  const upcomingLeaves = (detail.recentLeaves ?? [])
+    .filter((l) => l.status === 'approved' && l.endDate >= todayIso)
+    .map((l) => ({ id: l.id, leaveType: l.leaveType, startDate: l.startDate, endDate: l.endDate }))
+
   return {
     discipline: (detail.discipline ?? 'other') as Discipline,
     jobTitle: detail.jobTitle ?? null,
@@ -1046,6 +1161,11 @@ function deriveBrief(detail: {
     weekAvgProductiveMin,
     weekMeetingsCount: detail.weekMeetingsCount ?? 0,
     standupToday: detail.standupToday ?? null,
+    resolvedBlockers,
+    deliverables,
+    weekMeetings,
+    pendingLeaves,
+    upcomingLeaves,
   }
 }
 
@@ -1067,6 +1187,13 @@ function fmtClock(iso: string): string {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+function fmtDateRange(start: string, end: string): string {
+  const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  const s = new Date(start + 'T00:00:00').toLocaleDateString(undefined, opt)
+  if (start === end) return s
+  const e = new Date(end + 'T00:00:00').toLocaleDateString(undefined, opt)
+  return `${s} – ${e}`
 }
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
