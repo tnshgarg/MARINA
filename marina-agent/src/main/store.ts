@@ -10,6 +10,7 @@ export type PendingBatch = {
   activeApp: string
   activeSeconds: number
   idleSeconds: number
+  lockedSeconds?: number
   sampleCount: number
   windowTitle?: string | null
 }

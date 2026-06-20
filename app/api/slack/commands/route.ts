@@ -14,6 +14,7 @@ import { createOrgAnnouncement } from '@/lib/announcements/create'
 import { endActiveBreak } from '@/lib/breaks/end'
 import { punchIn } from '@/lib/shifts/punch'
 import { getPersonalBrief } from '@/lib/brief/personal'
+import { getCompactSummaries } from '@/lib/activity/aggregate'
 
 export const runtime = 'nodejs'
 
@@ -307,9 +308,19 @@ export async function POST(req: Request) {
       const me = await findCallerMembership()
       if (!me) return ack(notLinked)
       const b = await getPersonalBrief(me.userId, org.id)
+      const presence = (await getCompactSummaries([me.userId])).get(me.userId)?.presence ?? null
+      const presenceLabel =
+        presence === 'active'
+          ? 'working now — the agent is tracking'
+          : presence === 'idle'
+            ? 'idle right now'
+            : presence === 'locked'
+              ? 'screen locked'
+              : null
       const lines = [
         '*Your day*',
         `Status — ${b.activeShift ? `on the clock (${b.activeShift.sinceMin}m)` : 'off the clock'}`,
+        presenceLabel ? `Right now — ${presenceLabel}` : null,
         `Shipped today — ${b.deliverablesToday.count}`,
         b.activeBreak
           ? `${b.activeBreak.category === 'blocked' ? 'Blocked on' : 'On a break'} — ${b.activeBreak.reason}`

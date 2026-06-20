@@ -19,6 +19,7 @@ type IncomingBatch = {
   activeApp?: string
   activeSeconds?: number
   idleSeconds?: number
+  lockedSeconds?: number
   sampleCount?: number
   windowTitle?: string | null
 }
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
     }
     const activeSeconds = clampInt(b.activeSeconds, 0, 24 * 60 * 60)
     const idleSeconds = clampInt(b.idleSeconds, 0, 24 * 60 * 60)
+    const lockedSeconds = clampInt(b.lockedSeconds, 0, 24 * 60 * 60)
     const sampleCount = clampInt(b.sampleCount, 1, 10_000)
     let windowTitle: string | null = null
     if (allowWindowTitles && typeof b.windowTitle === 'string') {
@@ -119,6 +121,7 @@ export async function POST(req: Request) {
       activeApp,
       activeSeconds,
       idleSeconds,
+      lockedSeconds,
       sampleCount,
       windowTitle,
     })

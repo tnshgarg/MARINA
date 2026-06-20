@@ -241,7 +241,7 @@ export async function GET(
       app?: string | null
       detail?: string
     }> = []
-    let shiftTotals: { workMin: number; breakMin: number; idleMin: number } = { workMin: 0, breakMin: 0, idleMin: 0 }
+    let shiftTotals: { workMin: number; breakMin: number; idleMin: number; lockedMin: number } = { workMin: 0, breakMin: 0, idleMin: 0, lockedMin: 0 }
     if (latestShift) {
       const shiftStart = latestShift.punchedInAt
       const shiftEnd = latestShift.punchedOutAt ?? new Date()
@@ -252,6 +252,7 @@ export async function GET(
           activeApp: schema.localActivity.activeApp,
           activeSeconds: schema.localActivity.activeSeconds,
           idleSeconds: schema.localActivity.idleSeconds,
+          lockedSeconds: schema.localActivity.lockedSeconds,
           windowTitle: schema.localActivity.windowTitle,
         })
         .from(schema.localActivity)
@@ -377,10 +378,14 @@ export async function GET(
 
       // Compute totals from raw (pre-overlap) data to keep them honest
       for (const a of acts) {
-        const isIdle = a.idleSeconds > a.activeSeconds * 1.5
         const mins = Math.round((a.windowEnd.getTime() - a.windowStart.getTime()) / 60_000)
-        if (isIdle) shiftTotals.idleMin += mins
-        else shiftTotals.workMin += mins
+        if (a.lockedSeconds > a.activeSeconds && a.lockedSeconds > a.idleSeconds) {
+          shiftTotals.lockedMin += mins
+        } else if (a.idleSeconds > a.activeSeconds * 1.5) {
+          shiftTotals.idleMin += mins
+        } else {
+          shiftTotals.workMin += mins
+        }
       }
       for (const b of shiftBreaks) {
         const end = b.endedAt ?? shiftEnd
