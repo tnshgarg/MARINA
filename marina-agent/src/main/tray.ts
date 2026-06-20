@@ -1,4 +1,5 @@
 import { Menu, Tray, app, nativeImage, shell } from 'electron'
+import { join } from 'node:path'
 import { bus } from './state'
 import { postPause } from './api'
 import { drainOnQuit } from './uploader'
@@ -21,8 +22,20 @@ const TRANSPARENT_PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 export function createTray(): Tray {
-  const image = nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'))
-  image.setTemplateImage(true)
+  let image: Electron.NativeImage
+  if (process.platform === 'win32') {
+    // Windows shows no menubar title, so it needs a real, visible tray icon —
+    // the transparent placeholder would be invisible in the system tray.
+    const loaded = nativeImage.createFromPath(join(__dirname, '..', 'assets', 'tray.png'))
+    image = loaded.isEmpty()
+      ? nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'))
+      : loaded.resize({ width: 16, height: 16 })
+  } else {
+    // macOS renders the visible state via setTitle(); a transparent template
+    // image keeps the menubar tidy in light + dark mode.
+    image = nativeImage.createFromBuffer(Buffer.from(TRANSPARENT_PNG_BASE64, 'base64'))
+    image.setTemplateImage(true)
+  }
   tray = new Tray(image)
   tray.setIgnoreDoubleClickEvents(true)
   rebuild()

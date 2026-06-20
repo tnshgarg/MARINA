@@ -1,11 +1,13 @@
-# Project MARINA — Mac agent
+# Marina — desktop agent (macOS + Windows)
 
-The macOS menubar agent for [Project MARINA](../marina). Runs silently in the menu bar, samples a small amount of activity every 30 seconds, batches into 5-minute windows, and uploads to your organization's dashboard.
+The cross-platform menubar / system-tray agent for [Marina](../marina). Runs silently, samples a small amount of activity every 30 seconds, batches into 5-minute windows, and uploads to your organization's dashboard.
+
+Active-window detection is platform-specific: macOS uses the native `active-win` (needs Accessibility permission for titles); Windows uses a hidden PowerShell + Win32 `GetForegroundWindow` call (no native addon, no extra permissions). Idle / locked state uses Electron's cross-platform `powerMonitor`.
 
 ## What it collects
 
-- **Active app name** (e.g. `Code`, `Safari`).
-- **Idle vs active time** (whether the user is generating input).
+- **Active app name** (e.g. `Code`, `chrome`, `slack`).
+- **Active / idle / locked time** (working, on-but-away, or screen-locked).
 - **Foreground window title** — **off by default**. Only enabled if the user explicitly toggles it on in the web app's `/settings` page.
 - **Disclosed-randomized screenshots** of the primary display — 2–4 per hour at uniformly random times. The menu-bar glyph flashes `◉` for 1.5 seconds at the moment of capture so it is always visible, never covert. Downscaled to 1280px wide, JPEG q70 (~150 KB). Skipped automatically while a video-call app is in the foreground (Zoom, Teams, FaceTime, Webex, Meet, BlueJeans).
 

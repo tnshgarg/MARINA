@@ -79,7 +79,7 @@ export default function DownloadPage() {
             requirements={[
               'Windows 10 (1809) or Windows 11 · 64-bit',
               'About 120 MB of disk space',
-              'In active testing — expect rough edges',
+              'Tracks apps, focus, idle & locked time — no extra permissions',
             ]}
             steps={[
               'Download MARINA-Setup.exe and run it.',

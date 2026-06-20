@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startSampler = startSampler;
 exports.stopSampler = stopSampler;
@@ -40,6 +7,7 @@ const electron_1 = require("electron");
 const state_1 = require("./state");
 const uploader_1 = require("./uploader");
 const store_1 = require("./store");
+const active_window_1 = require("./active-window");
 // Seconds without input before we call the system "idle". Short enough to catch
 // real away-time, long enough that a pause to read/think still counts as work —
 // this is what makes the logged "working hours" honest.
@@ -121,21 +89,18 @@ async function tick() {
         return; // belt-and-suspenders: paused agents shouldn't even tick
     const sampleInterval = Math.max(5, state.sampleIntervalSeconds);
     const idleSeconds = safeIdleSeconds();
-    let result = null;
+    let win = null;
     try {
-        const { default: activeWin } = await Promise.resolve().then(() => __importStar(require('active-win')));
-        result = (await activeWin());
+        win = await (0, active_window_1.getActiveWindow)(state.windowTitlesEnabled);
     }
     catch (err) {
-        // active-win can fail if accessibility permissions are missing. Surface
-        // that to the UI but keep the agent alive — heartbeat still runs.
-        state_1.bus.patch({ lastError: `active-win: ${err.message}` });
-        result = null;
+        // e.g. macOS Accessibility not granted. Surface it but keep the agent alive.
+        state_1.bus.patch({ lastError: `active-window: ${err.message}` });
+        win = null;
     }
-    // active-win can return null (no throw) when the platform native binary is
-    // missing/incompatible — the "everything is Unknown" failure. Flag it after a
+    // Reading the foreground window can return nothing (no throw) — flag it after a
     // sustained run of misses while the user is clearly active; reset on success.
-    if (result?.owner?.name) {
+    if (win?.app) {
         activeWinMisses = 0;
     }
     else if (idleSeconds < sampleInterval) {
@@ -144,8 +109,8 @@ async function tick() {
             state_1.bus.patch({ lastError: "Couldn't read the active window on this device — app activity may not be tracked." });
         }
     }
-    const appName = (result?.owner?.name ?? 'Unknown').trim() || 'Unknown';
-    const title = state.windowTitlesEnabled ? (result?.title ?? '').trim() || null : null;
+    const appName = (win?.app ?? 'Unknown').trim() || 'Unknown';
+    const title = state.windowTitlesEnabled ? (win?.title ?? '').trim() || null : null;
     // Presence — active (working), idle (on but away), or locked (screen locked).
     // getSystemIdleState handles the locked case the raw idle-seconds can't.
     const presence = safeIdleState(IDLE_THRESHOLD_SECONDS);
