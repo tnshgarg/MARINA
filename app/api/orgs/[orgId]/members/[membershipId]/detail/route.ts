@@ -713,6 +713,8 @@ export async function GET(
         .orderBy(schema.meetings.startAt),
       db
         .select({
+          id: schema.meetings.id,
+          title: schema.meetings.title,
           startAt: schema.meetings.startAt,
           endAt: schema.meetings.endAt,
         })
@@ -723,7 +725,8 @@ export async function GET(
             gte(schema.meetings.startAt, since7),
             hideSeedRows(schema.meetings.externalId),
           ),
-        ),
+        )
+        .orderBy(desc(schema.meetings.startAt)),
     ])
     const weekMeetingsCount = weekMeetings.length
     const weekMeetingsMin = weekMeetings.reduce(
@@ -849,6 +852,8 @@ export async function GET(
         endedAt: b.endedAt?.toISOString() ?? null,
         waitingOnUserId: b.waitingOnUserId,
         waitingOnExternal: b.waitingOnExternal,
+        resolutionType: b.resolutionType ?? null,
+        resolutionNote: b.resolutionNote ?? null,
       })),
       recentLeaves: recentLeaves.map((l) => ({
         id: l.id,
@@ -894,6 +899,14 @@ export async function GET(
       last7Shifts,
       weekMeetingsCount,
       weekMeetingsMin,
+      // Last 7 days of meetings (most-recent first) — powers the Scrum "meetings"
+      // filter (yesterday vs this week).
+      weekMeetings: weekMeetings.map((m) => ({
+        id: m.id,
+        title: m.title,
+        startAt: m.startAt.toISOString(),
+        endAt: m.endAt.toISOString(),
+      })),
       todayMeetings: todayMeetings.map((m) => ({
         id: m.id,
         title: m.title,
