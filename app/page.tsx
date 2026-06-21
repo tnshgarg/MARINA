@@ -90,14 +90,21 @@ export default async function Home({
       />
 
       <ProofStrip />
-      <PainSection />
-      <LandingTimeSaved />
-      <ValueProps />
-      <LandingHr />
+      {/* Product-forward: the real product surfaces lead the page, right after
+          the hero + proof numbers. The morning brief first (what you wake up
+          to), then the full feature gallery — so a visitor "gets it" in the
+          first scroll instead of reading five abstract sections first. */}
       <ProductSection />
       <ShowcaseSection />
+      {/* Then the outcome / payoff: the daily transformation, the hours saved,
+          and the HR half — the "why it's worth it" once they've seen the how. */}
+      <PainSection />
+      <LandingTimeSaved />
+      <LandingHr />
       <Workflows />
       {/*<RosterShowcase />*/}
+      {/* <ValueProps /> removed — its "1 brief / 2 sec / 0 follow-ups" cards
+          duplicated the ProofStrip numbers and the Pain "with MARINA" column. */}
       <Integrations />
       {/* Pricing is hidden during the early-access phase — we're onboarding a
           founding cohort for free first. The <Pricing/> component is kept
@@ -161,7 +168,7 @@ function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <a
-            href="#cta"
+            href="#get-started"
             className="hidden sm:inline-flex text-[13px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] px-3 py-1.5 transition-colors"
           >
             Sign in
@@ -177,7 +184,7 @@ function Nav() {
           >
             Book a demo
           </a>
-          <a href="#cta" className="btn-primary">
+          <a href="#get-started" className="btn-primary">
             Start free
           </a>
         </div>
@@ -199,8 +206,8 @@ function Hero({
 }) {
   return (
     <section className="relative max-w-7xl mx-auto px-6 pt-16 pb-20 md:pt-24 md:pb-28">
-      <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-        <div className="lg:col-span-7">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+        <div className="lg:col-span-7 min-w-0">
           <Reveal>
             <p className="inline-flex items-center gap-2 text-[12px] tracking-wide uppercase text-[var(--m-ink-3)] mb-5">
               <span className="relative inline-flex">
@@ -231,7 +238,7 @@ function Hero({
           </Reveal>
 
           <Reveal delay={240}>
-            <div className="mt-8">
+            <div id="get-started" className="mt-8 scroll-mt-28">
               <LandingClient
                 authError={sp.auth_error ?? null}
                 googleSignIn={googleSignIn}
@@ -707,22 +714,27 @@ function ValueCard({
 
 function ProductSection() {
   return (
-    <section className="bg-[var(--m-bg-soft)] border-y border-[var(--m-border)]">
+    <section
+      id="product"
+      className="scroll-mt-20 bg-[var(--m-bg-soft)] border-y border-[var(--m-border)]"
+    >
       <div className="max-w-7xl mx-auto px-6 py-20 md:py-28">
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-5 min-w-0">
             <p className="text-[11px] tracking-[0.18em] uppercase text-[var(--m-clay)] font-medium mb-4">
-              Story narrative
+              This is the product
             </p>
-            <h2 className="font-display text-[32px] md:text-[42px] leading-[1.1] tracking-tight">
-              Unblock work and unlock potential with your team's{" "}
-              <span className="italic">personal AI agent</span>
+            <h2 className="font-display text-[32px] md:text-[44px] leading-[1.1] tracking-tight">
+              Open Marina, and every teammate&rsquo;s day is{" "}
+              <span className="italic brand-gradient-text">
+                already written up.
+              </span>
             </h2>
             <p className="mt-5 text-[15px] text-[var(--m-ink-2)] leading-relaxed">
-              MARINA proactively surfaces what each teammate did, what's holding
-              them back, and what they should focus on next — grounded in real
-              GitHub activity, calendar meetings, and focus time. Never a
-              hallucination.
+              No forms, no standup, no chasing. Marina reads the real signals
+              &mdash; GitHub activity, calendar, focus time &mdash; and hands you
+              a grounded, cited summary of what each person shipped, where their
+              time went, and what needs you. Never a hallucination.
             </p>
             <ul className="mt-6 space-y-2.5 text-[13.5px] text-[var(--m-ink-2)]">
               <Bullet>
@@ -734,7 +746,7 @@ function ProductSection() {
               </Bullet>
             </ul>
           </div>
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7 min-w-0">
             <BriefPreview />
           </div>
         </div>
@@ -1016,14 +1028,19 @@ function ShowcaseSection() {
                 A Chief of Staff in your inbox.
               </span>
             </h2>
+            <p className="mt-5 text-[15.5px] md:text-[16px] text-[var(--m-ink-2)] leading-relaxed">
+              Every screen below is the real product &mdash; the surfaces you
+              and your team live in, day to day. No stock art, no
+              &ldquo;coming soon.&rdquo;
+            </p>
           </div>
         </Reveal>
 
-        <div className="space-y-20 md:space-y-28">
+        <div className="space-y-16 md:space-y-24">
           {blocks.map((b, i) => (
             <Reveal key={i} delay={i * 80}>
-              <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-                <div className={`lg:col-span-5 ${b.flip ? "lg:order-2" : ""}`}>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+                <div className={`min-w-0 lg:col-span-5 ${b.flip ? "lg:order-2" : ""}`}>
                   <p className="text-[10.5px] tracking-[0.18em] uppercase text-[var(--m-accent)] font-semibold mb-3">
                     {b.eyebrow}
                   </p>
@@ -1039,7 +1056,7 @@ function ShowcaseSection() {
                     ))}
                   </ul>
                 </div>
-                <div className={`lg:col-span-7 ${b.flip ? "lg:order-1" : ""}`}>
+                <div className={`min-w-0 lg:col-span-7 ${b.flip ? "lg:order-1" : ""}`}>
                   {b.mockup}
                 </div>
               </div>
@@ -1350,13 +1367,13 @@ function EarlyAccess() {
         </div>
 
         <Reveal delay={240}>
-          <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="mt-12 flex flex-col items-center gap-5">
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <a
-                href="/demo"
+                href="#get-started"
                 className="inline-flex items-center gap-2 bg-white text-[var(--m-ink)] hover:bg-white/95 px-6 py-3 rounded-lg text-[14.5px] font-semibold shadow-lg transition"
               >
-                Apply for early access
+                Start free
                 <svg
                   width={15}
                   height={15}
@@ -1373,15 +1390,42 @@ function EarlyAccess() {
                 </svg>
               </a>
               <a
-                href="#cta"
+                href="/demo"
                 className="text-[14px] text-white/90 hover:text-white border border-white/30 hover:border-white/60 rounded-lg px-6 py-3 transition"
               >
-                Or just start free
+                Or book a demo
               </a>
             </div>
-            <p className="text-[12.5px] text-white/65">
-              No credit card. No contract. We onboard you personally.
-            </p>
+
+            {/* Honest trust signals — no fabricated logos or testimonials.
+                Each one is a real promise we keep during early access. */}
+            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12.5px] text-white/70">
+              {[
+                "Free for your first 5 teammates",
+                "No credit card, no contract",
+                "Your data stays private",
+                "A direct line to the founder",
+              ].map((t) => (
+                <li key={t} className="inline-flex items-center gap-1.5">
+                  <svg
+                    width={13}
+                    height={13}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.4}
+                    className="text-white/80"
+                  >
+                    <path
+                      d="M5 13l4 4 10-10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {t}
+                </li>
+              ))}
+            </ul>
           </div>
         </Reveal>
       </div>

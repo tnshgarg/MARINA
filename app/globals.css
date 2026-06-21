@@ -244,13 +244,24 @@ html, body {
   border-color: var(--m-ink-5);
 }
 
-/* Soft brand gradient text for the hero italic word */
+/* Soft brand gradient text for the hero italic word.
+ *
+ * These spans are always italic display serif. Two things get clipped without
+ * help: the slanted right edge of the final glyph, and the descenders (f, y, g,
+ * p, j) which drop below our very tight heading line-height. background-clip:text
+ * only paints the gradient inside the element's box, so anything overhanging
+ * renders transparent and looks "cut off". We enlarge the paint box with padding
+ * (right + bottom), and cancel the horizontal advance with a matching negative
+ * margin so the headings keep their original wrapping. (Kept display:inline so
+ * the multi-line spans still wrap naturally.) */
 .brand-gradient-text {
   background: linear-gradient(110deg, var(--m-accent) 0%, var(--m-gold) 50%, var(--m-clay) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  padding: 0.04em 0.12em 0.16em 0;
+  margin-right: -0.12em;
 }
 
 /* Editorial long-form typography for /privacy, /terms, /dpa */
