@@ -3,6 +3,7 @@ import "./globals.css";
 import { NavProgress } from "@/components/nav-progress";
 import { ToastProvider } from "@/components/toast";
 import { TestModeBadge } from "@/components/test-mode-badge";
+import { Analytics } from "@vercel/analytics/next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://marina.team";
 
@@ -100,6 +101,7 @@ export default function RootLayout({
         <NavProgress />
         <ToastProvider>{children}</ToastProvider>
         <TestModeBadge />
+        <Analytics />
       </body>
     </html>
   );
