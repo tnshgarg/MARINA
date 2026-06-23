@@ -815,10 +815,48 @@ export function OrgSidebar({
           dot. `flex-nowrap` keeps it on one line; `shrink-0` on the buttons
           guarantees they don't get cropped when the name is very long. */}
       <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-[var(--m-border-soft)] bg-white">
+        {/* Prominent context switch back to the viewer's OWN dashboard. A
+            manager/HR is an employee too: the org "Dashboard" up top is the
+            TEAM view, this is their PERSONAL one (punch in/out, breaks, leave,
+            morning brief). It used to hide as the avatar's subtext and nobody
+            found it — now it's an explicit, labelled control. Collapses to an
+            icon when the sidebar is railed. */}
+        <NavLink
+          href="/dashboard"
+          prefetch
+          title="My dashboard — your personal view"
+          aria-label="My dashboard — your personal view"
+          className={`flex items-center rounded-lg border border-[var(--m-accent)]/30 bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] hover:bg-[var(--m-accent)] hover:text-white transition-colors mb-2.5 ${
+            rail ? "justify-center w-11 h-11 mx-auto" : "gap-2.5 px-2.5 py-2"
+          }`}
+        >
+          <span
+            className={`shrink-0 inline-flex items-center justify-center ${
+              rail ? "" : "w-7 h-7 rounded-md bg-white/70 border border-[var(--m-border)]"
+            }`}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <circle cx={12} cy={8} r={3.5} />
+              <path d="M5.5 20a6.5 6.5 0 0 1 13 0" strokeLinecap="round" />
+            </svg>
+          </span>
+          {!rail && (
+            <>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block text-[13px] font-semibold">My dashboard</span>
+                <span className="block text-[11px] opacity-70">Your personal view</span>
+              </span>
+              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="shrink-0 opacity-80">
+                <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </>
+          )}
+        </NavLink>
+
         <div className="nav-footer-row flex items-center gap-2 flex-nowrap min-h-[44px]">
-          {/* Your identity is also the way back to YOUR personal console
-              (punch in/out, your breaks, your leave) — a manager is an
-              employee too and would otherwise never find /dashboard. */}
+          {/* Identity → personal dashboard as well (clicking yourself goes to
+              your stuff). The labelled "My dashboard" button above is the
+              discoverable affordance; this stays as the account chip. */}
           <NavLink
             href="/dashboard"
             prefetch
@@ -834,7 +872,9 @@ export function OrgSidebar({
               <p className="text-[12.5px] font-medium text-[var(--m-ink)] truncate leading-tight">
                 {userName ?? `@${userLogin}`}
               </p>
-              <p className="text-[11px] text-[var(--m-ink-3)] truncate leading-tight">My dashboard ↗</p>
+              <p className="text-[11px] text-[var(--m-ink-3)] truncate leading-tight">
+                {userName ? `@${userLogin}` : "Signed in"}
+              </p>
             </div>
           </NavLink>
           <div className="nav-footer-actions shrink-0 flex items-center gap-1">

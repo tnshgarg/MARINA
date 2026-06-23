@@ -216,12 +216,27 @@ export default async function DashboardPage() {
             </div>
           </div>
           <nav className="flex items-center gap-2 sm:gap-4 text-[12px] sm:text-[13px] shrink-0">
+            {/* A manager lands on their personal console too — this is the
+                prominent, unmistakable switch into the team/org dashboard.
+                Styled as a filled button (not a plain text link) so it reads as
+                "go manage your team", not just another nav item. */}
             {canSeeTeam && primaryOrgId && (
               <Link
                 href={`/org/${primaryOrgId}`}
-                className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1"
+                title="Switch to your team & org dashboard"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--m-accent)] text-white hover:bg-[var(--m-accent-2)] px-2.5 sm:px-3 py-1.5 font-medium shadow-[var(--m-shadow-sm)] transition-colors"
               >
-                Team
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path
+                    d="M16 3.8a4 4 0 0 1 0 7.4M21 21v-1a4 4 0 0 0-3-3.85M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM3 21v-1a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Team<span className="hidden sm:inline">&nbsp;dashboard</span>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="hidden sm:inline opacity-80 -mr-0.5">
+                  <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </Link>
             )}
             <Link
