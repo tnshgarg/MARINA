@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startShotter = startShotter;
 exports.stopShotter = stopShotter;
@@ -39,6 +6,7 @@ const electron_1 = require("electron");
 const api_1 = require("./api");
 const state_1 = require("./state");
 const tray_1 = require("./tray");
+const active_window_1 = require("./active-window");
 const VIDEO_CALL_BUNDLES = new Set([
     'us.zoom.xos', // Zoom
     'us.zoom.ZoomWorkplace',
@@ -117,14 +85,15 @@ async function attemptCapture() {
     const state = state_1.bus.get();
     if (!state.paired || state.paused)
         return;
-    // Foreground app check — skip during likely video calls.
+    // Foreground app check — skip during likely video calls. Uses the shared,
+    // permission-free detector (lsappinfo on macOS) — no active-win binary, no
+    // TCC prompt.
     let active = null;
     try {
-        const mod = await Promise.resolve().then(() => __importStar(require('active-win')));
-        active = (await mod.default());
+        active = await (0, active_window_1.getActiveWindow)(false);
     }
     catch (err) {
-        state_1.bus.patch({ lastError: `active-win: ${err.message}` });
+        state_1.bus.patch({ lastError: `active-window: ${err.message}` });
     }
     if (isVideoCall(active)) {
         console.log('[shotter] skipping — video call foreground');
@@ -158,8 +127,8 @@ async function attemptCapture() {
 function isVideoCall(result) {
     if (!result)
         return false;
-    const bundle = result.owner?.bundleId ?? '';
-    const name = result.owner?.name ?? '';
+    const bundle = result.bundleId ?? '';
+    const name = result.app ?? '';
     if (bundle && VIDEO_CALL_BUNDLES.has(bundle))
         return true;
     for (const re of VIDEO_CALL_NAMES) {

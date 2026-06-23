@@ -2,11 +2,7 @@ import { desktopCapturer, nativeImage, screen } from 'electron'
 import { authedPost } from './api'
 import { bus } from './state'
 import { flashCameraIndicator } from './tray'
-
-type ActiveWinResult = {
-  owner?: { name?: string; bundleId?: string }
-  title?: string
-} | null
+import { getActiveWindow, type ActiveWindowInfo } from './active-window'
 
 const VIDEO_CALL_BUNDLES = new Set([
   'us.zoom.xos', // Zoom
@@ -89,13 +85,14 @@ async function attemptCapture(): Promise<void> {
   const state = bus.get()
   if (!state.paired || state.paused) return
 
-  // Foreground app check — skip during likely video calls.
-  let active: ActiveWinResult = null
+  // Foreground app check — skip during likely video calls. Uses the shared,
+  // permission-free detector (lsappinfo on macOS) — no active-win binary, no
+  // TCC prompt.
+  let active: ActiveWindowInfo = null
   try {
-    const mod = await import('active-win')
-    active = (await mod.default()) as ActiveWinResult
+    active = await getActiveWindow(false)
   } catch (err) {
-    bus.patch({ lastError: `active-win: ${(err as Error).message}` })
+    bus.patch({ lastError: `active-window: ${(err as Error).message}` })
   }
   if (isVideoCall(active)) {
     console.log('[shotter] skipping — video call foreground')
@@ -127,10 +124,10 @@ async function attemptCapture(): Promise<void> {
   }
 }
 
-function isVideoCall(result: ActiveWinResult): boolean {
+function isVideoCall(result: ActiveWindowInfo): boolean {
   if (!result) return false
-  const bundle = result.owner?.bundleId ?? ''
-  const name = result.owner?.name ?? ''
+  const bundle = result.bundleId ?? ''
+  const name = result.app ?? ''
   if (bundle && VIDEO_CALL_BUNDLES.has(bundle)) return true
   for (const re of VIDEO_CALL_NAMES) {
     if (re.test(name)) return true
