@@ -1,18 +1,18 @@
 import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { buildMemberWork } from '@/lib/people/work'
+import { buildUserWork } from '@/lib/people/work'
 
 /**
- * Pre-fill text for `/marina standup` — Marina drafts "yesterday" and "blockers"
- * from real data so the user just adds "today" and edits. Reuses buildMemberWork
- * (deterministic GitHub read) + the user's recent deliverables + their active
- * blocker. Pure data → text; the modal/posting lives in the Slack adapter.
+ * Pre-fill text for a standup / daily update — Marina drafts "yesterday" and
+ * "blockers" from real data so the user just adds "today" and edits. Reuses
+ * buildUserWork (deterministic GitHub read) + the user's recent deliverables +
+ * their active blocker. Org-free: keyed by userId, so it works for a solo
+ * employee and an employee-in-an-org alike.
  */
 export async function buildStandupPrefill(
-  orgId: number,
   userId: number,
 ): Promise<{ yesterday: string; blockers: string }> {
-  const work = await buildMemberWork(orgId, userId, 1)
+  const work = await buildUserWork(userId, 1)
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const delivs = await db

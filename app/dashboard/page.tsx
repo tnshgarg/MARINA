@@ -17,6 +17,9 @@ import { StandupCard } from '@/components/standup-card'
 import { GiveRecognition } from '@/components/give-recognition'
 import { AnnouncementsFeed } from '@/components/announcements-feed'
 import { EmployeeOnboarding, type OnboardingStep } from '@/components/employee-onboarding'
+import { ReviewPacket } from '@/components/review-packet'
+import { ConnectWork } from '@/components/connect-work'
+import { SoloDashboard } from '@/components/solo-dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -103,7 +106,7 @@ export default async function DashboardPage() {
   } = null
   if (primaryOrgId) {
     const [prefill, todayStandup, mates, anns] = await Promise.all([
-      buildStandupPrefill(primaryOrgId, session.appUserId),
+      buildStandupPrefill(session.appUserId),
       getTodayStandup(session.appUserId),
       db
         .select({ userId: schema.memberships.userId, name: schema.users.name, login: schema.users.login })
@@ -152,13 +155,13 @@ export default async function DashboardPage() {
 
   // Employee setup checklist (dashboard onboarding). Each step auto-completes
   // from real state: a paired agent, a resolved Slack link, a GitHub username.
-  const pairedAgent = primaryOrgId
-    ? await db
-        .select({ id: schema.agentTokens.id })
-        .from(schema.agentTokens)
-        .where(and(eq(schema.agentTokens.userId, session.appUserId), isNull(schema.agentTokens.revokedAt)))
-        .limit(1)
-    : []
+  // Agent pairing is user-scoped (no org) — compute it for everyone so the
+  // standalone-employee dashboard can show its setup state too.
+  const pairedAgent = await db
+    .select({ id: schema.agentTokens.id })
+    .from(schema.agentTokens)
+    .where(and(eq(schema.agentTokens.userId, session.appUserId), isNull(schema.agentTokens.revokedAt)))
+    .limit(1)
   const agentPaired = pairedAgent.length > 0
   const githubLinked = me.githubId != null || !!me.githubLogin
   const onboardingSteps: OnboardingStep[] = []
@@ -195,6 +198,42 @@ export default async function DashboardPage() {
   }
 
   const friendlyName = me.name ?? character?.name ?? me.login ?? session.login
+
+  // "Get credit for your work" features (work journal + review packet) are for
+  // EVERY employee — solo or in an org. We surface the connect/sync card only
+  // when the user hasn't got their activity in yet, so it doesn't nag people
+  // who are already set up.
+  const hasWorkEvents = events.length > 0
+  const needsWorkSetup = !githubLinked || !hasWorkEvents
+
+  async function doSignOut() {
+    'use server'
+    await signOut({ redirectTo: '/' })
+  }
+
+  // No org → the standalone-employee experience: a clean, full-width, personal
+  // console with NO employer/manager surfaces. Org members and managers fall
+  // through to the existing dashboard below, which is left entirely untouched.
+  if (!primaryOrgId) {
+    return (
+      <SoloDashboard
+        userId={session.appUserId}
+        login={me.login ?? session.login}
+        name={friendlyName}
+        email={me.email}
+        events={events.map((e) => ({
+          type: e.type,
+          repo: e.repo,
+          title: e.title,
+          url: e.url,
+          occurredAt: e.occurredAt.toISOString(),
+        }))}
+        githubLinked={githubLinked}
+        hasEvents={hasWorkEvents}
+        signOutAction={doSignOut}
+      />
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
@@ -284,6 +323,14 @@ export default async function DashboardPage() {
       </header>
 
       <EmployeeOnboarding steps={onboardingSteps} />
+
+      {/* "Get credit for your work" — the employee features, available to every
+          signed-in user (solo or in an org). Connect/sync only shows until the
+          activity is in; the review packet is always available. */}
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3">
+        {needsWorkSetup && <ConnectWork linked={githubLinked} hasEvents={hasWorkEvents} />}
+        <ReviewPacket hasGithub={githubLinked && hasWorkEvents} />
+      </div>
 
       {wellbeing && wellbeing.flags.length > 0 && wellbeing.level !== 'ok' ? (
         <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 space-y-3">

@@ -6,10 +6,21 @@ import { syncUserActivity } from '@/lib/github/sync'
 
 export const runtime = 'nodejs'
 
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth()
   if (!session?.appUserId || !session.login) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  // Optional initial backfill: the employee onboarding asks for a deep pull
+  // (90d) on first connect; the recurring sync stays at 7d. Clamped so a caller
+  // can't ask GitHub for an unbounded range.
+  let daysBack = 7
+  try {
+    const body = (await req.json()) as { days?: number }
+    if (typeof body?.days === 'number' && [7, 30, 90].includes(body.days)) daysBack = body.days
+  } catch {
+    /* no body → default 7 */
   }
 
   // Read the GitHub token from the DB (server-only) rather than the session —
@@ -46,7 +57,7 @@ export async function POST() {
       trackedOrgs.push(...list)
     }
     const filter = anyOrgFiltersOff ? [] : Array.from(new Set(trackedOrgs))
-    const result = await syncUserActivity(session.appUserId, session.login, accessToken, 7, filter)
+    const result = await syncUserActivity(session.appUserId, session.login, accessToken, daysBack, filter)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('sync failed', err)

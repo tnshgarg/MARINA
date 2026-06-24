@@ -42,7 +42,13 @@ function displayStatus(raw: { status?: string; requestedReviewers?: number }): P
   return s
 }
 
-export async function buildMemberWork(orgId: number, userId: number, days = 14): Promise<MemberWork> {
+/**
+ * Org-free core: one person's GitHub work over a window, keyed entirely by
+ * userId. `github_events` (and meetings/breaks) are user-scoped, so this needs
+ * no org — it powers both the manager member-modal and the solo employee's own
+ * work journal / review packet.
+ */
+export async function buildUserWork(userId: number, days = 14): Promise<MemberWork> {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
   const hasGithub = !!user?.accessToken || user?.githubId != null || !!user?.githubLogin
   // For review attribution we match on the github username the App reports.
@@ -195,6 +201,16 @@ export async function buildMemberWork(orgId: number, userId: number, days = 14):
     blocked,
     meetings: { count: meetingRows.length, minutes: meetingMinutes },
   }
+}
+
+/**
+ * Back-compat wrapper for the manager surfaces that pass an orgId. The orgId is
+ * not used for filtering (events are user-scoped); kept so existing call sites
+ * don't change.
+ */
+export async function buildMemberWork(orgId: number, userId: number, days = 14): Promise<MemberWork> {
+  void orgId
+  return buildUserWork(userId, days)
 }
 
 /** Compact, token-thrifty context blob for the LLM work-summary prompt. */
