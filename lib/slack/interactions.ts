@@ -133,7 +133,7 @@ async function handleBlockActions(
       await openModal(install, triggerId, punchOutModal(orgId))
       break
     case 'open_standup_modal': {
-      const prefill = await buildStandupPrefill(orgId, actor.user.id)
+      const prefill = await buildStandupPrefill(actor.user.id)
       await openModal(install, triggerId, standupModal(orgId, prefill))
       break
     }

@@ -289,6 +289,31 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "local_activity" ADD COLUMN IF NOT EXISTS "locked_seconds" integer NOT NULL DEFAULT 0`)
   console.log('  · 0018 local_activity.locked_seconds OK')
 
+  // 0019 — Booking requests (the public /book/<login> link). User-scoped so it
+  // works for solo employees with no org.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "booking_requests" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "host_user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "requester_name" text NOT NULL,
+      "requester_email" text NOT NULL,
+      "proposed_at" timestamp with time zone NOT NULL,
+      "note" text,
+      "status" text NOT NULL DEFAULT 'pending',
+      "created_at" timestamp with time zone NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "booking_requests_host_idx" ON "booking_requests" USING btree ("host_user_id","created_at")`)
+  console.log('  · 0019 booking_requests OK')
+
+  // 0020 — Join link stored on a booking request when the host accepts.
+  await db.execute(sql`ALTER TABLE "booking_requests" ADD COLUMN IF NOT EXISTS "meeting_url" text`)
+  console.log('  · 0020 booking_requests.meeting_url OK')
+
+  // 0021 — per-user tracked-repos allowlist (keep personal projects out of reports).
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "tracked_repos" text[]`)
+  console.log('  · 0021 user_settings.tracked_repos OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

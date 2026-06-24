@@ -71,6 +71,14 @@ export function flashCameraIndicator(durationMs = 1500): void {
 function statusLine(): string {
   const s = bus.get()
   if (!s.paired) return 'Not paired'
+  // Personal mode (no org): there are no shifts/punch — tracking runs
+  // continuously and feeds the user's own journal, so the status is about
+  // tracking, not attendance.
+  if (s.primaryOrgId == null) {
+    if (s.paused) return 'Paused'
+    if (s.lastError) return s.lastError
+    return `Tracking your focus${s.pendingCount > 0 ? ` · ${s.pendingCount} pending` : ''}`
+  }
   if (!s.activeShift) return 'Off-clock · not punched in'
   if (s.activeBreak) {
     const mins = Math.floor((Date.now() - new Date(s.activeBreak.startedAt).getTime()) / 60000)
@@ -110,47 +118,56 @@ function rebuild(): void {
   items.push({ type: 'separator' })
 
   if (state.paired) {
-    // Punch state — the primary action
-    if (!state.activeShift) {
-      items.push({
-        label: '▶︎  Punch in for today',
-        click: () => void performPunchIn(),
-      })
-    } else {
-      items.push({
-        label: '⏏︎  Punch out…',
-        click: () => openPunchOutWindow(),
-      })
-      items.push({ type: 'separator' })
-      if (state.activeBreak) {
+    // Employer/attendance actions (punch, breaks, mark-done, leave) only exist
+    // for users who belong to an org. A standalone (personal) user has no
+    // employer — their agent is purely a private focus tracker, so we omit all
+    // of these and keep just the tracking controls below.
+    const hasOrg = state.primaryOrgId != null
+    if (hasOrg) {
+      // Punch state — the primary action
+      if (!state.activeShift) {
         items.push({
-          label: `End break · ${state.activeBreak.reason.slice(0, 40)}${state.activeBreak.reason.length > 40 ? '…' : ''}`,
-          click: () => openBreakWindow(),
+          label: '▶︎  Punch in for today',
+          click: () => void performPunchIn(),
         })
       } else {
         items.push({
-          label: 'Take a break…',
-          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+B' : 'Ctrl+Shift+B',
-          click: () => openBreakWindow(),
+          label: '⏏︎  Punch out…',
+          click: () => openPunchOutWindow(),
+        })
+        items.push({ type: 'separator' })
+        if (state.activeBreak) {
+          items.push({
+            label: `End break · ${state.activeBreak.reason.slice(0, 40)}${state.activeBreak.reason.length > 40 ? '…' : ''}`,
+            click: () => openBreakWindow(),
+          })
+        } else {
+          items.push({
+            label: 'Take a break…',
+            accelerator: process.platform === 'darwin' ? 'Cmd+Shift+B' : 'Ctrl+Shift+B',
+            click: () => openBreakWindow(),
+          })
+        }
+        // "Mark work as done" — the fast path that puts visible output into the
+        // manager's daily digest. Available whenever the user is on the clock.
+        items.push({
+          label: 'Mark work as done…',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+D' : 'Ctrl+Shift+D',
+          click: () => openDoneWindow(),
         })
       }
-      // "Mark work as done" — the fast path that puts visible output into the
-      // manager's daily digest. Available whenever the user is on the clock.
       items.push({
-        label: 'Mark work as done…',
-        accelerator: process.platform === 'darwin' ? 'Cmd+Shift+D' : 'Ctrl+Shift+D',
-        click: () => openDoneWindow(),
+        label: 'Request leave…',
+        click: () => openLeaveWindow(),
       })
+      items.push({ type: 'separator' })
     }
     items.push({
-      label: 'Request leave…',
-      click: () => openLeaveWindow(),
-    })
-    items.push({ type: 'separator' })
-    items.push({
+      // Personal users track continuously (no shift), so pause is always
+      // available; org users can only pause while punched in.
       label: state.paused ? 'Resume tracking' : 'Pause tracking',
       click: () => void togglePause(),
-      enabled: !!state.activeShift,
+      enabled: hasOrg ? !!state.activeShift : true,
     })
     items.push({
       label: 'Open dashboard',

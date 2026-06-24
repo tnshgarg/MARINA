@@ -387,6 +387,9 @@ export const userSettings = pgTable('user_settings', {
   consentPolicyVersion: text('consent_policy_version'),
   sampleIntervalSeconds: integer('sample_interval_seconds').notNull().default(30),
   flushIntervalSeconds: integer('flush_interval_seconds').notNull().default(300),
+  /** Optional allowlist of repo owners/names to include in reports (empty = all).
+   *  Lets people keep personal projects out of their work report. */
+  trackedRepos: text('tracked_repos').array(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -987,6 +990,33 @@ export const deliverables = pgTable(
     orgRecentIdx: index('deliverables_org_recent_idx').on(t.orgId, t.completedAt),
   }),
 )
+
+/**
+ * Booking requests — someone used a person's public Marina booking link
+ * (/book/<login>) to request time. User-scoped (works for solo employees, no
+ * org). The host accepts/declines from their dashboard; it's also how a contact
+ * first enters their network. The viral growth surface.
+ */
+export const bookingRequests = pgTable(
+  'booking_requests',
+  {
+    id: serial('id').primaryKey(),
+    hostUserId: integer('host_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    requesterName: text('requester_name').notNull(),
+    requesterEmail: text('requester_email').notNull(),
+    proposedAt: timestamp('proposed_at', { withTimezone: true }).notNull(),
+    note: text('note'),
+    status: text('status').$type<'pending' | 'accepted' | 'declined'>().notNull().default('pending'),
+    /** Set on accept: the Google Meet / calendar link to join. */
+    meetingUrl: text('meeting_url'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    hostIdx: index('booking_requests_host_idx').on(t.hostUserId, t.createdAt),
+  }),
+)
+export type BookingRequest = typeof bookingRequests.$inferSelect
+export type NewBookingRequest = typeof bookingRequests.$inferInsert
 
 export type Membership = typeof memberships.$inferSelect
 export type NewMembership = typeof memberships.$inferInsert

@@ -7,7 +7,7 @@
  * Or to wipe + reseed:
  *   DEMO_RESET=1 pnpm seed:demo
  */
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, like } from 'drizzle-orm'
 import { db, schema } from '../lib/db/client'
 import type { Discipline, LeaveType } from '../lib/db/schema'
 
@@ -949,6 +949,118 @@ async function main(): Promise<void> {
     }
   }
   console.log(`[seed-demo] created ${SEED_TEAMS.length} teams with leads + members`)
+
+  // ─── Standalone (no-org) employees ─────────────────────────────────────────
+  // A SEPARATE population that uses Marina for THEMSELVES — no org, no
+  // membership. They have their own GitHub activity + focus samples + a
+  // narrative, so the solo dashboard (work journal + review packet) and the
+  // no-org agent flow are fully testable in isolation from the company demo.
+  // Identified + wiped by their distinct @indie.dev email domain, so reseeds
+  // stay clean without touching company users.
+  await db.delete(schema.users).where(like(schema.users.email, '%@indie.dev'))
+  const SOLO = [
+    { login: 'aarav-dev', name: 'Aarav Mehta', email: 'aarav@indie.dev' },
+    { login: 'diya-codes', name: 'Diya Kapoor', email: 'diya@indie.dev' },
+    { login: 'kabir-builds', name: 'Kabir Singh', email: 'kabir@indie.dev' },
+    { login: 'anaya-ships', name: 'Anaya Reddy', email: 'anaya@indie.dev' },
+    { login: 'vivaan-dev', name: 'Vivaan Joshi', email: 'vivaan@indie.dev' },
+    { login: 'saanvi-codes', name: 'Saanvi Nair', email: 'saanvi@indie.dev' },
+  ]
+  const SOLO_REPOS = ['acme-corp/web', 'acme-corp/api', 'personal/portfolio', 'personal/side-saas', 'vercel/next.js', 'facebook/react']
+  const EXT_AUTHORS = ['octocat', 'gaearon', 'sindresorhus', 'tannerlinsley']
+  const soloEvents: Array<typeof schema.githubEvents.$inferInsert> = []
+  const soloActivity: Array<typeof schema.localActivity.$inferInsert> = []
+  const soloMeetings: Array<typeof schema.meetings.$inferInsert> = []
+  const soloDeliverables: Array<typeof schema.deliverables.$inferInsert> = []
+  const SOLO_MTGS = ['1:1 with my manager', 'Sprint planning', 'Design review', 'Customer call', 'Pairing session']
+  const SOLO_DELIVS = ['Wrote the launch spec', 'Ran the demo for the team', 'Reviewed the design doc', 'Triaged support tickets', 'Drafted the RFC']
+  let soloSeq = 100_000
+  for (let i = 0; i < SOLO.length; i++) {
+    const s = SOLO[i]!
+    const [u] = await db
+      .insert(schema.users)
+      .values({ githubId: 5_000_000 + i * 211, login: s.login, name: s.name, email: s.email })
+      .returning()
+    // Commits over the last ~60 days (a real personal history to summarise).
+    const commitN = 8 + Math.floor(Math.random() * 16)
+    for (let c = 0; c < commitN; c++) {
+      const repo = pick(SOLO_REPOS)
+      soloEvents.push({
+        userId: u.id, type: 'commit', repo, title: pick(COMMIT_MSGS),
+        url: `https://github.com/${repo}/commit/${Math.random().toString(36).slice(2, 10)}`,
+        externalId: `solo-c-${soloSeq++}`, occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 60 * DAY)),
+        raw: { source: 'seed-solo' },
+      })
+    }
+    // PRs they opened.
+    const prN = 2 + Math.floor(Math.random() * 4)
+    for (let p = 0; p < prN; p++) {
+      const repo = pick(SOLO_REPOS); const title = pick(PR_TITLES); const status = pick(STATUSES)
+      soloEvents.push({
+        userId: u.id, type: 'pr_opened', repo, title,
+        url: `https://github.com/${repo}/pull/${100 + soloSeq}`,
+        externalId: `solo-pr-${soloSeq++}`, occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 50 * DAY)),
+        raw: { status, requestedReviewers: status === 'in_review' ? 1 : 0, source: 'seed-solo' },
+      })
+    }
+    // Reviews they gave on others' PRs (the invisible work the packet surfaces).
+    const revN = 1 + Math.floor(Math.random() * 4)
+    for (let r = 0; r < revN; r++) {
+      const repo = pick(SOLO_REPOS)
+      soloEvents.push({
+        userId: u.id, type: 'pr_reviewed', repo, title: `Reviewed: ${pick(PR_TITLES)}`,
+        url: `https://github.com/${repo}/pull/${200 + soloSeq}`,
+        externalId: `solo-rev-${soloSeq++}`, occurredAt: new Date(now.getTime() - Math.floor(Math.random() * 40 * DAY)),
+        raw: { prAuthor: pick(EXT_AUTHORS), verdict: pick(VERDICTS), source: 'seed-solo' },
+      })
+    }
+    // Focus samples for the last ~3 hours (powers the personal focus snapshot).
+    for (let m = 0; m < 36; m++) {
+      const start = new Date(now.getTime() - (3 * 60 - m * 5) * 60_000)
+      const end = new Date(start.getTime() + 5 * 60_000)
+      const rr = Math.random(); let cum = 0; let chosen = APPS[0]!
+      for (const a of APPS) { cum += a.weight; if (rr <= cum) { chosen = a; break } }
+      const activeSec = Math.floor(180 + Math.random() * 120)
+      soloActivity.push({
+        userId: u.id, agentTokenId: null, windowStart: start, windowEnd: end,
+        activeApp: chosen.name, activeSeconds: activeSec, idleSeconds: 300 - activeSec, sampleCount: 10, windowTitle: null,
+      })
+    }
+    // Meetings (one today + a couple earlier this week) and a non-code
+    // deliverable today, so "prove your day" shows a complete record out of the box.
+    for (let k = 0; k < 3; k++) {
+      const dayOffset = k === 0 ? 0 : -(1 + Math.floor(Math.random() * 4))
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, 10 + k * 2, 0)
+      soloMeetings.push({
+        userId: u.id, provider: 'google', externalId: `solo-mtg-${soloSeq++}`, calendarId: 'primary',
+        title: pick(SOLO_MTGS), startAt: start, endAt: new Date(start.getTime() + 30 * 60_000),
+        attendees: [pick(EXT_AUTHORS) + '@example.com'], rsvpStatus: 'accepted',
+      })
+    }
+    soloDeliverables.push({
+      userId: u.id, title: pick(SOLO_DELIVS), kind: 'doc',
+      completedAt: new Date(now.getTime() - Math.floor(Math.random() * 6) * 60 * 60_000),
+    })
+
+    // A weekly narrative so the journal has an AI summary out of the box.
+    await db.insert(schema.narratives).values({
+      userId: u.id, periodStart: new Date(now.getTime() - 7 * DAY), periodEnd: now,
+      body: pick(NARRATIVE_BODIES), signal: 'Steady', blockers: [], provider: 'demo', model: 'seeded-solo',
+    })
+  }
+  if (soloEvents.length > 0) {
+    for (let i = 0; i < soloEvents.length; i += 50) await db.insert(schema.githubEvents).values(soloEvents.slice(i, i + 50))
+  }
+  if (soloActivity.length > 0) {
+    for (let i = 0; i < soloActivity.length; i += 50) await db.insert(schema.localActivity).values(soloActivity.slice(i, i + 50))
+  }
+  if (soloMeetings.length > 0) {
+    for (let i = 0; i < soloMeetings.length; i += 50) await db.insert(schema.meetings).values(soloMeetings.slice(i, i + 50))
+  }
+  if (soloDeliverables.length > 0) {
+    for (let i = 0; i < soloDeliverables.length; i += 50) await db.insert(schema.deliverables).values(soloDeliverables.slice(i, i + 50))
+  }
+  console.log(`[seed-demo] created ${SOLO.length} standalone (no-org) employees: ${SOLO.map((s) => '@' + s.login).join(', ')}`)
 
   void and
   console.log(`[seed-demo] ✓ done. Sign in at /dev/login to test any user.`)

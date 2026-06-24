@@ -335,7 +335,7 @@ export async function POST(req: Request) {
       if (!me) return ack(notLinked)
       const install = await getSlackInstall(org.id)
       if (install && triggerId) {
-        const prefill = await buildStandupPrefill(org.id, me.userId)
+        const prefill = await buildStandupPrefill(me.userId)
         await openModal(install, triggerId, standupModal(org.id, prefill, channelId))
         return new NextResponse(null, { status: 200 })
       }
