@@ -87,7 +87,7 @@ export function BookingLink({ url, pending }: { url: string; pending: Pending[] 
                         <button type="button" onClick={() => act(p.id, 'accept')} disabled={busyId === p.id} className="btn-sage text-[12px] disabled:opacity-50">
                           {busyId === p.id ? '…' : 'Accept'}
                         </button>
-                        <button type="button" onClick={() => act(p.id, 'decline')} disabled={busyId === p.id} className="text-[12px] px-2.5 py-1 rounded-md border border-[var(--m-border)] text-[var(--m-ink-3)] hover:text-rose-600 hover:border-rose-300 transition-colors disabled:opacity-50">
+                        <button type="button" onClick={() => act(p.id, 'decline')} disabled={busyId === p.id} className="text-[12px] px-2.5 py-1 rounded-md border border-[var(--m-border)] text-[var(--m-ink-3)] hover:text-[var(--m-bad)] hover:border-[var(--m-bad)]/40 transition-colors disabled:opacity-50">
                           Decline
                         </button>
                       </>

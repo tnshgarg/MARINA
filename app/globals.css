@@ -461,7 +461,7 @@ html, body {
 .select:focus,
 .textarea:focus {
   border-color: var(--m-accent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 3px var(--m-accent-glow);
 }
 .textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
 
@@ -798,7 +798,7 @@ html, body {
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
 }
 .btn-primary:active, .btn-secondary:active { transform: translateY(1px); }
-.btn-primary:hover { box-shadow: 0 6px 14px -8px rgba(79, 70, 229, 0.5); }
+.btn-primary:hover { box-shadow: 0 6px 14px -8px rgba(26, 31, 46, 0.45); }
 
 .app-table tbody tr { transition: background 120ms ease; }
 

@@ -4,6 +4,8 @@ import { db, schema } from '@/lib/db/client'
 import { PunchControl } from './punch-control'
 import { PinTabHint } from './pin-tab-hint'
 import { TrackedRepos } from './tracked-repos'
+import { PunchGate } from './punch-gate'
+import { Contacts, type Contact } from './contacts'
 import { DayReport } from './day-report'
 import { LogDeliverable } from './log-deliverable'
 import { ConnectWork } from './connect-work'
@@ -123,6 +125,11 @@ export async function SoloDashboard({
     .slice(0, 8)
     .map(([email, count]) => ({ email, count, name: email.split('@')[0].replace(/[._-]+/g, ' ') }))
 
+  const contactItems: Contact[] = [
+    ...contacts.map((c) => ({ name: c.name, email: c.email, count: c.count })),
+    ...colleagues.map((c) => ({ name: c.name ?? c.login, email: c.cemail ?? '', secondary: true })),
+  ].filter((c) => !!c.email)
+
   const commits = events.filter((e) => e.type === 'commit').length
   const prs = events.filter((e) => e.type === 'pr_opened').length
   const reviews = events.filter((e) => e.type === 'pr_reviewed').length
@@ -131,6 +138,8 @@ export async function SoloDashboard({
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
+      <PunchGate active={!!activeSince} name={name} />
+
       {/* ── Employee navbar — clean, personal, no org chrome ── */}
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-[var(--m-border)]">
         <div className="w-full px-5 sm:px-8 h-14 flex items-center justify-between gap-4">
@@ -147,7 +156,7 @@ export async function SoloDashboard({
             <Link href="/help" className="px-2.5 py-1.5 rounded-md text-[var(--m-ink-2)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)] transition-colors hidden sm:inline">Help</Link>
             <Link href="/settings" className="px-2.5 py-1.5 rounded-md text-[var(--m-ink-2)] hover:text-[var(--m-ink)] hover:bg-[var(--m-bg-soft)] transition-colors">Settings</Link>
             <form action={signOutAction}>
-              <button type="submit" className="px-2.5 py-1.5 rounded-md text-[var(--m-ink-3)] hover:text-rose-600 hover:bg-rose-50 transition-colors">Sign out</button>
+              <button type="submit" className="px-2.5 py-1.5 rounded-md text-[var(--m-ink-3)] hover:text-[var(--m-bad)] hover:bg-[var(--m-bad-soft)]/50 transition-colors">Sign out</button>
             </form>
           </nav>
         </div>
@@ -258,41 +267,8 @@ export async function SoloDashboard({
               )}
             </section>
 
-            {/* Contacts — accumulates from meeting attendees + same-domain colleagues */}
-            {(contacts.length > 0 || colleagues.length > 0) && (
-              <section className="app-card app-card-lg">
-                <p className="app-eyebrow">People</p>
-                <h2 className="app-h2 mt-0.5 mb-3">Your contacts</h2>
-                {contacts.length > 0 && (
-                  <ul className="space-y-1.5">
-                    {contacts.map((c) => (
-                      <li key={c.email} className="flex items-center gap-2.5 text-[13px]">
-                        <span className="shrink-0 w-7 h-7 rounded-full bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] inline-flex items-center justify-center text-[11px] font-semibold uppercase">
-                          {c.name.slice(0, 2)}
-                        </span>
-                        <span className="text-[var(--m-ink)] flex-1 truncate capitalize">{c.name}</span>
-                        <span className="text-[11px] text-[var(--m-ink-4)] shrink-0">{c.count}&times;</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {colleagues.length > 0 && (
-                  <div className={contacts.length > 0 ? 'mt-3 pt-3 border-t border-[var(--m-border-soft)]' : ''}>
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold mb-2">From {domain}</p>
-                    <ul className="space-y-1.5">
-                      {colleagues.map((c) => (
-                        <li key={c.login} className="flex items-center gap-2.5 text-[13px]">
-                          <span className="shrink-0 w-7 h-7 rounded-full bg-[var(--m-bg-soft)] text-[var(--m-ink-3)] inline-flex items-center justify-center text-[11px] font-semibold uppercase">
-                            {(c.name ?? c.login).slice(0, 2)}
-                          </span>
-                          <span className="text-[var(--m-ink)] flex-1 truncate">{c.name ?? `@${c.login}`}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-            )}
+            {/* Contacts — bookable in two clicks (meeting attendees + same-domain colleagues) */}
+            {contactItems.length > 0 && <Contacts items={contactItems} domain={domain} />}
           </div>
         </div>
       </div>

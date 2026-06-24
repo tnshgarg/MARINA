@@ -22,7 +22,7 @@ export type DayReport = {
   commitTitles: string[]
   reviews: Array<{ title: string; repo: string; url: string }>
   meetings: Array<{ title: string; minutes: number; when: string; with: string[]; url: string | null }>
-  deliverables: Array<{ title: string; detail: string | null; kind: string | null }>
+  deliverables: Array<{ title: string; detail: string | null; kind: string | null; url: string | null }>
   counts: { commits: number; prs: number; reviews: number; meetings: number; deliverables: number }
   empty: boolean
   markdown: string
@@ -98,7 +98,7 @@ export async function buildDayReport(
     with: (m.attendees ?? []).map(emailToName).filter(Boolean).slice(0, 5),
     url: m.conferenceUrl ?? null,
   }))
-  const deliverables = delivRows.map((d) => ({ title: d.title, detail: d.detail, kind: d.kind }))
+  const deliverables = delivRows.map((d) => ({ title: d.title, detail: d.detail, kind: d.kind, url: d.url }))
 
   const counts = {
     commits: commits.length,
@@ -127,7 +127,7 @@ export async function buildDayReport(
     md.push('## Reviews given', ...reviews.map((r) => `- ${r.title} (${r.repo})`), '')
   }
   if (deliverables.length) {
-    md.push('## Other deliverables', ...deliverables.map((d) => `- ${d.title}${d.detail ? ` — ${d.detail}` : ''}`), '')
+    md.push('## Other deliverables', ...deliverables.map((d) => `- ${d.title}${d.detail ? ` — ${d.detail}` : ''}${d.url ? ` (${d.url})` : ''}`), '')
   }
   if (meetings.length) {
     md.push('## Meetings', ...meetings.map((m) => `- ${m.minutes}m · ${m.title}${m.with.length ? ` (with ${m.with.join(', ')})` : ''}`), '')
@@ -149,7 +149,7 @@ export async function buildDayReport(
   slSection('Pull requests', shipped.map((s) => `[${s.status ?? 'open'}] ${s.title} (${s.repo})`))
   slSection('Commits', commitTitles.length ? commitTitles : commits.length ? [`${commits.length} commits`] : [])
   slSection('Reviews given', reviews.map((r) => `${r.title} (${r.repo})`))
-  slSection('Other', deliverables.map((d) => d.title))
+  slSection('Other', deliverables.map((d) => `${d.title}${d.url ? ` — ${d.url}` : ''}`))
   slSection('Meetings', meetings.map((m) => `${m.minutes}m · ${m.title}${m.with.length ? ` with ${m.with.join(', ')}` : ''}`))
   while (sl.length && sl[sl.length - 1] === '') sl.pop()
 

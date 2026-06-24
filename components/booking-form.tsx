@@ -46,22 +46,21 @@ export function BookingForm({ handle, hostName }: { handle: string; hostName: st
   return (
     <form onSubmit={submit} className="rounded-2xl border border-[var(--m-border)] bg-white p-6 shadow-[var(--m-shadow-sm)] space-y-3">
       <Field label="Your name">
-        <input required value={name} onChange={(e) => setName(e.target.value)} className="inp" placeholder="Alex Rivera" disabled={busy} />
+        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Alex Rivera" disabled={busy} />
       </Field>
       <Field label="Your email">
-        <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="inp" placeholder="alex@company.com" disabled={busy} />
+        <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="alex@company.com" disabled={busy} />
       </Field>
       <Field label="Preferred time">
-        <input required type="datetime-local" value={proposedAt} onChange={(e) => setProposedAt(e.target.value)} className="inp" disabled={busy} />
+        <input required type="datetime-local" value={proposedAt} onChange={(e) => setProposedAt(e.target.value)} className="input" disabled={busy} />
       </Field>
       <Field label="What's it about? (optional)">
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} className="inp min-h-[72px]" placeholder="A quick intro / what you'd like to discuss" disabled={busy} />
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} className="textarea" placeholder="A quick intro / what you'd like to discuss" disabled={busy} />
       </Field>
-      {error && <p className="text-[12px] text-rose-600">Couldn&apos;t send — {error}</p>}
+      {error && <p className="text-[12px] text-[var(--m-bad)]">Couldn&apos;t send — {error}</p>}
       <button type="submit" disabled={busy} className="btn-primary w-full justify-center disabled:opacity-60">
         {busy ? 'Sending…' : 'Request this time'}
       </button>
-      <style>{`.inp{width:100%;padding:9px 12px;font-size:14px;border:1px solid var(--m-border);border-radius:10px;outline:none;background:#fff;color:var(--m-ink)}.inp:focus{border-color:var(--m-accent);box-shadow:0 0 0 3px rgba(63,107,84,.12)}`}</style>
     </form>
   )
 }

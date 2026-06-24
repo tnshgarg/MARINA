@@ -70,7 +70,7 @@ export function ConnectWork({ linked, hasEvents }: { linked: boolean; hasEvents:
             )}
             {result && <span className="text-[12px] text-[var(--m-good)]">{result}</span>}
             {error && (
-              <span className="text-[12px] text-rose-600">
+              <span className="text-[12px] text-[var(--m-bad)]">
                 {error.includes('github_not_connected') ? 'Link GitHub first.' : `Couldn't sync — ${error}`}
               </span>
             )}

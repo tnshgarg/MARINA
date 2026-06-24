@@ -9,7 +9,7 @@ type Report = {
   commitTitles: string[]
   reviews: Array<{ title: string; repo: string; url: string }>
   meetings: Array<{ title: string; minutes: number; when: string; with: string[]; url: string | null }>
-  deliverables: Array<{ title: string; detail: string | null; kind: string | null }>
+  deliverables: Array<{ title: string; detail: string | null; kind: string | null; url: string | null }>
   counts: { commits: number; prs: number; reviews: number; meetings: number; deliverables: number }
   empty: boolean
   markdown: string
@@ -133,7 +133,7 @@ export function DayReport() {
           </button>
         </div>
 
-        {error && <p className="mt-3 text-[12px] text-rose-600">Couldn&apos;t generate — {error}</p>}
+        {error && <p className="mt-3 text-[12px] text-[var(--m-bad)]">Couldn&apos;t generate — {error}</p>}
 
         {report && (
           <div className="mt-4 rounded-xl border border-[var(--m-border)] bg-white">
@@ -178,7 +178,7 @@ export function DayReport() {
                     {report.reviews.map((r, i) => <Item key={i} title={r.title} sub={r.repo} url={r.url} />)}
                   </Section>
                   <Section title="Other deliverables" show={report.deliverables.length > 0}>
-                    {report.deliverables.map((d, i) => <Item key={i} title={d.title} sub={d.detail ?? d.kind ?? ''} />)}
+                    {report.deliverables.map((d, i) => <Item key={i} title={d.title} sub={d.detail ?? d.kind ?? ''} url={d.url ?? undefined} />)}
                   </Section>
                   <Section title="Meetings" show={report.meetings.length > 0}>
                     {report.meetings.map((m, i) => (
