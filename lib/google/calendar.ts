@@ -74,6 +74,63 @@ export async function getAccessToken(userId: number): Promise<string | null> {
   }
 }
 
+export type CreateEventResult =
+  | { ok: true; meetingUrl: string | null; htmlLink: string | null; eventId: string | null }
+  | { ok: false; error: 'no_calendar' | 'invalid' | 'create_failed' }
+
+/**
+ * Create a Google Calendar event for the user (with a Meet link + invites).
+ * Shared by quick-book-a-contact, accept-a-booking, and the dashboard "new
+ * meeting" composer. Returns `no_calendar` if the user hasn't connected Google
+ * — callers MUST surface that rather than silently dropping the meeting.
+ * `sendUpdates=all` makes Google email the attendees the invite.
+ */
+export async function createCalendarEvent(
+  userId: number,
+  opts: { summary: string; attendeeEmails?: string[]; startISO: string; durationMin?: number; description?: string },
+): Promise<CreateEventResult> {
+  const token = await getAccessToken(userId)
+  if (!token) return { ok: false, error: 'no_calendar' }
+
+  const start = new Date(opts.startISO)
+  if (Number.isNaN(start.getTime())) return { ok: false, error: 'invalid' }
+  const dur = opts.durationMin && opts.durationMin > 0 ? opts.durationMin : 30
+  const end = new Date(start.getTime() + dur * 60_000)
+  const attendees = (opts.attendeeEmails ?? [])
+    .map((e) => e.trim())
+    .filter((e) => e.includes('@'))
+    .map((email) => ({ email }))
+
+  try {
+    const res = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          summary: opts.summary || 'Meeting',
+          description: opts.description || undefined,
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+          attendees,
+          conferenceData: {
+            createRequest: { requestId: `marina-${userId}-${start.getTime()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } },
+          },
+        }),
+      },
+    )
+    if (!res.ok) {
+      console.error('[google.calendar] create event failed', res.status, await res.text().catch(() => ''))
+      return { ok: false, error: 'create_failed' }
+    }
+    const ev = (await res.json()) as { id?: string; hangoutLink?: string; htmlLink?: string }
+    return { ok: true, meetingUrl: ev.hangoutLink ?? null, htmlLink: ev.htmlLink ?? null, eventId: ev.id ?? null }
+  } catch (e) {
+    console.error('[google.calendar] create event threw', e)
+    return { ok: false, error: 'create_failed' }
+  }
+}
+
 export async function syncCalendar(userId: number): Promise<SyncResult> {
   const token = await getAccessToken(userId)
   if (!token) {

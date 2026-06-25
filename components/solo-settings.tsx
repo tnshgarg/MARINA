@@ -21,6 +21,7 @@ export function SoloSettings({
   googleConnected,
   bookingUrl,
   availability,
+  githubConnectAction,
 }: {
   name: string | null
   login: string
@@ -29,6 +30,8 @@ export function SoloSettings({
   googleConnected: boolean
   bookingUrl: string
   availability: AvailabilityConfig
+  /** Server action that starts the GitHub OAuth (Auth.js v5 signIn). */
+  githubConnectAction: () => Promise<void>
 }) {
   const bookingDisplay = bookingUrl.replace(/^https?:\/\//, '')
   return (
@@ -62,9 +65,11 @@ export function SoloSettings({
             <p className="text-[13px] text-[var(--m-ink-2)] flex-1 min-w-[220px]">
               Connect GitHub so Marina can build your work journal and review packet from your real activity. Identity only — we never ask for repo write access.
             </p>
-            <a href="/api/auth/signin/github?callbackUrl=/settings" className="btn-sage text-[13px] inline-flex shrink-0">
-              Connect GitHub
-            </a>
+            <form action={githubConnectAction} className="shrink-0">
+              <button type="submit" className="btn-sage text-[13px] inline-flex">
+                Connect GitHub
+              </button>
+            </form>
           </div>
         )}
       </SettingCard>

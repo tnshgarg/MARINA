@@ -13,7 +13,17 @@ import { useState } from 'react'
  * Org-free: it syncs the signed-in user's own activity with no org filter, so it
  * works for a solo employee and an employee in an org alike.
  */
-export function ConnectWork({ linked, hasEvents }: { linked: boolean; hasEvents: boolean }) {
+export function ConnectWork({
+  linked,
+  hasEvents,
+  connectAction,
+}: {
+  linked: boolean
+  hasEvents: boolean
+  /** Server action that starts the GitHub OAuth via Auth.js v5 signIn(). When
+   *  omitted (e.g. the org dashboard), we fall back to the legacy GET link. */
+  connectAction?: () => Promise<void>
+}) {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +73,12 @@ export function ConnectWork({ linked, hasEvents }: { linked: boolean; hasEvents:
               <button type="button" onClick={sync} disabled={busy} className="btn-sage text-[13px] disabled:opacity-60">
                 {busy ? 'Syncing…' : hasEvents ? 'Re-sync (last 90 days)' : 'Sync my work'}
               </button>
+            ) : connectAction ? (
+              <form action={connectAction}>
+                <button type="submit" className="btn-sage text-[13px]">
+                  Connect GitHub
+                </button>
+              </form>
             ) : (
               <a href="/api/auth/signin/github?callbackUrl=/dashboard" className="btn-sage text-[13px]">
                 Connect GitHub

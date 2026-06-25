@@ -6,7 +6,7 @@ export type Contact = { name: string; email: string; count?: number; secondary?:
 
 /** Your people — accumulated from meetings + same-domain colleagues — each
  *  bookable in two clicks (creates a Google event + emails them the invite). */
-export function Contacts({ items, domain }: { items: Contact[]; domain: string }) {
+export function Contacts({ items, domain, calendarConnected }: { items: Contact[]; domain: string; calendarConnected: boolean }) {
   const primary = items.filter((c) => !c.secondary)
   const secondary = items.filter((c) => c.secondary)
   return (
@@ -14,19 +14,19 @@ export function Contacts({ items, domain }: { items: Contact[]; domain: string }
       <p className="app-eyebrow">People</p>
       <h2 className="app-h2 mt-0.5 mb-3">Your contacts</h2>
       {primary.length > 0 && (
-        <ul className="space-y-1">{primary.map((c, i) => <ContactRow key={`p${i}`} c={c} />)}</ul>
+        <ul className="space-y-1">{primary.map((c, i) => <ContactRow key={`p${i}`} c={c} calendarConnected={calendarConnected} />)}</ul>
       )}
       {secondary.length > 0 && (
         <div className={primary.length > 0 ? 'mt-3 pt-3 border-t border-[var(--m-border-soft)]' : ''}>
           <p className="text-[11px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold mb-1.5">From {domain}</p>
-          <ul className="space-y-1">{secondary.map((c, i) => <ContactRow key={`s${i}`} c={c} />)}</ul>
+          <ul className="space-y-1">{secondary.map((c, i) => <ContactRow key={`s${i}`} c={c} calendarConnected={calendarConnected} />)}</ul>
         </div>
       )}
     </section>
   )
 }
 
-function ContactRow({ c }: { c: Contact }) {
+function ContactRow({ c, calendarConnected }: { c: Contact; calendarConnected: boolean }) {
   const [open, setOpen] = useState(false)
   const [when, setWhen] = useState('')
   const [busy, setBusy] = useState(false)
@@ -69,18 +69,25 @@ function ContactRow({ c }: { c: Contact }) {
       </div>
 
       {open && (
-        <div className="mt-1.5 flex items-center gap-1.5 pl-[38px]">
-          <input
-            type="datetime-local"
-            value={when}
-            onChange={(e) => setWhen(e.target.value)}
-            className="input flex-1 min-w-0 !py-1 text-[12px]"
-            disabled={busy}
-          />
-          <button type="button" onClick={book} disabled={busy || !when} className="btn-sage text-[11.5px] shrink-0 disabled:opacity-50">
-            {busy ? '…' : 'Send invite'}
-          </button>
-        </div>
+        calendarConnected ? (
+          <div className="mt-1.5 flex items-center gap-1.5 pl-[38px]">
+            <input
+              type="datetime-local"
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
+              className="input flex-1 min-w-0 !py-1 text-[12px]"
+              disabled={busy}
+            />
+            <button type="button" onClick={book} disabled={busy || !when} className="btn-sage text-[11.5px] shrink-0 disabled:opacity-50">
+              {busy ? '…' : 'Send invite'}
+            </button>
+          </div>
+        ) : (
+          <p className="mt-1.5 pl-[38px] text-[11.5px] text-[var(--m-ink-3)]">
+            Connect Google Calendar to book.{' '}
+            <a href="/api/connect/google/start?return_to=/dashboard" className="text-[var(--m-accent)] hover:underline">Connect</a>
+          </p>
+        )
       )}
 
       {result && (

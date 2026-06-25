@@ -1,4 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm'
+import { signIn } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, requireSessionOrRedirect } from '@/lib/auth/guards'
 import { getAvailability } from '@/lib/booking/availability'
@@ -29,6 +30,10 @@ export default async function SettingsPage() {
   if (memberships.length === 0) {
     const availability = await getAvailability(session.appUserId)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.team'
+    async function githubConnectAction() {
+      'use server'
+      await signIn('github', { redirectTo: '/settings' })
+    }
     return (
       <SoloSettings
         name={me?.name ?? null}
@@ -38,6 +43,7 @@ export default async function SettingsPage() {
         googleConnected={!!googleAccount}
         bookingUrl={`${appUrl}/book/${session.login}`}
         availability={availability}
+        githubConnectAction={githubConnectAction}
       />
     )
   }

@@ -33,6 +33,21 @@ export async function GET(req: Request) {
   const aiStatus =
     process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY ? 'configured' : 'missing'
 
+  // Which auth providers are actually wired up AT RUNTIME (booleans only — no
+  // secret values are ever returned). This is the fast way to diagnose the
+  // GitHub "Configuration" sign-in error: if `auth.github` is false here on
+  // prod, the env vars aren't reaching the running deployment (wrong Vercel
+  // environment scope, or no redeploy after adding them). If it's true but
+  // sign-in still errors, the problem is the GitHub OAuth App itself (callback
+  // URL must be https://<host>/api/auth/callback/github, and it must be an
+  // OAuth App, not the GitHub App).
+  const authProviders = {
+    github: !!(process.env.GITHUB_ID && process.env.GITHUB_SECRET),
+    googleSso: !!(process.env.GOOGLE_SSO_CLIENT_ID && process.env.GOOGLE_SSO_CLIENT_SECRET),
+    googleCalendar: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    secret: !!(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET),
+  }
+
   // Log the real DB error server-side (where ops can see it) but NEVER return
   // it to the caller — Neon/pg error strings routinely embed the connection
   // string, host, role, and DB name. The public probe is intentionally terse.
@@ -49,7 +64,7 @@ export async function GET(req: Request) {
     (url.searchParams.get('token') === probeSecret ||
       req.headers.get('authorization') === `Bearer ${probeSecret}`)
 
-  const body: Record<string, unknown> = { ok, db: dbStatus, ai: aiStatus }
+  const body: Record<string, unknown> = { ok, db: dbStatus, ai: aiStatus, auth: authProviders }
   if (authorized) {
     body.env = process.env.NODE_ENV ?? 'unknown'
     body.version = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'

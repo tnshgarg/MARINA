@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { hideSeedRows } from '@/lib/dev-state'
-import { auth, signOut } from '@/auth'
+import { auth, signIn, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { getDailySummary } from '@/lib/activity/aggregate'
@@ -211,6 +211,14 @@ export default async function DashboardPage() {
     await signOut({ redirectTo: '/' })
   }
 
+  // GitHub connect via the canonical Auth.js v5 server action (a POST). The raw
+  // /api/auth/signin/github GET link 302s to ?error=Configuration even with the
+  // OAuth env set — so we never use it.
+  async function githubConnectAction() {
+    'use server'
+    await signIn('github', { redirectTo: '/dashboard' })
+  }
+
   // No org → the standalone-employee experience: a clean, full-width, personal
   // console with NO employer/manager surfaces. Org members and managers fall
   // through to the existing dashboard below, which is left entirely untouched.
@@ -328,7 +336,7 @@ export default async function DashboardPage() {
           signed-in user (solo or in an org). Connect/sync only shows until the
           activity is in; the review packet is always available. */}
       <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3">
-        {needsWorkSetup && <ConnectWork linked={githubLinked} hasEvents={hasWorkEvents} />}
+        {needsWorkSetup && <ConnectWork linked={githubLinked} hasEvents={hasWorkEvents} connectAction={githubConnectAction} />}
         <ReviewPacket hasGithub={githubLinked && hasWorkEvents} />
       </div>
 

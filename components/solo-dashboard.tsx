@@ -11,6 +11,8 @@ import { LogDeliverable } from './log-deliverable'
 import { ConnectWork } from './connect-work'
 import { BookingLink } from './booking-link'
 import { MyChat } from './my-chat'
+import { NewMeeting } from './new-meeting'
+import { signIn } from '@/auth'
 
 /**
  * The no-org employee dashboard — "prove your day". A focused, full-width
@@ -60,6 +62,14 @@ export async function SoloDashboard({
   hasEvents: boolean
   signOutAction: () => Promise<void> | void
 }) {
+  // Canonical Auth.js v5 GitHub connect — a server action, not a raw
+  // /api/auth/signin GET link (the latter is what produced the prod
+  // ?error=Configuration page).
+  async function githubConnectAction() {
+    'use server'
+    await signIn('github', { redirectTo: '/dashboard' })
+  }
+
   const domain = email?.split('@')[1]?.toLowerCase().trim() ?? ''
   const isCompanyDomain = !!domain && !PERSONAL_DOMAINS.has(domain)
   const startOfToday = new Date()
@@ -134,7 +144,14 @@ export async function SoloDashboard({
   const prs = events.filter((e) => e.type === 'pr_opened').length
   const reviews = events.filter((e) => e.type === 'pr_reviewed').length
   const todaysActivity = events.filter((e) => new Date(e.occurredAt) >= startOfToday).slice(0, 8)
-  const calendarConnected = todaysMeetings.length > 0 // best-effort signal for the nudge
+  // Real "is Google Calendar connected" signal — a linked google account row,
+  // exactly as /settings and /me/data check. (The old `todaysMeetings.length > 0`
+  // heuristic wrongly hid the nudge for connected users with no meetings today,
+  // and wrongly showed "connected" UX when a token had been revoked.)
+  const googleAccount = await db.query.accounts.findFirst({
+    where: and(eq(schema.accounts.userId, userId), eq(schema.accounts.provider, 'google')),
+  })
+  const calendarConnected = !!googleAccount
 
   return (
     <main className="min-h-screen bg-[var(--m-bg)]">
@@ -189,7 +206,7 @@ export async function SoloDashboard({
             from the web) ── */}
         {(!githubLinked || !hasEvents || !calendarConnected) && (
           <div className="grid gap-4 md:grid-cols-2 mb-5">
-            {(!githubLinked || !hasEvents) && <ConnectWork linked={githubLinked} hasEvents={hasEvents} />}
+            {(!githubLinked || !hasEvents) && <ConnectWork linked={githubLinked} hasEvents={hasEvents} connectAction={githubConnectAction} />}
             {!calendarConnected && <ConnectNudge title="Connect your calendar" body="Sync Google Calendar so your meetings land in your day record and reports automatically." href="/api/connect/google/start?return_to=/dashboard" cta="Connect calendar" />}
           </div>
         )}
@@ -215,12 +232,19 @@ export async function SoloDashboard({
             {/* Ask Marina — the personal AI, grounded in the user's own work */}
             <MyChat />
 
-            {/* Today's meetings */}
+            {/* Today's meetings + schedule a new one */}
             <section className="app-card app-card-lg">
-              <p className="app-eyebrow">Today</p>
-              <h2 className="app-h2 mt-0.5 mb-3">Your meetings</h2>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div>
+                  <p className="app-eyebrow">Today</p>
+                  <h2 className="app-h2 mt-0.5">Your meetings</h2>
+                </div>
+                <NewMeeting calendarConnected={calendarConnected} />
+              </div>
               {todaysMeetings.length === 0 ? (
-                <p className="text-[13px] text-[var(--m-ink-3)]">No meetings synced for today.</p>
+                <p className="text-[13px] text-[var(--m-ink-3)]">
+                  {calendarConnected ? 'No meetings synced for today.' : 'Connect your calendar to see meetings here, or schedule one above.'}
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {todaysMeetings.map((m, i) => {
@@ -268,7 +292,7 @@ export async function SoloDashboard({
             </section>
 
             {/* Contacts — bookable in two clicks (meeting attendees + same-domain colleagues) */}
-            {contactItems.length > 0 && <Contacts items={contactItems} domain={domain} />}
+            {contactItems.length > 0 && <Contacts items={contactItems} domain={domain} calendarConnected={calendarConnected} />}
           </div>
         </div>
       </div>
