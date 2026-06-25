@@ -190,7 +190,7 @@ export async function SoloDashboard({
         {(!githubLinked || !hasEvents || !calendarConnected) && (
           <div className="grid gap-4 md:grid-cols-2 mb-5">
             {(!githubLinked || !hasEvents) && <ConnectWork linked={githubLinked} hasEvents={hasEvents} />}
-            {!calendarConnected && <ConnectNudge title="Connect your calendar" body="Sync Google Calendar so your meetings land in your day record and reports automatically." href="/settings" cta="Connect calendar" />}
+            {!calendarConnected && <ConnectNudge title="Connect your calendar" body="Sync Google Calendar so your meetings land in your day record and reports automatically." href="/api/connect/google/start?return_to=/dashboard" cta="Connect calendar" />}
           </div>
         )}
 
@@ -290,7 +290,10 @@ function ConnectNudge({ title, body, href, cta }: { title: string; body: string;
     <section className="app-card app-card-lg">
       <h2 className="app-h2">{title}</h2>
       <p className="app-sub mt-1">{body}</p>
-      <Link href={href} className="btn-sage text-[13px] mt-3 inline-flex">{cta}</Link>
+      {/* Plain <a>: the calendar CTA hits an API route that 302s to Google's
+          consent screen, so it needs a full-page navigation, not a client-side
+          <Link> transition. */}
+      <a href={href} className="btn-sage text-[13px] mt-3 inline-flex">{cta}</a>
     </section>
   )
 }

@@ -314,6 +314,16 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "tracked_repos" text[]`)
   console.log('  · 0021 user_settings.tracked_repos OK')
 
+  // 0022 — booking availability (Calendly-style). Lets a user define the days +
+  // hours they take meetings so the public /book page can offer real slots.
+  // Minutes-from-midnight in the user's own timezone; days are 0=Sun..6=Sat.
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_work_days" integer[] DEFAULT '{1,2,3,4,5}'`)
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_start_min" integer NOT NULL DEFAULT 540`)
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_end_min" integer NOT NULL DEFAULT 1020`)
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_slot_min" integer NOT NULL DEFAULT 30`)
+  await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_timezone" text`)
+  console.log('  · 0022 user_settings booking availability OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

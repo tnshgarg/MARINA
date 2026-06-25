@@ -390,6 +390,14 @@ export const userSettings = pgTable('user_settings', {
   /** Optional allowlist of repo owners/names to include in reports (empty = all).
    *  Lets people keep personal projects out of their work report. */
   trackedRepos: text('tracked_repos').array(),
+  /** Booking availability (Calendly-style). Days are 0=Sun..6=Sat; start/end are
+   *  minutes-from-midnight in `bookingTimezone`; slot length in minutes. Drives
+   *  the public /book page's offered slots. */
+  bookingWorkDays: integer('booking_work_days').array().default([1, 2, 3, 4, 5]),
+  bookingStartMin: integer('booking_start_min').notNull().default(540),
+  bookingEndMin: integer('booking_end_min').notNull().default(1020),
+  bookingSlotMin: integer('booking_slot_min').notNull().default(30),
+  bookingTimezone: text('booking_timezone'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

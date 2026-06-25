@@ -18,19 +18,11 @@ import { SCREENSHOTS_ENABLED } from '@/lib/flags'
 
 type PersonalPage = 'data' | 'regularizations' | 'shots'
 
-const NAV: { key: PersonalPage; label: string; href: string }[] = [
-  { key: 'data', label: 'My data', href: '/me/data' },
-  { key: 'regularizations', label: 'Attendance', href: '/me/regularizations' },
-  // GATEKEPT: the "My shots" (screenshots) tab is hidden while the feature is off.
-  ...(SCREENSHOTS_ENABLED
-    ? [{ key: 'shots' as PersonalPage, label: 'My shots', href: '/me/shots' }]
-    : []),
-]
-
 export default function PersonalPageHeader({
   title,
   eyebrow,
   current,
+  showAttendance = true,
 }: {
   /** Page title shown as the header heading. */
   title: string
@@ -38,7 +30,21 @@ export default function PersonalPageHeader({
   eyebrow?: string
   /** Which personal page is active, so its tab is highlighted. */
   current?: PersonalPage
+  /** Attendance regularization is an org concept (a manager approves it). Hide
+   *  the tab for solo employees with no org. */
+  showAttendance?: boolean
 }) {
+  const nav: { key: PersonalPage; label: string; href: string }[] = [
+    { key: 'data', label: 'My data', href: '/me/data' },
+    // Attendance regularization needs a manager to approve — org-only.
+    ...(showAttendance
+      ? [{ key: 'regularizations' as PersonalPage, label: 'Attendance', href: '/me/regularizations' }]
+      : []),
+    // GATEKEPT: the "My shots" (screenshots) tab is hidden while the feature is off.
+    ...(SCREENSHOTS_ENABLED
+      ? [{ key: 'shots' as PersonalPage, label: 'My shots', href: '/me/shots' }]
+      : []),
+  ]
   return (
     <header className="border-b border-[var(--m-border)]/60 backdrop-blur-md bg-[var(--m-bg)]/75 sticky top-0 z-30">
       <div className="max-w-3xl mx-auto px-6 py-3.5">
@@ -81,7 +87,7 @@ export default function PersonalPageHeader({
 
           {/* Move between the personal pages without going via the dashboard. */}
           <nav aria-label="Personal pages" className="flex items-center gap-1 text-[13px]">
-            {NAV.map((item) => {
+            {nav.map((item) => {
               const active = item.key === current
               return (
                 <Link

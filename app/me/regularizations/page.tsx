@@ -26,6 +26,10 @@ export default async function MyRegularizationsPage() {
       .limit(60),
   ])
 
+  // Attendance regularization needs a manager to approve it — meaningless for a
+  // solo employee with no org. Send them to their transparency page instead.
+  if (memberships.length === 0) redirect('/me/data')
+
   const orgs = memberships.map((m) => ({ id: m.orgId, name: m.org.name }))
 
   const requests = rows.map((r) => ({

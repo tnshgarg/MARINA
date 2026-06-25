@@ -1,14 +1,48 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@/lib/db/client'
-import { requireSessionOrRedirect } from '@/lib/auth/guards'
+import { listMembershipsForCurrentUser, requireSessionOrRedirect } from '@/lib/auth/guards'
+import { getAvailability } from '@/lib/booking/availability'
 import SettingsClient from './client'
 import GithubUsernameField from './github-username'
+import { SoloSettings } from '@/components/solo-settings'
 
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
   const session = await requireSessionOrRedirect()
 
+  const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
+  const memberships = await listMembershipsForCurrentUser()
+
+  // Detect a connected Google account so the Calendar card can show status.
+  const googleAccount = await db.query.accounts.findFirst({
+    where: and(
+      eq(schema.accounts.userId, session.appUserId),
+      eq(schema.accounts.provider, 'google'),
+    ),
+  })
+
+  // Solo (no-org) employee → a dedicated personal settings panel. No agent
+  // device / window-title chrome, no manual GitHub-username field; instead the
+  // sources they actually connect (GitHub OAuth, Calendar) plus booking
+  // availability and tracked repos.
+  if (memberships.length === 0) {
+    const availability = await getAvailability(session.appUserId)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://marina.team'
+    return (
+      <SoloSettings
+        name={me?.name ?? null}
+        login={session.login}
+        email={me?.email ?? null}
+        githubConnected={!!me?.githubId}
+        googleConnected={!!googleAccount}
+        bookingUrl={`${appUrl}/book/${session.login}`}
+        availability={availability}
+      />
+    )
+  }
+
+  // ── Org member / manager: the existing workspace settings (unchanged). ──
   let settings = await db.query.userSettings.findFirst({
     where: eq(schema.userSettings.userId, session.appUserId),
   })
@@ -20,21 +54,11 @@ export default async function SettingsPage() {
     settings = created
   }
 
-  const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
-
   const devices = await db
     .select()
     .from(schema.agentTokens)
     .where(eq(schema.agentTokens.userId, session.appUserId))
     .orderBy(desc(schema.agentTokens.pairedAt))
-
-  // Detect a connected Google account so the Calendar card can show status.
-  const googleAccount = await db.query.accounts.findFirst({
-    where: and(
-      eq(schema.accounts.userId, session.appUserId),
-      eq(schema.accounts.provider, 'google'),
-    ),
-  })
 
   return (
     <>

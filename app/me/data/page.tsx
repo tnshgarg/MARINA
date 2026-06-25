@@ -183,6 +183,7 @@ export default async function MyDataPage() {
         eyebrow="Your data & transparency"
         title="Exactly what MARINA knows about you"
         current="data"
+        showAttendance={memberships.length > 0}
       />
 
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
