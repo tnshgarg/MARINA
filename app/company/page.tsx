@@ -95,7 +95,7 @@ export default async function Home({
         }))}
       />
 
-      <AudienceSplit />
+      {/*<AudienceSplit />*/}
       <ProofStrip />
       {/* Product-forward: the real product surfaces lead the page, right after
           the hero + proof numbers. The morning brief first (what you wake up
@@ -148,10 +148,7 @@ function Nav() {
           >
             Product
           </a>
-          <a
-            href="/"
-            className="hover:text-[var(--m-ink)] transition-colors"
-          >
+          <a href="/" className="hover:text-[var(--m-ink)] transition-colors">
             For individuals
           </a>
           <a
@@ -235,7 +232,8 @@ function Hero({
             <h1 className="font-display text-[44px] md:text-[68px] leading-[1.02] tracking-tight text-[var(--m-ink)]">
               The busywork of managing
               <br />
-              people, <span className="italic brand-gradient-text">handled.</span>
+              people,{" "}
+              <span className="italic brand-gradient-text">handled.</span>
             </h1>
           </Reveal>
 
@@ -243,9 +241,12 @@ function Hero({
             <p className="mt-6 max-w-xl text-[17px] md:text-[19px] leading-snug text-[var(--m-ink-2)] font-medium">
               Marina is the AI chief of staff for managers and HR.
               <span className="block mt-1.5 text-[var(--m-ink-3)] font-normal text-[15px] md:text-[16px]">
-                Status-chasing, standups, attendance, leave and reviews &mdash; even every birthday and 1:1 reminder.
-                Automated. Your team gets <span className="font-semibold text-[var(--m-ink-2)]">5+ hours back</span>,
-                every week.
+                Status-chasing, standups, attendance, leave and reviews &mdash;
+                even every birthday and 1:1 reminder. Automated. Your team gets{" "}
+                <span className="font-semibold text-[var(--m-ink-2)]">
+                  5+ hours back
+                </span>
+                , every week.
               </span>
             </p>
           </Reveal>
@@ -320,7 +321,10 @@ function Hero({
  */
 function AudienceSplit() {
   return (
-    <section id="who" className="max-w-6xl mx-auto px-6 pb-4 md:pb-8 -mt-4 md:-mt-8">
+    <section
+      id="who"
+      className="max-w-6xl mx-auto px-6 pb-4 md:pb-8 -mt-4 md:-mt-8"
+    >
       <Reveal>
         <p className="text-[11px] tracking-[0.18em] uppercase text-[var(--m-ink-4)] font-medium mb-4 text-center">
           One Marina, two ways in
@@ -337,16 +341,28 @@ function AudienceSplit() {
               See your team without chasing.
             </h3>
             <p className="text-[14px] text-[var(--m-ink-2)] leading-relaxed mt-2 flex-1">
-              A morning brief, auto-detected blockers, async standups, attendance and recognition —
-              clarity and control without becoming the bottleneck.
+              A morning brief, auto-detected blockers, async standups,
+              attendance and recognition — clarity and control without becoming
+              the bottleneck.
             </p>
             <a
               href="#get-started"
               className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-semibold text-[var(--m-accent-2)] hover:gap-2.5 transition-all"
             >
               Run it for my team
-              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              <svg
+                width={15}
+                height={15}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  d="M5 12h14M13 5l7 7-7 7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </a>
           </div>
@@ -365,16 +381,28 @@ function AudienceSplit() {
               Get credit for your work.
             </h3>
             <p className="text-[14px] text-[var(--m-ink-2)] leading-relaxed mt-2 flex-1">
-              Marina turns your real activity into an AI work journal and a review / 1:1 packet — so you
-              never walk into a review empty-handed. No manager or team needed.
+              Marina turns your real activity into an AI work journal and a
+              review / 1:1 packet — so you never walk into a review
+              empty-handed. No manager or team needed.
             </p>
             <a
               href="/"
               className="mt-5 inline-flex items-center gap-2 self-start bg-[var(--m-accent)] text-white hover:bg-[var(--m-accent-2)] px-4 py-2 rounded-lg text-[14px] font-semibold shadow-[var(--m-shadow-sm)] transition-colors"
             >
               Start free for myself
-              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              <svg
+                width={15}
+                height={15}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  d="M5 12h14M13 5l7 7-7 7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </a>
           </div>
@@ -820,18 +848,16 @@ function ProductSection() {
             </h2>
             <p className="mt-5 text-[15px] text-[var(--m-ink-2)] leading-relaxed">
               No forms, no standup, no chasing. Marina reads the real signals
-              &mdash; GitHub activity, calendar, focus time &mdash; and hands you
-              a grounded, cited summary of what each person shipped, where their
-              time went, and what needs you. Never a hallucination.
+              &mdash; GitHub activity, calendar, focus time &mdash; and hands
+              you a grounded, cited summary of what each person shipped, where
+              their time went, and what needs you. Never a hallucination.
             </p>
             <ul className="mt-6 space-y-2.5 text-[13.5px] text-[var(--m-ink-2)]">
               <Bullet>
                 Specific PR titles + commit subjects, not just counts
               </Bullet>
               <Bullet>Top apps used today, work vs non-work mix</Bullet>
-              <Bullet>
-                A daily story timeline of what they worked on
-              </Bullet>
+              <Bullet>A daily story timeline of what they worked on</Bullet>
             </ul>
           </div>
           <div className="lg:col-span-7 min-w-0">
@@ -1112,14 +1138,14 @@ function ShowcaseSection() {
             </p>
             <h2 className="font-display text-[40px] md:text-[56px] leading-[1.02] tracking-tight">
               Not another dashboard.{" "}
-              <span className="italic brand-gradient-text">
+              <p className="italic brand-gradient-text">
                 A Chief of Staff in your inbox.
-              </span>
+              </p>
             </h2>
             <p className="mt-5 text-[15.5px] md:text-[16px] text-[var(--m-ink-2)] leading-relaxed">
               Every screen below is the real product &mdash; the surfaces you
-              and your team live in, day to day. No stock art, no
-              &ldquo;coming soon.&rdquo;
+              and your team live in, day to day. No stock art, no &ldquo;coming
+              soon.&rdquo;
             </p>
           </div>
         </Reveal>
@@ -1128,7 +1154,9 @@ function ShowcaseSection() {
           {blocks.map((b, i) => (
             <Reveal key={i} delay={i * 80}>
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-                <div className={`min-w-0 lg:col-span-5 ${b.flip ? "lg:order-2" : ""}`}>
+                <div
+                  className={`min-w-0 lg:col-span-5 ${b.flip ? "lg:order-2" : ""}`}
+                >
                   <p className="text-[10.5px] tracking-[0.18em] uppercase text-[var(--m-accent)] font-semibold mb-3">
                     {b.eyebrow}
                   </p>
@@ -1144,7 +1172,9 @@ function ShowcaseSection() {
                     ))}
                   </ul>
                 </div>
-                <div className={`min-w-0 lg:col-span-7 ${b.flip ? "lg:order-1" : ""}`}>
+                <div
+                  className={`min-w-0 lg:col-span-7 ${b.flip ? "lg:order-1" : ""}`}
+                >
                   {b.mockup}
                 </div>
               </div>

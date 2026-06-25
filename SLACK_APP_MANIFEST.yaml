@@ -1,0 +1,62 @@
+# MARINA Slack app manifest — Phase 1  (URLs pre-filled for marina.team)
+#
+# HOW TO USE:
+#   1. Go to https://api.slack.com/apps → your "Marina" app → Features → "App Manifest".
+#   2. Switch the editor to YAML, replace everything with this, click Save Changes.
+#      (Slack will verify the Events URL instantly — it should say "Verified".)
+#   3. Go to "Install App" → Reinstall to Workspace (the new scopes need re-consent).
+#
+# This turns on the Home tab (the dashboard), the events that publish it, the
+# modals/buttons (interactivity), and the Ask-Marina DM — all at once.
+# Verified live: marina.team is already serving the Phase 1 endpoints.
+
+display_information:
+  name: Marina
+  description: Your AI chief of staff — your team's day, blockers, leave and standup, inside Slack.
+  background_color: "#3f6b54"
+
+features:
+  bot_user:
+    display_name: Marina
+    always_online: true
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  slash_commands:
+    - command: /marina
+      url: https://marina.team/api/slack/commands
+      description: Pulse, blockers, log work, raise a blocker, take a break
+      usage_hint: pulse | blockers | done <title> | blocker <reason> | off
+      should_escape: false
+
+oauth_config:
+  redirect_urls:
+    - https://marina.team/api/connect/slack/callback
+    - https://marina-production.vercel.app/api/connect/slack/callback
+  scopes:
+    bot:
+      - chat:write
+      - chat:write.public
+      - commands
+      - users:read
+      - users:read.email
+      - im:write
+      - im:history
+      - app_mentions:read
+      - channels:read
+      - groups:read
+
+settings:
+  event_subscriptions:
+    request_url: https://marina.team/api/slack/events
+    bot_events:
+      - app_home_opened
+      - message.im
+      - app_mention
+  interactivity:
+    is_enabled: true
+    request_url: https://marina.team/api/slack/interactivity
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
