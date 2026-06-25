@@ -16,10 +16,14 @@ import { useState } from 'react'
 export default function LandingClient({
   authError,
   googleSignIn,
+  flow = 'solo',
 }: {
   authError: string | null
   /** null when Google SSO env vars aren't set; we hide the button rather than show a broken one. */
   googleSignIn?: (() => Promise<void>) | null
+  /** Which signup flow this widget belongs to. Drives where the user lands after
+   *  auth: 'solo' (employee) → /, 'org' (company/manager) → /company → onboarding. */
+  flow?: 'solo' | 'org'
   /** kept for backwards compat with existing call sites; no longer rendered */
   characters?: Array<{ key: string; name: string; color: string }>
 }) {
@@ -41,7 +45,10 @@ export default function LandingClient({
       const res = await fetch('/api/auth/magic/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirectTo: '/' }),
+        // Route the post-auth landing by flow: org signups go back to /company
+        // (→ onboarding), solo signups to / (→ dashboard). `flow` also lets the
+        // endpoint set/clear the marina_flow cookie for that round-trip.
+        body: JSON.stringify({ email, redirectTo: flow === 'org' ? '/company' : '/', flow }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error ?? 'failed')

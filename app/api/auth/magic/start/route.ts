@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 /** Start the magic-link flow. Sends an email with a one-click sign-in link. */
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { email?: string; redirectTo?: string }
+  const body = (await req.json().catch(() => ({}))) as { email?: string; redirectTo?: string; flow?: string }
   const email = (body.email ?? '').trim().toLowerCase()
   if (!email || !isValidEmail(email)) {
     return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
   const isProd = process.env.NODE_ENV === 'production'
   const showLink = !isProd
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     ok: true,
     dispatched: emailDispatched,
     resendId,
@@ -119,6 +119,16 @@ export async function POST(req: Request) {
     notes: ALWAYS_RETURN_LINK_REASONS,
     devLink: showLink ? link : undefined,
   })
+
+  // Persist the flow choice across the magic-link round-trip so the post-auth
+  // landing routes correctly: 'solo' (employee) → /dashboard, 'org' (manager)
+  // → /onboarding. Cleared for org so a stale solo marker can't misroute.
+  if (body.flow === 'solo') {
+    res.cookies.set('marina_flow', 'solo', { maxAge: 60 * 60 * 24 * 365, httpOnly: true, sameSite: 'lax', path: '/' })
+  } else if (body.flow === 'org') {
+    res.cookies.delete('marina_flow')
+  }
+  return res
 }
 
 function renderHtml(link: string): string {

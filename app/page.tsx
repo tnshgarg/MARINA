@@ -43,6 +43,15 @@ export default async function Home({
 
   async function googleSignIn() {
     "use server";
+    // Employee page = the solo flow. Mark the visitor as solo so that if they
+    // later land on /company while signed in, it routes them to their own
+    // dashboard rather than org onboarding. Comes back to / → /dashboard.
+    (await cookies()).set("marina_flow", "solo", {
+      maxAge: 60 * 60 * 24 * 365,
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
     await signIn("google", { redirectTo: "/" });
   }
 
@@ -156,7 +165,7 @@ function Hero({
           </Reveal>
           <Reveal delay={240}>
             <div id="get-started" className="mt-8 scroll-mt-28">
-              <LandingClient authError={sp.auth_error ?? null} googleSignIn={googleSignIn} />
+              <LandingClient authError={sp.auth_error ?? null} googleSignIn={googleSignIn} flow="solo" />
             </div>
             <p className="mt-5 text-[12.5px] text-[var(--m-ink-3)] flex items-center gap-2 flex-wrap">
               {["Free forever for individuals", "Private to you by default", "Yours to keep"].map((t, i) => (

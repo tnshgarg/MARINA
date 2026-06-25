@@ -57,7 +57,11 @@ export default async function Home({
 
   async function googleSignIn() {
     "use server";
-    await signIn("google", { redirectTo: "/" });
+    // Company page = the manager/org flow. Clear any stale "solo" marker and
+    // come back to /company after auth, so its no-org branch sends a brand-new
+    // signup into org onboarding (/onboarding) — NOT the employee dashboard.
+    (await cookies()).delete("marina_flow");
+    await signIn("google", { redirectTo: "/company" });
   }
 
   const googleEnabled = !!(
@@ -257,6 +261,7 @@ function Hero({
                 authError={sp.auth_error ?? null}
                 googleSignIn={googleSignIn}
                 characters={characters}
+                flow="org"
               />
             </div>
             <p className="mt-5 text-[12.5px] text-[var(--m-ink-3)] flex items-center gap-2 flex-wrap">
