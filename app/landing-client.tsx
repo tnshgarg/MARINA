@@ -17,13 +17,16 @@ export default function LandingClient({
   authError,
   googleSignIn,
   flow = 'solo',
+  redirectTo = '/',
 }: {
   authError: string | null
   /** null when Google SSO env vars aren't set; we hide the button rather than show a broken one. */
   googleSignIn?: (() => Promise<void>) | null
-  /** Which signup flow this widget belongs to. Drives where the user lands after
-   *  auth: 'solo' (employee) → /, 'org' (company/manager) → /company → onboarding. */
+  /** Which signup flow this widget belongs to. Sets/clears the marina_flow
+   *  cookie: 'solo' (employee) marks solo; 'org' (company/manager) clears it. */
   flow?: 'solo' | 'org'
+  /** Where to land after auth. Company landing → '/', individuals → '/individuals'. */
+  redirectTo?: string
   /** kept for backwards compat with existing call sites; no longer rendered */
   characters?: Array<{ key: string; name: string; color: string }>
 }) {
@@ -45,10 +48,10 @@ export default function LandingClient({
       const res = await fetch('/api/auth/magic/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Route the post-auth landing by flow: org signups go back to /company
-        // (→ onboarding), solo signups to / (→ dashboard). `flow` also lets the
-        // endpoint set/clear the marina_flow cookie for that round-trip.
-        body: JSON.stringify({ email, redirectTo: flow === 'org' ? '/company' : '/', flow }),
+        // Route the post-auth landing explicitly: org signups land on / (→
+        // onboarding), solo signups on /individuals (→ dashboard). `flow` also
+        // lets the endpoint set/clear the marina_flow cookie for the round-trip.
+        body: JSON.stringify({ email, redirectTo, flow }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error ?? 'failed')

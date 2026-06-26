@@ -17,12 +17,15 @@ export default async function DevLoginPage() {
     redirect('/')
   }
 
-  // Pull recent users + their org memberships
+  // Pull users + their org memberships. The demo seed creates founders/owners
+  // FIRST, so a small limit ordered newest-first would push the admins off the
+  // list. Keep the limit generous so every seeded user — admins included — is
+  // pickable here.
   const users = await db
     .select()
     .from(schema.users)
     .orderBy(desc(schema.users.createdAt))
-    .limit(50)
+    .limit(200)
 
   const memberships = users.length
     ? await db
