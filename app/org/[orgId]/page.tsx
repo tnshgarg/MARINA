@@ -248,6 +248,25 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     }
   }
 
+  // Teams in this org + which membership belongs to which team — powers the
+  // "filter by team" control on the team-members board.
+  const orgTeamRows = await db
+    .select({ id: schema.teams.id, name: schema.teams.name, color: schema.teams.color })
+    .from(schema.teams)
+    .where(eq(schema.teams.orgId, orgId))
+    .orderBy(schema.teams.name)
+  const teamMemberRows = await db
+    .select({ teamId: schema.teamMembers.teamId, membershipId: schema.teamMembers.membershipId })
+    .from(schema.teamMembers)
+    .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
+    .where(eq(schema.teams.orgId, orgId))
+  const teamIdsByMembership = new Map<number, number[]>()
+  for (const r of teamMemberRows) {
+    const arr = teamIdsByMembership.get(r.membershipId) ?? []
+    arr.push(r.teamId)
+    teamIdsByMembership.set(r.membershipId, arr)
+  }
+
   const members = rawMembers.map((r) => {
     const n = latestByUser.get(r.u.id)
     const c = compact.get(r.u.id)
@@ -262,6 +281,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       avatarUrl: r.u.avatarUrl,
       characterKey: r.u.characterKey,
       role: r.m.role,
+      teamIds: teamIdsByMembership.get(r.m.id) ?? [],
       hasGithub: !!r.u.accessToken || r.u.githubId != null || !!r.u.githubLogin,
       activity: {
         activeSeconds: c?.activeSeconds ?? 0,
@@ -365,6 +385,10 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     })
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
 
+  // Next meeting for the team-meeting banner at the top of the dashboard.
+  const { nextMeetingForUser } = await import('@/lib/meetings/upcoming')
+  const nextMeeting = await nextMeetingForUser(session.appUserId)
+
   // Connection state for the inline "Connections" card on the manager
   // dashboard: GitHub App (org), Slack (org), Calendar (the manager's own).
   const { appInstallUrl } = await import('@/lib/github/app')
@@ -388,6 +412,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
       orgId={orgId}
       viewerUserId={session.appUserId}
       integrations={integrations}
+      nextMeeting={nextMeeting}
       isManager={isManager}
       isOwner={isOwner}
       greeting={greeting}
@@ -418,6 +443,7 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
         }
       }).filter((a) => a.membershipId !== 0)}
       members={members}
+      teams={orgTeamRows}
       pendingLeaves={pendingLeaves.map((r) => ({
         id: r.l.id,
         startDate: r.l.startDate,

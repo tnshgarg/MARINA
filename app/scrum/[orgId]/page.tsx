@@ -44,17 +44,35 @@ export default async function ScrumPage({ params }: { params: Promise<{ orgId: s
       name: schema.users.name,
       characterKey: schema.users.characterKey,
       role: schema.memberships.role,
+      teamId: schema.teams.id,
+      teamName: schema.teams.name,
+      teamColor: schema.teams.color,
     })
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
+    .leftJoin(schema.teamMembers, eq(schema.teamMembers.membershipId, schema.memberships.id))
+    .leftJoin(
+      schema.teams,
+      and(eq(schema.teams.id, schema.teamMembers.teamId), eq(schema.teams.orgId, orgId)),
+    )
     .where(and(eq(schema.memberships.orgId, orgId), isNull(schema.memberships.endedAt)))
 
   // Scope: managers only run scrum for their reports + teams they manage.
   // Admins see the whole org so they can audit "are managers running scrums
   // for every team?" and step in when needed.
-  const memberRows = scope.isAdminScope
+  const scopedRows = scope.isAdminScope
     ? allMemberRows
     : allMemberRows.filter((r) => scope.userIds.has(r.userId))
+
+  // The team leftJoin fans out one row per team membership. Collapse back to one
+  // row per person, keeping their first team (the roster groups by a single team).
+  const byMembership = new Map<number, (typeof scopedRows)[number]>()
+  for (const r of scopedRows) {
+    const existing = byMembership.get(r.membershipId)
+    if (!existing) byMembership.set(r.membershipId, r)
+    else if (existing.teamId == null && r.teamId != null) byMembership.set(r.membershipId, r)
+  }
+  const memberRows = [...byMembership.values()]
 
   memberRows.sort((a, b) => {
     if (a.role !== b.role) {

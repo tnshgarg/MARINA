@@ -72,7 +72,7 @@ export function YourDayCard() {
         <div>
           <p className="app-eyebrow">Off-clock</p>
           <p className="app-h2 mt-1">Ready when you are</p>
-          <p className="app-sub mt-1">Punch in from the desktop agent to start your day.</p>
+          <p className="app-sub mt-1">Punch in to start your day.</p>
         </div>
       </section>
     )
@@ -101,15 +101,15 @@ export function YourDayCard() {
       className="app-card app-card-lg"
       key={tick}  // re-mount on each tick for the subtle fade
     >
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0 sm:flex-1">
           <p className="app-eyebrow">Your day</p>
           <p className="text-[20px] leading-tight font-semibold tracking-tight text-[var(--m-ink)] mt-1.5">{headline}</p>
           <p className="app-sub mt-1">{next}</p>
         </div>
 
-        {/* Three live KPI tiles */}
-        <div className="flex items-stretch gap-2 shrink-0">
+        {/* Three live KPI tiles — a 3-col grid on mobile, an inline row on desktop */}
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:items-stretch sm:shrink-0">
           <KpiTile
             value={`${snap.productivity}%`}
             label="productive"
@@ -169,9 +169,9 @@ function KpiTile({
     tone === 'accent' ? 'text-[var(--m-accent)]' :
     'text-[var(--m-info)]'
   return (
-    <div className="min-w-[88px] rounded-lg border border-[var(--m-border)] bg-white px-3 py-2 text-right">
-      <p className={`text-[20px] font-semibold tabular-nums tracking-tight ${fg}`}>{value}</p>
-      <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5">{label}</p>
+    <div className="min-w-0 sm:min-w-[88px] rounded-lg border border-[var(--m-border)] bg-white px-2.5 sm:px-3 py-2 text-center sm:text-right">
+      <p className={`text-[18px] sm:text-[20px] font-semibold tabular-nums tracking-tight ${fg}`}>{value}</p>
+      <p className="text-[10.5px] text-[var(--m-ink-3)] mt-0.5 truncate">{label}</p>
     </div>
   )
 }

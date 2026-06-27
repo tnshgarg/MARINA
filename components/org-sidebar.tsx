@@ -727,7 +727,7 @@ export function OrgSidebar({
             {g.key === "teams" && !rail && teams.length > 0 && (
               <div className="mb-1">
                 {teams.map((t) => {
-                  const href = `/org/${orgId}/teams#team-${t.id}`;
+                  const href = `/org/${orgId}/teams/${t.id}`;
                   return (
                     <NavLink
                       key={t.id}

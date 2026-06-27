@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { TutorialHint } from '@/components/tutorial-hint'
@@ -13,6 +13,9 @@ type Member = {
   name: string | null
   characterKey: string | null
   role: string
+  teamId: number | null
+  teamName: string | null
+  teamColor: string | null
 }
 
 type Discipline =
@@ -123,12 +126,53 @@ const TYPE_DOT: Record<string, string> = {
 export default function ScrumClient({
   orgId,
   orgName,
-  members,
+  members: incomingMembers,
 }: {
   orgId: number
   orgName: string
   members: Member[]
 }) {
+  // Group the roster by team, but keep a single FLAT ordering so every
+  // index-based behaviour (keyboard nav, "X of N", coverage counter) keeps
+  // working. The flat array is team-contiguous — members of a team sit next to
+  // each other — so up/down still flows naturally through the visual groups.
+  // The "No team" bucket always sorts last.
+  const { members, groups } = useMemo(() => {
+    const order: { teamId: number | null; teamName: string | null; teamColor: string | null }[] = []
+    const seen = new Map<string, number>()
+    for (const m of incomingMembers) {
+      const key = m.teamId == null ? '__none__' : String(m.teamId)
+      if (!seen.has(key)) {
+        seen.set(key, order.length)
+        order.push({ teamId: m.teamId, teamName: m.teamName, teamColor: m.teamColor })
+      }
+    }
+    // Teams in encounter order; the team-less bucket forced to the end.
+    order.sort((a, b) => {
+      const an = a.teamId == null ? 1 : 0
+      const bn = b.teamId == null ? 1 : 0
+      if (an !== bn) return an - bn
+      return seen.get(a.teamId == null ? '__none__' : String(a.teamId))! -
+        seen.get(b.teamId == null ? '__none__' : String(b.teamId))!
+    })
+
+    const flat: Member[] = []
+    const grps: Array<{
+      teamId: number | null
+      teamName: string | null
+      teamColor: string | null
+      startIdx: number
+      members: Member[]
+    }> = []
+    for (const t of order) {
+      const inTeam = incomingMembers.filter((m) => m.teamId === t.teamId)
+      if (inTeam.length === 0) continue
+      grps.push({ ...t, startIdx: flat.length, members: inTeam })
+      flat.push(...inTeam)
+    }
+    return { members: flat, groups: grps }
+  }, [incomingMembers])
+
   const [activeIdx, setActiveIdx] = useState(0)
   const [covered, setCovered] = useState<Set<number>>(new Set())
   const [brief, setBrief] = useState<Brief | null>(null)
@@ -328,59 +372,82 @@ export default function ScrumClient({
           {members.length === 0 ? (
             <p className="px-4 py-6 text-[12.5px] text-[var(--m-ink-3)]">No members yet.</p>
           ) : (
-            <ul>
-              {members.map((m, i) => {
-                const isActive = i === activeIdx
-                const isCovered = covered.has(m.userId)
+            <div>
+              {groups.map((g) => {
+                const groupCovered = g.members.filter((m) => covered.has(m.userId)).length
                 return (
-                  <li key={m.userId}>
-                    <button
-                      type="button"
-                      onClick={() => setActiveIdx(i)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition border-l-4 ${
-                        isActive
-                          ? 'bg-[var(--m-accent-soft)] border-[var(--m-accent)] text-[var(--m-ink)]'
-                          : isCovered
-                          ? 'border-transparent hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-3)]'
-                          : 'border-transparent hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)]'
-                      }`}
-                    >
-                      <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={28} ring={isActive} />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-[13px] truncate ${
-                            isActive ? 'font-semibold' : 'font-medium'
-                          } ${isCovered ? 'line-through opacity-70' : ''}`}
-                        >
-                          {m.name ?? `@${m.login}`}
-                        </p>
-                        <p className="text-[10.5px] text-[var(--m-ink-4)] truncate uppercase tracking-wider">
-                          {m.role}
-                        </p>
-                      </div>
-                      {isCovered && (
-                        <span className="text-[var(--m-good)]">
-                          <svg
-                            width={14}
-                            height={14}
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2.5}
-                          >
-                            <path
-                              d="M5 13l4 4 10-10"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </span>
-                      )}
-                    </button>
-                  </li>
+                  <div key={g.teamId == null ? 'no-team' : g.teamId}>
+                    {/* Team header — name + color dot + per-team coverage */}
+                    <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-[var(--m-bg-soft)] border-b border-[var(--m-border-soft)]">
+                      <span
+                        className="shrink-0 inline-block w-2 h-2 rounded-full"
+                        style={{ background: g.teamColor ?? 'var(--m-ink-5)' }}
+                      />
+                      <span className="text-[11px] uppercase tracking-[0.16em] font-semibold text-[var(--m-ink-3)] truncate">
+                        {g.teamName ?? 'No team'}
+                      </span>
+                      <span className="ml-auto text-[10.5px] tabular-nums text-[var(--m-ink-4)]">
+                        {groupCovered}/{g.members.length}
+                      </span>
+                    </div>
+                    <ul>
+                      {g.members.map((m, j) => {
+                        const i = g.startIdx + j
+                        const isActive = i === activeIdx
+                        const isCovered = covered.has(m.userId)
+                        return (
+                          <li key={m.userId}>
+                            <button
+                              type="button"
+                              onClick={() => setActiveIdx(i)}
+                              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition border-l-4 ${
+                                isActive
+                                  ? 'bg-[var(--m-accent-soft)] border-[var(--m-accent)] text-[var(--m-ink)]'
+                                  : isCovered
+                                  ? 'border-transparent hover:bg-[var(--m-bg-soft)] text-[var(--m-ink-3)]'
+                                  : 'border-transparent hover:bg-[var(--m-bg-soft)] text-[var(--m-ink)]'
+                              }`}
+                            >
+                              <CharacterAvatar characterKey={m.characterKey} name={m.name} login={m.login} size={28} ring={isActive} />
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-[13px] truncate ${
+                                    isActive ? 'font-semibold' : 'font-medium'
+                                  } ${isCovered ? 'line-through opacity-70' : ''}`}
+                                >
+                                  {m.name ?? `@${m.login}`}
+                                </p>
+                                <p className="text-[10.5px] text-[var(--m-ink-4)] truncate uppercase tracking-wider">
+                                  {m.role}
+                                </p>
+                              </div>
+                              {isCovered && (
+                                <span className="text-[var(--m-good)]">
+                                  <svg
+                                    width={14}
+                                    height={14}
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                  >
+                                    <path
+                                      d="M5 13l4 4 10-10"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
           )}
         </aside>
 
@@ -743,21 +810,8 @@ function BriefPane({
               </section>
             )}
 
-            {/* Talking points — auto-generated questions */}
-            <section className="lg:col-span-2 rounded-xl border border-[var(--m-accent)]/20 bg-gradient-to-br from-[var(--m-accent-soft)]/40 to-white p-5">
-              <SectionHeader title="Questions to ask" hint="auto-generated" />
-              <ul className="mt-2.5 space-y-1.5 text-[13.5px] text-[var(--m-ink)]">
-                {buildTalkingPoints(brief, member).map((q, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[var(--m-accent)] mt-0.5">·</span>
-                    <span>{q}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
             {/* Blockers — faced this week + how they got resolved */}
-            <section className="lg:col-span-1 rounded-xl border border-[var(--m-border)] bg-white p-5">
+            <section className="lg:col-span-3 rounded-xl border border-[var(--m-border)] bg-white p-5">
               <SectionHeader
                 title="Blockers"
                 hint={brief.resolvedBlockers.length ? `${brief.resolvedBlockers.length} resolved` : undefined}

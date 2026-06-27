@@ -1068,6 +1068,16 @@ export const scheduledMeetings = pgTable(
     conferenceUrl: text('conference_url'),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // ---- 1:1 debrief (added 0028) — how the meeting actually went, logged by
+    // the manager after the fact. `completedAt` set => the 1:1 happened and was
+    // logged (distinct from a cancelled or merely-past meeting).
+    notes: text('notes'),
+    /** Coarse read of the conversation: 'great' | 'ok' | 'concern'. */
+    sentiment: text('sentiment'),
+    /** Free-form action items, one string per item. */
+    actionItems: jsonb('action_items').$type<string[]>().notNull().default([]),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    loggedByUserId: integer('logged_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   },
   (t) => ({
     organiserIdx: index('scheduled_meetings_organiser_idx').on(t.organiserUserId, t.startAt),
@@ -1368,6 +1378,9 @@ export const standups = pgTable(
     today: text('today').notNull().default(''),
     blockers: text('blockers').notNull().default(''),
     source: text('source').notNull().default('slack'), // 'slack' | 'web'
+    // Teammates @-mentioned in this standup (MARINA user ids). They get a
+    // "mentioned you" flag and can jump straight into the thread.
+    mentions: jsonb('mentions').$type<number[]>().notNull().default([]),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
@@ -1377,6 +1390,30 @@ export const standups = pgTable(
 )
 export type Standup = typeof standups.$inferSelect
 export type NewStandup = typeof standups.$inferInsert
+
+/**
+ * Standup discussion thread. Teammates reply on a day's standups (Trello-style)
+ * to follow up on tasks + blockers. `teamId` scopes a thread to a team (null =
+ * the whole org's day); `targetUserId` optionally pins a comment to one person's
+ * update. Visible to the whole team so everyone stays in sync.
+ */
+export const standupComments = pgTable(
+  'standup_comments',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+    day: date('day').notNull(),
+    teamId: integer('team_id').references(() => teams.id, { onDelete: 'set null' }),
+    authorUserId: integer('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgDayIdx: index('standup_comments_org_day_idx').on(t.orgId, t.day),
+  }),
+)
+export type StandupComment = typeof standupComments.$inferSelect
 
 /**
  * Peer recognition / kudos. One teammate thanks another; Marina posts a card to

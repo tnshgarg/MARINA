@@ -1,29 +1,27 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte, isNull, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { hideSeedRows } from '@/lib/dev-state'
 import { auth, signIn, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
-import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
+import { listMembershipsForCurrentUser } from '@/lib/auth/guards'
 import { getDailySummary } from '@/lib/activity/aggregate'
 import { afterResponse } from '@/lib/after'
 import { syncGithubForUser, ensureOrgGithubFresh } from '@/lib/github/auto-sync'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { getCharacter } from '@/lib/characters/data'
-import DashboardClient from './client'
 import { AnnouncementBanner } from '@/components/announcement-banner'
 import { computeSignalsForUser, type PersonSignals } from '@/lib/people/risk'
-import { buildStandupPrefill } from '@/lib/brief/standup'
-import { getTodayStandup } from '@/lib/standups/save'
-import { StandupCard } from '@/components/standup-card'
-import { GiveRecognition } from '@/components/give-recognition'
-import { AnnouncementsFeed } from '@/components/announcements-feed'
 import { EmployeeOnboarding, type OnboardingStep } from '@/components/employee-onboarding'
-import { ReviewPacket } from '@/components/review-packet'
-import { IntegrationsPanel } from '@/components/integrations-panel'
-import { PunchControl } from '@/components/punch-control'
+import { PunchGate } from '@/components/punch-gate'
 import { ComingSoonAgent } from '@/components/coming-soon-agent'
+import { NextMeetingBanner } from '@/components/next-meeting-banner'
+import { ReviewPacket } from '@/components/review-packet'
+import { nextMeetingForUser } from '@/lib/meetings/upcoming'
 import { SoloDashboard } from '@/components/solo-dashboard'
+import { EmployeeActions } from '@/components/employee-actions'
+import { EmployeeLeaves } from '@/components/employee-leaves'
+import { YourDayCard } from '@/components/your-day-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,226 +29,49 @@ export default async function DashboardPage() {
   const session = await auth()
   if (!session?.appUserId || !session.login) redirect('/')
 
-  const periodEnd = new Date()
-  const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000)
-
-  const memberships = await listMembershipsForCurrentUser()
   const me = await db.query.users.findFirst({ where: eq(schema.users.id, session.appUserId) })
   if (!me) redirect('/')
   const character = getCharacter(me.characterKey)
 
-  const [events, latestNarrative, today, userSettings, activeBreak, recentBreaks, myLeaves] =
-    await Promise.all([
-      db
-        .select()
-        .from(schema.githubEvents)
-        .where(
-          and(
-            eq(schema.githubEvents.userId, session.appUserId),
-            gte(schema.githubEvents.occurredAt, periodStart),
-            hideSeedRows(schema.githubEvents.externalId),
-          )
-        )
-        .orderBy(desc(schema.githubEvents.occurredAt))
-        .limit(80),
-      db
-        .select()
-        .from(schema.narratives)
-        .where(eq(schema.narratives.userId, session.appUserId))
-        .orderBy(desc(schema.narratives.createdAt))
-        .limit(1)
-        .then((rows) => rows[0]),
-      getDailySummary(session.appUserId),
-      db.query.userSettings.findFirst({
-        where: eq(schema.userSettings.userId, session.appUserId),
-      }),
-      db.query.breaks.findFirst({
-        where: and(eq(schema.breaks.userId, session.appUserId), isNull(schema.breaks.endedAt)),
-      }),
-      db
-        .select()
-        .from(schema.breaks)
-        .where(eq(schema.breaks.userId, session.appUserId))
-        .orderBy(desc(schema.breaks.startedAt))
-        .limit(5),
-      db
-        .select()
-        .from(schema.leaveRequests)
-        .where(eq(schema.leaveRequests.userId, session.appUserId))
-        .orderBy(desc(schema.leaveRequests.createdAt))
-        .limit(10),
-    ])
-
+  const memberships = await listMembershipsForCurrentUser()
   const primaryOrg = memberships[0] ?? null
   const primaryOrgId = primaryOrg?.orgId ?? null
-  const canSeeTeam = primaryOrg ? roleAtLeast(primaryOrg.role, 'manager') : false
-
-  // Keep GitHub fresh on every dashboard visit (debounced, non-blocking) so the
-  // 7-day stats below reflect reality instead of the last manual sync. Two
-  // paths cover both how an employee connected: their own OAuth, and the org's
-  // App installation (covers teammates who only gave a username).
+  const githubLinked = me.githubId != null || !!me.githubLogin
+  const friendlyName = me.name ?? character?.name ?? me.login ?? session.login
   const meId = session.appUserId
   const myLogin = session.login
-  if (myLogin) {
-    afterResponse(
-      () => syncGithubForUser(meId, myLogin, { daysBack: 7, maxAgeMins: 20 }),
-      'dashboard github self-sync',
-    )
-  }
-  if (primaryOrgId) {
-    const oid = primaryOrgId
-    afterResponse(() => ensureOrgGithubFresh(oid, { maxAgeMins: 20 }), 'dashboard org github sync')
-  }
-
-  // Self-wellbeing snapshot (server-computed, rendered as a compact nudge above
-  // the console). Leave balance is intentionally NOT shown here — see below.
-  let wellbeing: PersonSignals | null = null
-  if (primaryOrgId) {
-    wellbeing = await computeSignalsForUser(primaryOrgId, session.appUserId)
-  }
-
-  // Member "team space": file a standup, give kudos, read announcements — the
-  // web half of the Slack standup/recognition/announcement features, scoped to
-  // the member's primary org so it works for the common single-org case.
-  let teamSpace: null | {
-    standupPrefill: { yesterday: string; blockers: string }
-    todayStandup: { yesterday: string; today: string; blockers: string } | null
-    teammates: { userId: number; name: string }[]
-    announcements: {
-      id: number
-      title: string | null
-      body: string
-      createdAt: string
-      authorName: string | null
-      authorLogin: string
-    }[]
-  } = null
-  if (primaryOrgId) {
-    const [prefill, todayStandup, mates, anns] = await Promise.all([
-      buildStandupPrefill(session.appUserId),
-      getTodayStandup(session.appUserId),
-      db
-        .select({ userId: schema.memberships.userId, name: schema.users.name, login: schema.users.login })
-        .from(schema.memberships)
-        .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
-        .where(and(eq(schema.memberships.orgId, primaryOrgId), isNull(schema.memberships.endedAt))),
-      db
-        .select({
-          id: schema.orgAnnouncements.id,
-          title: schema.orgAnnouncements.title,
-          body: schema.orgAnnouncements.body,
-          createdAt: schema.orgAnnouncements.createdAt,
-          authorName: schema.users.name,
-          authorLogin: schema.users.login,
-        })
-        .from(schema.orgAnnouncements)
-        .innerJoin(schema.users, eq(schema.orgAnnouncements.authorUserId, schema.users.id))
-        .where(eq(schema.orgAnnouncements.orgId, primaryOrgId))
-        .orderBy(desc(schema.orgAnnouncements.createdAt))
-        .limit(5),
-    ])
-    teamSpace = {
-      standupPrefill: prefill,
-      todayStandup,
-      teammates: mates
-        .filter((m) => m.userId !== session.appUserId)
-        .map((m) => ({ userId: m.userId, name: m.name ?? `@${m.login}` })),
-      announcements: anns.map((a) => ({
-        id: a.id,
-        title: a.title,
-        body: a.body,
-        createdAt: a.createdAt.toISOString(),
-        authorName: a.authorName,
-        authorLogin: a.authorLogin,
-      })),
-    }
-  }
-
-  // For the welcome tour we need to know if this user has *ever* punched in.
-  const anyShift = await db
-    .select({ id: schema.shifts.id })
-    .from(schema.shifts)
-    .where(eq(schema.shifts.userId, session.appUserId))
-    .limit(1)
-  const hasAnyShift = anyShift.length > 0
-
-  // Active shift (open = punched in) for the web punch control.
-  const activeShiftRows = await db
-    .select({ punchedInAt: schema.shifts.punchedInAt })
-    .from(schema.shifts)
-    .where(and(eq(schema.shifts.userId, session.appUserId), isNull(schema.shifts.punchedOutAt)))
-    .orderBy(desc(schema.shifts.punchedInAt))
-    .limit(1)
-  const activeSince = activeShiftRows[0]?.punchedInAt.toISOString() ?? null
-  const githubLinked = me.githubId != null || !!me.githubLogin
-
-  // Connection state for the inline "Connections" card. GitHub + Calendar are
-  // the employee's own; Slack is org-level (read-only status for them).
-  const myGoogle = await db.query.accounts.findFirst({
-    where: and(
-      eq(schema.accounts.userId, session.appUserId),
-      eq(schema.accounts.provider, 'google'),
-      isNotNull(schema.accounts.access_token),
-    ),
-  })
-  const calendarConnected = !!myGoogle
-  const slackOrgConnected = !!primaryOrg?.org?.slackBotToken
-  const slackReachable = !!primaryOrg?.slackUserId
-  const onboardingSteps: OnboardingStep[] = []
-  if (primaryOrgId) {
-    // (The desktop-agent step is its own prominent download card below, so it's
-    // intentionally not duplicated in this compact checklist.)
-    if (primaryOrg?.org?.slackBotToken) {
-      onboardingSteps.push({
-        key: 'slack',
-        done: !!primaryOrg.slackUserId,
-        title: 'Use Marina in Slack',
-        body: 'Open the Marina app in Slack and run /marina status once — then punch in, log work and post standups without leaving Slack.',
-        cta: 'Learn how',
-        href: '/help/marina-in-slack',
-      })
-    }
-    const disc = (primaryOrg as { discipline?: string } | null)?.discipline
-    if (disc === 'engineering' && !githubLinked) {
-      onboardingSteps.push({
-        key: 'github',
-        done: false,
-        title: 'Add your GitHub username',
-        body: 'So Marina can attribute your commits, PRs and reviews to you automatically.',
-        cta: 'Add',
-        href: '/settings',
-      })
-    }
-  }
-
-  const friendlyName = me.name ?? character?.name ?? me.login ?? session.login
-
-  // "Get credit for your work" features (work journal + review packet) are for
-  // EVERY employee — solo or in an org. We surface the connect/sync card only
-  // when the user hasn't got their activity in yet, so it doesn't nag people
-  // who are already set up.
-  const hasWorkEvents = events.length > 0
 
   async function doSignOut() {
     'use server'
     await signOut({ redirectTo: '/' })
   }
-
-  // GitHub connect via the canonical Auth.js v5 server action (a POST). The raw
-  // /api/auth/signin/github GET link 302s to ?error=Configuration even with the
-  // OAuth env set — so we never use it.
   async function githubConnectAction() {
     'use server'
     await signIn('github', { redirectTo: '/dashboard' })
   }
 
-  // No org → the standalone-employee experience: a clean, full-width, personal
-  // console with NO employer/manager surfaces. Org members and managers fall
-  // through to the existing dashboard below, which is left entirely untouched.
+  // Keep GitHub fresh on every visit (debounced, non-blocking).
+  afterResponse(() => syncGithubForUser(meId, myLogin, { daysBack: 7, maxAgeMins: 20 }), 'dashboard github self-sync')
+
+  // ── Solo employee (no org): the clean, full-width standalone console. ──
   if (!primaryOrgId) {
+    const periodStart = new Date()
+    periodStart.setDate(periodStart.getDate() - 7)
+    const events = await db
+      .select()
+      .from(schema.githubEvents)
+      .where(
+        and(
+          eq(schema.githubEvents.userId, meId),
+          gte(schema.githubEvents.occurredAt, periodStart),
+          hideSeedRows(schema.githubEvents.externalId),
+        ),
+      )
+      .orderBy(desc(schema.githubEvents.occurredAt))
+      .limit(80)
     return (
       <SoloDashboard
-        userId={session.appUserId}
+        userId={meId}
         login={me.login ?? session.login}
         name={friendlyName}
         email={me.email}
@@ -262,233 +83,328 @@ export default async function DashboardPage() {
           occurredAt: e.occurredAt.toISOString(),
         }))}
         githubLinked={githubLinked}
-        hasEvents={hasWorkEvents}
+        hasEvents={events.length > 0}
         signOutAction={doSignOut}
       />
     )
   }
 
+  // ── Org member: the Overview hub (deeper features live on their own pages). ──
+  afterResponse(() => ensureOrgGithubFresh(primaryOrgId, { maxAgeMins: 20 }), 'dashboard org github sync')
+
+  const [today, anyShift, activeShiftRows, nextMeeting] = await Promise.all([
+    getDailySummary(meId),
+    db.select({ id: schema.shifts.id }).from(schema.shifts).where(eq(schema.shifts.userId, meId)).limit(1),
+    db
+      .select({ punchedInAt: schema.shifts.punchedInAt })
+      .from(schema.shifts)
+      .where(and(eq(schema.shifts.userId, meId), isNull(schema.shifts.punchedOutAt)))
+      .orderBy(desc(schema.shifts.punchedInAt))
+      .limit(1),
+    nextMeetingForUser(meId),
+  ])
+  void today
+  const hasAnyShift = anyShift.length > 0
+  const activeSince = activeShiftRows[0]?.punchedInAt.toISOString() ?? null
+
+  let wellbeing: PersonSignals | null = null
+  try {
+    wellbeing = await computeSignalsForUser(primaryOrgId, meId)
+  } catch {
+    wellbeing = null
+  }
+
+  // Upcoming birthdays & work anniversaries for the team, + whether the viewer
+  // has any GitHub activity (drives the review-packet card). We also load the
+  // day-controls data (active break, recent breaks, leave requests) so the
+  // Overview can host them inline — the old /dashboard/work page is gone.
+  const [peopleRows, recentEv, activeBreak, recentBreaks, myLeaves] = await Promise.all([
+    db
+      .select({ name: schema.users.name, login: schema.users.login, birthdayMmDd: schema.users.birthdayMmDd, joinedOn: schema.users.joinedOn })
+      .from(schema.memberships)
+      .innerJoin(schema.users, eq(schema.memberships.userId, schema.users.id))
+      .where(and(eq(schema.memberships.orgId, primaryOrgId), isNull(schema.memberships.endedAt))),
+    db.select({ id: schema.githubEvents.id }).from(schema.githubEvents).where(and(eq(schema.githubEvents.userId, meId), hideSeedRows(schema.githubEvents.externalId))).limit(1),
+    db.query.breaks.findFirst({ where: and(eq(schema.breaks.userId, meId), isNull(schema.breaks.endedAt)) }),
+    db.select().from(schema.breaks).where(eq(schema.breaks.userId, meId)).orderBy(desc(schema.breaks.startedAt)).limit(5),
+    db.select().from(schema.leaveRequests).where(eq(schema.leaveRequests.userId, meId)).orderBy(desc(schema.leaveRequests.createdAt)).limit(10),
+  ])
+  const celebrations = upcomingCelebrations(peopleRows)
+  const hasWorkEvents = recentEv.length > 0
+  const weekHours = wellbeing?.weekHours ?? null
+
+  const activeBreakDto = activeBreak
+    ? { id: activeBreak.id, startedAt: activeBreak.startedAt.toISOString(), reason: activeBreak.reason, category: activeBreak.category }
+    : null
+  const recentBreakDtos = recentBreaks.map((b) => ({
+    id: b.id,
+    startedAt: b.startedAt.toISOString(),
+    endedAt: b.endedAt?.toISOString() ?? null,
+    reason: b.reason,
+  }))
+  const leaveDtos = myLeaves.map((l) => ({
+    id: l.id,
+    startDate: l.startDate,
+    endDate: l.endDate,
+    reason: l.reason,
+    status: l.status,
+    decidedNote: l.decidedNote,
+  }))
+
+  const onboardingSteps: OnboardingStep[] = []
+  if (primaryOrg?.org?.slackBotToken) {
+    onboardingSteps.push({
+      key: 'slack',
+      done: !!primaryOrg.slackUserId,
+      title: 'Use Marina in Slack',
+      body: 'Open the Marina app in Slack and run /marina status once — then punch in, log work and post standups without leaving Slack.',
+      cta: 'Learn how',
+      href: '/help/marina-in-slack',
+    })
+  }
+  const disc = (primaryOrg as { discipline?: string } | null)?.discipline
+  if (disc === 'engineering' && !githubLinked) {
+    onboardingSteps.push({
+      key: 'github',
+      done: false,
+      title: 'Connect GitHub',
+      body: 'So Marina can attribute your commits, PRs and reviews to you automatically.',
+      cta: 'Connect',
+      href: '/dashboard/connections',
+    })
+  }
+  void githubConnectAction // (connect lives on the Connections page now)
+
+  const greetingHour = new Date().getHours()
+  const greeting = greetingHour < 12 ? 'Good morning' : greetingHour < 17 ? 'Good afternoon' : 'Good evening'
+
   return (
-    <main className="min-h-screen bg-[var(--m-bg)]">
+    <div className="px-4 pt-4 pb-10 sm:px-8 sm:pt-7 max-w-[1100px] mx-auto fade-in">
+      <PunchGate active={!!activeSince} name={friendlyName} />
       <AnnouncementBanner viewerRole="member" />
-      <header className="bg-white border-b border-[var(--m-border)] sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <CharacterAvatar characterKey={me.characterKey} name={me.name} login={me.login} size={36} />
-            <div className="min-w-0">
-              <p className="app-eyebrow hidden sm:block">My console</p>
-              <h1 className="app-h2 truncate flex items-baseline gap-2 text-[15px] sm:text-[20px]">
-                <span className="truncate">
-                  {character?.name ?? me.name ?? `@${session.login}`}
-                </span>
-                <span className="text-[11px] sm:text-[12px] font-normal text-[var(--m-ink-3)] truncate hidden xs:inline">
-                  @{session.login}
-                </span>
-              </h1>
-            </div>
-          </div>
-          <nav className="flex items-center gap-2 sm:gap-4 text-[12px] sm:text-[13px] shrink-0">
-            {/* Punch in/out from the web. The desktop agent is on hold, so
-                everyone punches here for now (see the "coming soon" card). */}
-            <PunchControl activeSince={activeSince} />
-            {/* A manager lands on their personal console too — this is the
-                prominent, unmistakable switch into the team/org dashboard.
-                Styled as a filled button (not a plain text link) so it reads as
-                "go manage your team", not just another nav item. */}
-            {canSeeTeam && primaryOrgId && (
-              <Link
-                href={`/org/${primaryOrgId}`}
-                title="Switch to your team & org dashboard"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--m-accent)] text-white hover:bg-[var(--m-accent-2)] px-2.5 sm:px-3 py-1.5 font-medium shadow-[var(--m-shadow-sm)] transition-colors"
-              >
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path
-                    d="M16 3.8a4 4 0 0 1 0 7.4M21 21v-1a4 4 0 0 0-3-3.85M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM3 21v-1a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Team<span className="hidden sm:inline">&nbsp;dashboard</span>
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="hidden sm:inline opacity-80 -mr-0.5">
-                  <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-            )}
-            <Link
-              href="/me/regularizations"
-              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden md:inline"
-            >
-              Attendance
-            </Link>
-            <Link
-              href="/me/data"
-              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
-            >
-              My data
-            </Link>
-            <Link
-              href="/help"
-              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1 hidden sm:inline"
-            >
-              Help
-            </Link>
-            <Link
-              href="/settings"
-              className="text-[var(--m-ink-2)] hover:text-[var(--m-accent)] transition-colors px-1"
-            >
-              Settings
-            </Link>
-            <form
-              action={async () => {
-                'use server'
-                await signOut({ redirectTo: '/' })
-              }}
-            >
-              <button type="submit" className="text-[var(--m-ink-2)] hover:text-rose-600 px-1">
-                <span className="hidden sm:inline">Sign out</span>
-                <span className="sm:hidden" aria-label="Sign out">
-                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" strokeLinecap="round" />
-                    <path d="M10 17l-5-5 5-5M5 12h12" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </button>
-            </form>
-          </nav>
+
+      {/* Greeting */}
+      <div className="flex items-center gap-3 mb-5">
+        <CharacterAvatar characterKey={me.characterKey} name={me.name} login={me.login} size={44} />
+        <div className="min-w-0">
+          <h1 className="app-h1 text-[22px] sm:text-[26px] leading-tight">
+            {greeting}, {(me.name ?? me.login ?? '').split(' ')[0] || friendlyName}
+          </h1>
+          <p className="text-[13px] text-[var(--m-ink-3)]">
+            {activeSince ? "You're punched in — have a focused one." : 'Punch in when you start your day.'}
+          </p>
         </div>
-      </header>
-
-      <EmployeeOnboarding steps={onboardingSteps} />
-
-      {/* Desktop agent is on hold — tease it with a dismissible "coming soon"
-          card. Everyone punches from the web for now (button up in the header). */}
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4">
-        <ComingSoonAgent variant="employee" />
       </div>
 
-      {/* Connections + "get credit for your work". The inline Connections card
-          lets the employee enable GitHub / Calendar right here; the review packet
-          is always available. */}
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3">
-        <IntegrationsPanel
-          variant="employee"
-          orgId={primaryOrgId}
-          github={{ connected: githubLinked }}
-          calendar={{ connected: calendarConnected }}
-          slack={{ connected: slackOrgConnected, detail: slackReachable ? "You're linked — use /marina in Slack." : undefined }}
-          githubConnectAction={githubConnectAction}
-          dismissible
-          settingsHref="/settings"
-        />
-        <ReviewPacket hasGithub={githubLinked && hasWorkEvents} />
-      </div>
-
-      {wellbeing && wellbeing.flags.length > 0 && wellbeing.level !== 'ok' ? (
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 space-y-3">
-          {wellbeing.flags.length > 0 && (
-            <div
-              className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
-                wellbeing.level === 'high'
-                  ? 'border-[var(--m-clay)]/40 bg-[var(--m-clay-soft)]/50'
-                  : 'border-[var(--m-gold)]/40 bg-[var(--m-gold-soft)]/40'
-              }`}
-            >
-              <span className="text-[18px] leading-none mt-0.5">🌱</span>
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-[var(--m-ink)]">
-                  A gentle wellbeing check-in
-                </p>
-                <p className="text-[12.5px] text-[var(--m-ink-2)] leading-snug mt-0.5">
-                  {wellbeing.weekHours >= 45
-                    ? `You've logged ${wellbeing.weekHours}h this week — it's okay to wrap up earlier. `
-                    : ''}
-                  {wellbeing.flags.join(' · ')}. Your wellbeing matters more than your hours.
-                </p>
-                <Link href="/me/data" className="text-[12px] text-[var(--m-accent-2)] underline underline-offset-2 mt-1 inline-block">
-                  See your data &amp; trends →
-                </Link>
-              </div>
-            </div>
-          )}
-          {/* Leave-balance card removed from the dashboard on purpose: showing
-              "you have 12 days left" every day nudges people to spend them.
-              The balance now appears only inside the leave-request flow. */}
-        </div>
-      ) : null}
-
-      {teamSpace && primaryOrgId && (
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3 lg:grid-cols-2 items-start">
-          <StandupCard orgId={primaryOrgId} prefill={teamSpace.standupPrefill} existing={teamSpace.todayStandup} />
-          <div className="grid gap-3">
-            <GiveRecognition orgId={primaryOrgId} teammates={teamSpace.teammates} />
-            <AnnouncementsFeed items={teamSpace.announcements} />
-          </div>
+      {/* Next team meeting — top of the dashboard. */}
+      {nextMeeting && (
+        <div className="mb-4">
+          <NextMeetingBanner meeting={nextMeeting} />
         </div>
       )}
 
-      <DashboardClient
-        orgId={primaryOrgId}
-        userName={friendlyName}
-        hasAnyShift={hasAnyShift}
-        githubLinked={me.githubId != null}
-        initialEvents={events.map(serializeEvent)}
-        initialNarrative={latestNarrative ? serializeNarrative(latestNarrative) : null}
-        periodStart={periodStart.toISOString()}
-        periodEnd={periodEnd.toISOString()}
-        today={today}
-        paused={!!userSettings?.trackingPausedAt}
-        activeBreak={
-          activeBreak
-            ? {
-                id: activeBreak.id,
-                startedAt: activeBreak.startedAt.toISOString(),
-                reason: activeBreak.reason,
-                category: activeBreak.category,
-              }
-            : null
-        }
-        recentBreaks={recentBreaks.map((b) => ({
-          id: b.id,
-          startedAt: b.startedAt.toISOString(),
-          endedAt: b.endedAt?.toISOString() ?? null,
-          reason: b.reason,
-        }))}
-        myLeaves={myLeaves.map((l) => ({
-          id: l.id,
-          startDate: l.startDate,
-          endDate: l.endDate,
-          reason: l.reason,
-          status: l.status,
-          decidedAt: l.decidedAt?.toISOString() ?? null,
-          decidedNote: l.decidedNote,
-          createdAt: l.createdAt.toISOString(),
-        }))}
-      />
-    </main>
+      <EmployeeOnboarding steps={onboardingSteps} />
+
+      <div className="mb-4">
+        <ComingSoonAgent variant="employee" />
+      </div>
+
+      {/* Day controls — break, blocker, leave + the active break/blocked banner. */}
+      <div className="mb-4">
+        <EmployeeActions orgId={primaryOrgId} activeBreak={activeBreakDto} />
+      </div>
+
+      {/* Live "Your day" read — productivity, shipped, meetings remaining. */}
+      <div className="mb-5">
+        <YourDayCard />
+      </div>
+
+      {/* Your work at a glance: hours, review packet, and team celebrations. */}
+      <div className="grid gap-3 lg:grid-cols-2 items-start mb-5">
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <StatTile label="This week" value={weekHours != null ? `${weekHours}h` : '—'} hint="logged" />
+            <StatTile label="Status" value={activeSince ? 'Working' : 'Off the clock'} hint={activeSince ? 'punched in' : 'punch in to start'} good={!!activeSince} />
+          </div>
+          <ReviewPacket hasGithub={githubLinked && hasWorkEvents} />
+        </div>
+
+        {celebrations.length > 0 && (
+          <section className="app-card app-card-lg">
+            <h2 className="app-h2">Coming up</h2>
+            <p className="app-sub mt-0.5 mb-2.5">Birthdays &amp; work anniversaries on your team.</p>
+            <ul className="space-y-2">
+              {celebrations.map((c, i) => (
+                <li key={i} className="flex items-center gap-2.5">
+                  <span className="text-[16px] leading-none">{c.kind === 'birthday' ? '🎂' : '🎉'}</span>
+                  <span className="text-[13px] text-[var(--m-ink)] flex-1 min-w-0 truncate">
+                    {c.name}
+                    <span className="text-[var(--m-ink-3)]"> · {c.kind === 'birthday' ? 'birthday' : `${c.years}-yr anniversary`}</span>
+                  </span>
+                  <span className="text-[11.5px] text-[var(--m-ink-4)] shrink-0">{c.inDays === 0 ? 'today' : c.inDays === 1 ? 'tomorrow' : `in ${c.inDays}d`}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+
+      {/* Leave requests + recent breaks. */}
+      <div className="grid gap-3 lg:grid-cols-2 items-start mb-5">
+        <EmployeeLeaves leaves={leaveDtos} />
+        <section className="app-card app-card-lg">
+          <h2 className="app-h2">Recent breaks</h2>
+          {recentBreakDtos.length === 0 ? (
+            <p className="app-sub mt-3">No breaks logged.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {recentBreakDtos.map((b) => (
+                <li key={b.id} className="text-[12px] text-[var(--m-ink-2)]">
+                  <span className="text-[var(--m-ink)] font-medium">
+                    {new Date(b.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                  </span>{' '}
+                  · {b.endedAt ? breakDuration(b.startedAt, b.endedAt) : 'ongoing'} · {b.reason.slice(0, 60)}
+                  {b.reason.length > 60 ? '…' : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Quick navigation — each feature is its own page now. */}
+      <h2 className="app-eyebrow mb-2">Jump to</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <HubCard href="/dashboard/standup" title="Daily standup" desc="Post today's update and see your team's." icon="scrum" />
+        <HubCard href="/dashboard/report" title="My report" desc="Your full work report — GitHub, standups, hours." icon="pulse" />
+        <HubCard href="/dashboard/meetings" title="Meetings" desc="Your upcoming and recent meetings." icon="cal" />
+        <HubCard href="/dashboard/team" title="My team" desc="Who you work with and report to." icon="team" />
+        <HubCard href="/dashboard/connections" title="Connections" desc="GitHub, Calendar and Slack." icon="plug" />
+        <HubCard href="/dashboard/data" title="My data" desc="Your tracked time and trends." icon="chart" />
+      </div>
+
+      <p className="mt-6 text-[12px] text-[var(--m-ink-4)]">
+        {hasAnyShift ? 'Tip: use the left sidebar to move between your console pages.' : 'New here? Punch in above, then explore the pages on the left.'}
+      </p>
+    </div>
   )
 }
 
-function serializeEvent(e: typeof schema.githubEvents.$inferSelect) {
-  return {
-    id: e.id,
-    type: e.type,
-    repo: e.repo,
-    title: e.title,
-    url: e.url,
-    occurredAt: e.occurredAt.toISOString(),
-  }
+function breakDuration(startIso: string, endIso: string): string {
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
+  const m = Math.max(1, Math.round(ms / 60000))
+  if (m < 60) return `${m}m`
+  return `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-function serializeNarrative(n: typeof schema.narratives.$inferSelect) {
-  return {
-    id: n.id,
-    body: n.body,
-    signal: n.signal,
-    blockers: n.blockers,
-    provider: n.provider,
-    model: n.model,
-    periodStart: n.periodStart.toISOString(),
-    periodEnd: n.periodEnd.toISOString(),
-    createdAt: n.createdAt.toISOString(),
+function StatTile({ label, value, hint, good }: { label: string; value: string; hint: string; good?: boolean }) {
+  return (
+    <div className="app-card p-3.5">
+      <p className="app-eyebrow">{label}</p>
+      <p className={`text-[22px] font-semibold mt-0.5 tabular-nums ${good ? 'text-[var(--m-good)]' : 'text-[var(--m-ink)]'}`}>{value}</p>
+      <p className="text-[11.5px] text-[var(--m-ink-4)]">{hint}</p>
+    </div>
+  )
+}
+
+type Celebration = { name: string; kind: 'birthday' | 'anniversary'; inDays: number; years: number }
+
+/** Upcoming birthdays (from MM-DD) and work anniversaries (from joinedOn). */
+function upcomingCelebrations(
+  rows: { name: string | null; login: string; birthdayMmDd: string | null; joinedOn: string | null }[],
+  withinDays = 21,
+): Celebration[] {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const out: Celebration[] = []
+  const daysUntil = (month: number, day: number) => {
+    let d = new Date(today.getFullYear(), month, day)
+    if (d < today) d = new Date(today.getFullYear() + 1, month, day)
+    return Math.round((d.getTime() - today.getTime()) / 86400000)
   }
+  for (const r of rows) {
+    const who = r.name ?? `@${r.login}`
+    if (r.birthdayMmDd && /^\d{2}-\d{2}$/.test(r.birthdayMmDd)) {
+      const [mm, dd] = r.birthdayMmDd.split('-').map(Number)
+      const inDays = daysUntil(mm - 1, dd)
+      if (inDays <= withinDays) out.push({ name: who, kind: 'birthday', inDays, years: 0 })
+    }
+    if (r.joinedOn) {
+      const j = new Date(r.joinedOn)
+      if (!Number.isNaN(j.getTime())) {
+        const inDays = daysUntil(j.getMonth(), j.getDate())
+        const nextYear = inDays === 0 ? today.getFullYear() : new Date(today.getFullYear(), j.getMonth(), j.getDate()) < today ? today.getFullYear() + 1 : today.getFullYear()
+        const years = nextYear - j.getFullYear()
+        if (inDays <= withinDays && years >= 1) out.push({ name: who, kind: 'anniversary', inDays, years })
+      }
+    }
+  }
+  return out.sort((a, b) => a.inDays - b.inDays).slice(0, 6)
+}
+
+function HubCard({ href, title, desc, icon }: { href: string; title: string; desc: string; icon: string }) {
+  return (
+    <Link
+      href={href}
+      prefetch
+      className="group app-card hover:shadow-[var(--m-shadow)] hover:border-[var(--m-accent)]/40 transition-all p-4 flex items-start gap-3"
+    >
+      <span className="shrink-0 w-9 h-9 rounded-lg bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] inline-flex items-center justify-center">
+        <HubIcon name={icon} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13.5px] font-semibold text-[var(--m-ink)] group-hover:text-[var(--m-accent-2)] transition-colors">{title}</p>
+        <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5 leading-snug">{desc}</p>
+      </div>
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="shrink-0 text-[var(--m-ink-5)] group-hover:text-[var(--m-accent)] transition-colors mt-0.5" aria-hidden>
+        <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </Link>
+  )
+}
+
+function HubIcon({ name }: { name: string }) {
+  const common = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, width: 18, height: 18 } as const
+  if (name === 'scrum')
+    return (
+      <svg {...common}>
+        <path d="M4 19a8 8 0 0 1 16 0" strokeLinecap="round" />
+        <circle cx={6} cy={10} r={2} />
+        <circle cx={12} cy={8} r={2.4} />
+        <circle cx={18} cy={10} r={2} />
+      </svg>
+    )
+  if (name === 'pulse')
+    return (
+      <svg {...common}>
+        <path d="M3 12h3l3-8 4 16 3-8h5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  if (name === 'cal')
+    return (
+      <svg {...common} strokeLinecap="round">
+        <rect x="3" y="4.5" width="18" height="16" rx="2" />
+        <path d="M3 9h18M8 3v3M16 3v3" />
+      </svg>
+    )
+  if (name === 'team')
+    return (
+      <svg {...common}>
+        <circle cx={9} cy={8} r={3} />
+        <circle cx={17} cy={9} r={2.5} />
+        <path d="M3 20c0-3 3-5 6-5s6 2 6 5" />
+        <path d="M14 20c.6-2.5 2.5-4 4-4 2 0 3 1.5 3 4" />
+      </svg>
+    )
+  if (name === 'chart')
+    return (
+      <svg {...common} strokeLinecap="round">
+        <path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-7" />
+      </svg>
+    )
+  return (
+    <svg {...common}>
+      <path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0V8ZM12 16v6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }

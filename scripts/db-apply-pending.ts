@@ -339,6 +339,36 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "orgs" ALTER COLUMN "agent_enabled" SET DEFAULT false`)
   console.log('  · 0025 orgs.agent_enabled default→false OK')
 
+  // 0026 — standup discussion thread (Trello-style replies on a day's standups).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "standup_comments" (
+      "id" serial PRIMARY KEY,
+      "org_id" integer NOT NULL REFERENCES "orgs"("id") ON DELETE CASCADE,
+      "day" date NOT NULL,
+      "team_id" integer REFERENCES "teams"("id") ON DELETE SET NULL,
+      "author_user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "target_user_id" integer REFERENCES "users"("id") ON DELETE SET NULL,
+      "body" text NOT NULL,
+      "created_at" timestamptz NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "standup_comments_org_day_idx" ON "standup_comments" ("org_id", "day")`)
+  console.log('  · 0026 standup_comments OK')
+
+  // 0027 — @-mentions on standups.
+  await db.execute(sql`ALTER TABLE "standups" ADD COLUMN IF NOT EXISTS "mentions" jsonb NOT NULL DEFAULT '[]'::jsonb`)
+  console.log('  · 0027 standups.mentions OK')
+
+  // 0028 — 1:1 debrief on scheduled_meetings. Lets a manager log how a past
+  // 1:1 went (notes, sentiment, action items) and mark it completed, so the
+  // reviews/cadence surface can show real history instead of just dates.
+  await db.execute(sql`ALTER TABLE "scheduled_meetings" ADD COLUMN IF NOT EXISTS "notes" text`)
+  await db.execute(sql`ALTER TABLE "scheduled_meetings" ADD COLUMN IF NOT EXISTS "sentiment" text`)
+  await db.execute(sql`ALTER TABLE "scheduled_meetings" ADD COLUMN IF NOT EXISTS "action_items" jsonb NOT NULL DEFAULT '[]'::jsonb`)
+  await db.execute(sql`ALTER TABLE "scheduled_meetings" ADD COLUMN IF NOT EXISTS "completed_at" timestamptz`)
+  await db.execute(sql`ALTER TABLE "scheduled_meetings" ADD COLUMN IF NOT EXISTS "logged_by_user_id" integer REFERENCES "users"("id") ON DELETE SET NULL`)
+  console.log('  · 0028 scheduled_meetings 1:1 debrief OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

@@ -6,6 +6,7 @@ import { CharacterAvatar } from '@/components/character-avatar'
 import { Modal } from '@/components/modal'
 import { useToast } from '@/components/toast'
 import { TutorialHint } from '@/components/tutorial-hint'
+import { TeamMeetingScheduler } from '@/components/team-meeting-scheduler'
 import OrgChart from './org-chart'
 
 type Member = {
@@ -127,15 +128,21 @@ export default function TeamsClient({
             employees can be on multiple teams.
           </p>
         </div>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
-          >
-            + New team
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <TeamMeetingScheduler
+            orgId={orgId}
+            members={members.map((m) => ({ userId: m.userId, name: m.name, login: m.login }))}
+          />
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="px-3 py-1.5 rounded-md bg-[var(--m-ink)] hover:bg-[var(--m-ink-2)] text-white text-[12.5px] font-medium transition"
+            >
+              + New team
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">
@@ -237,17 +244,29 @@ export default function TeamsClient({
                   >
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-[var(--m-ink)]">{t.name}</p>
+                        <a
+                          href={`/org/${orgId}/teams/${t.id}`}
+                          className="text-[14px] font-semibold text-[var(--m-ink)] hover:text-[var(--m-accent)] transition-colors"
+                        >
+                          {t.name}
+                        </a>
                         {t.description && (
                           <p className="text-[12px] text-[var(--m-ink-3)] mt-0.5 leading-snug">{t.description}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        {/* Open the team's live command-center page. */}
+                        <a
+                          href={`/org/${orgId}/teams/${t.id}`}
+                          className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
+                        >
+                          Open
+                        </a>
                         {/* Report is available to anyone who can see the team
                             (scoping is enforced on the report route itself). */}
                         <a
                           href={`/org/${orgId}/teams/${t.id}/report`}
-                          className="text-[11.5px] text-[var(--m-accent)] hover:text-[var(--m-accent-2)] font-medium"
+                          className="text-[11.5px] text-[var(--m-ink-2)] hover:text-[var(--m-ink)] font-medium"
                         >
                           Report
                         </a>

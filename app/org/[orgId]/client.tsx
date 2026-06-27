@@ -15,6 +15,8 @@ import { TeamChat } from '@/components/team-chat'
 import { MarinaBrief, marinaBriefLine } from '@/components/marina-brief'
 import { ComingSoonAgent } from '@/components/coming-soon-agent'
 import { IntegrationsPanel } from '@/components/integrations-panel'
+import { NextMeetingBanner } from '@/components/next-meeting-banner'
+import type { MeetingCard } from '@/lib/meetings/upcoming'
 import { DashboardTour } from '@/components/dashboard-tour'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
@@ -43,6 +45,7 @@ type MemberCard = {
   avatarUrl: string | null
   characterKey: string | null
   role: string
+  teamIds: number[]
   hasGithub: boolean
   activity: {
     activeSeconds: number
@@ -171,11 +174,13 @@ export default function TeamDashboardClient({
   greeting,
   snapshot,
   members,
+  teams,
   blockers,
   slackAlerts,
   pendingLeaves,
   recentBreaks,
   integrations,
+  nextMeeting,
 }: {
   orgId: number
   viewerUserId: number
@@ -184,6 +189,7 @@ export default function TeamDashboardClient({
   greeting: string
   snapshot: Snapshot
   members: MemberCard[]
+  teams: { id: number; name: string; color: string | null }[]
   blockers: Blocker[]
   slackAlerts: SlackAlert[]
   pendingLeaves: PendingLeave[]
@@ -196,6 +202,7 @@ export default function TeamDashboardClient({
     slackConnected: boolean
     slackTeamName: string | null
   }
+  nextMeeting: MeetingCard | null
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -208,6 +215,8 @@ export default function TeamDashboardClient({
   // Status filter — managers often want to see only blocked or only off
   // teammates. `null` means "all". Combines with the search box.
   const [statusFilter, setStatusFilter] = useState<SimpleStatus | null>(null)
+  // Filter by team — null means "all teams".
+  const [teamFilter, setTeamFilter] = useState<number | null>(null)
 
   function openDetail(m: { membershipId: number; name: string | null; login: string }) {
     setDetailMember({ membershipId: m.membershipId, name: m.name ?? `@${m.login}` })
@@ -225,6 +234,7 @@ export default function TeamDashboardClient({
     const q = query.trim().toLowerCase()
     return members.filter((m) => {
       if (statusFilter && deriveStatus(m) !== statusFilter) return false
+      if (teamFilter !== null && !m.teamIds.includes(teamFilter)) return false
       if (!q) return true
       return (
         (m.name ?? '').toLowerCase().includes(q) ||
@@ -232,7 +242,7 @@ export default function TeamDashboardClient({
         (m.activity.topApp ?? '').toLowerCase().includes(q)
       )
     })
-  }, [members, query, statusFilter])
+  }, [members, query, statusFilter, teamFilter])
 
   async function decideLeave(leaveId: number, decision: 'approve' | 'deny') {
     setBusy(`leave-${leaveId}-${decision}`)
@@ -398,6 +408,13 @@ export default function TeamDashboardClient({
     <>
       <LivePoll router={router} />
 
+      {/* Next team meeting — pinned at the very top, mirroring the employee view. */}
+      {nextMeeting && (
+        <div className="mb-4">
+          <NextMeetingBanner meeting={nextMeeting} />
+        </div>
+      )}
+
       {/* Marina's morning brief — the persona-led hero. She greets the manager
           and tells them, in her own voice, what (if anything) needs them. */}
       <div data-tour="brief">
@@ -524,14 +541,14 @@ export default function TeamDashboardClient({
               <span className="text-[12px] text-[var(--m-ink-3)]">
                 {statusFilter || query ? `${filtered.length} of ${members.length}` : members.length}
               </span>
-              <div className="ml-auto relative">
+              <div className="ml-auto relative w-full sm:w-auto">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--m-ink-4)]" />
                 <input
                   type="search"
                   placeholder="Search…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 w-[240px] rounded-lg border border-[var(--m-border)] bg-white text-[12.5px] outline-none focus:border-[var(--m-accent)] focus:ring-2 focus:ring-[var(--m-accent-glow)] transition"
+                  className="pl-9 pr-3 py-1.5 w-full sm:w-[240px] rounded-lg border border-[var(--m-border)] bg-white text-[12.5px] outline-none focus:border-[var(--m-accent)] focus:ring-2 focus:ring-[var(--m-accent-glow)] transition"
                 />
               </div>
             </div>
@@ -574,6 +591,21 @@ export default function TeamDashboardClient({
                 onClick={() => setStatusFilter('off')}
                 tone="mute"
               />
+
+              {/* Team filter — scope the board to one team. */}
+              {teams.length > 0 && (
+                <select
+                  value={teamFilter ?? ''}
+                  onChange={(e) => setTeamFilter(e.target.value === '' ? null : Number(e.target.value))}
+                  className="ml-1 text-[12px] rounded-full border border-[var(--m-border)] bg-white px-2.5 py-1 text-[var(--m-ink-2)] outline-none focus:border-[var(--m-accent)] cursor-pointer"
+                  aria-label="Filter by team"
+                >
+                  <option value="">All teams</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {filtered.length === 0 ? (
@@ -1037,8 +1069,6 @@ function MemberCardView({
     ? (m.onLeaveToday ? 'On leave' : 'Off-clock')
     : status.label
 
-  const totalShiftSec = m.activity.activeSeconds + m.activity.idleSeconds
-
   return (
     <article
       onClick={onOpen}
@@ -1092,35 +1122,19 @@ function MemberCardView({
         </div>
       )}
 
-      {/* Right now — instant-read line. Manager glances and knows what's happening. */}
+      {/* Right now — instant-read line. Manager glances and knows what's happening.
+          (Activity telemetry intentionally omitted — the desktop agent is on
+          hold, so we show punch + real work signals instead of focus/idle bars.) */}
       <div className="px-5 pb-3">
         <RightNowLine member={m} statusKey={statusKey} />
-
-        <div className="mt-2.5">
-          <TodayRibbon member={m} statusKey={statusKey} />
-        </div>
-        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[var(--m-ink-3)]">
-          {m.activeShift && totalShiftSec === 0 ? (
-            <span className="text-[var(--m-ink-4)]">No agent activity tracked yet</span>
-          ) : (
-            <>
-              <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.activeSeconds) : '—'}</span> focus</span>
-              <span><span className="text-[var(--m-ink)] font-medium">{m.activeShift ? formatHm(m.activity.idleSeconds) : '—'}</span> idle</span>
-            </>
-          )}
-          {/* Productivity % — focus over (focus + idle). Pinned to the right of
-              the focus/idle line so the manager gets a single number to read.
-              Only shown once the shift has 30+ minutes of signal, otherwise
-              it's noise. */}
-          {m.activeShift && totalShiftSec >= 30 * 60 && (
-            <ProductivityPill activeSec={m.activity.activeSeconds} totalSec={totalShiftSec} />
-          )}
-          {totalShiftSec > 9 * 3600 && (
-            <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] text-[var(--m-warn)] font-medium" title="Working over 9h — suggest a break">
-              long day
+        {m.activeShift && (
+          <p className="mt-1.5 text-[11.5px] text-[var(--m-ink-3)]">
+            On the clock since{' '}
+            <span className="text-[var(--m-ink)] font-medium">
+              {new Date(m.activeShift.punchedInAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
             </span>
-          )}
-        </div>
+          </p>
+        )}
       </div>
 
       {/* Live signal — what they LAST SHIPPED + today's rules-based status.
@@ -1138,11 +1152,18 @@ function MemberCardView({
             </span>
           </p>
         )}
-        {m.dailyState?.reason && (
-          <p className="text-[12px] text-[var(--m-ink-3)] leading-snug">{m.dailyState.reason}</p>
-        )}
-        {!m.recentDeliverable && !m.dailyState?.reason && (
-          <p className="text-[12px] text-[var(--m-ink-4)] italic">No recent activity logged today.</p>
+        {!m.recentDeliverable && (
+          <p className="text-[12px] text-[var(--m-ink-4)] leading-snug">
+            {statusKey === 'off'
+              ? m.onLeaveToday
+                ? 'On leave today.'
+                : 'Not on the clock right now.'
+              : statusKey === 'blocked'
+                ? 'Needs a hand to get unblocked.'
+                : m.hasGithub
+                  ? 'No commits or PRs yet today.'
+                  : 'Working — check the daily standup for an update.'}
+          </p>
         )}
       </div>
 

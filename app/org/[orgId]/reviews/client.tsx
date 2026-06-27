@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { useToast } from '@/components/toast'
+import { OneOnOneLogDialog, type Sentiment } from '@/components/one-on-one-log-dialog'
+import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 
 type Cycle = {
   id: number
@@ -11,6 +13,15 @@ type Cycle = {
   periodStart: string
   periodEnd: string
   status: 'open' | 'closed'
+}
+
+type LoggedDebrief = {
+  meetingId: number
+  startAt: string
+  completedAt: string | null
+  notes: string | null
+  sentiment: string | null
+  actionItems: string[]
 }
 
 type Member = {
@@ -25,7 +36,11 @@ type Member = {
   reviewed: boolean
   lastOneOnOneAt: string | null
   daysSinceOneOnOne: number | null
+  nextDueAt: string
   cadenceOverdue: boolean
+  overdueDays: number
+  lastMeeting: { id: number; title: string; startAt: string; isLogged: boolean } | null
+  loggedDebrief: LoggedDebrief | null
 }
 
 const ROLE_PILL: Record<string, string> = {
@@ -48,23 +63,59 @@ function cadenceLabel(m: Member): string {
   return `Last 1:1: ${m.daysSinceOneOnOne} days ago`
 }
 
+/** Human "next 1:1" status from the cadence math computed server-side. */
+function dueLabel(m: Member): string {
+  if (m.lastOneOnOneAt === null) return 'No 1:1 yet — schedule one'
+  if (m.overdueDays === 0 && !m.cadenceOverdue) {
+    return `Next 1:1 ${fmtRelDate(m.nextDueAt)}`
+  }
+  if (m.overdueDays === 0) return 'Next 1:1 due today'
+  if (m.overdueDays === 1) return 'Overdue by 1 day'
+  return `Overdue by ${m.overdueDays} days`
+}
+
+/** Short relative date for an ISO datetime ("in 3 days", "today"). */
+function fmtRelDate(iso: string): string {
+  const target = new Date(iso)
+  const d = new Date(`${target.toISOString().slice(0, 10)}T00:00:00`)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const SENTIMENT_PILL: Record<string, { cls: string; label: string }> = {
+  great: { cls: 'pill-good', label: '😀 Great' },
+  ok: { cls: 'pill-slate', label: '😐 OK' },
+  concern: { cls: 'pill-warn', label: '😟 Concern' },
+}
+
 export default function ReviewsClient({
   orgId,
   isHr,
-  cadenceFlagDays,
+  cadenceDays,
   cycles,
   selectedCycleId,
   members,
 }: {
   orgId: number
   isHr: boolean
-  cadenceFlagDays: number
+  cadenceDays: number
   cycles: Cycle[]
   selectedCycleId: number | null
   members: Member[]
 }) {
   const router = useRouter()
   const toast = useToast()
+
+  // Which 1:1 is being logged / scheduled (null = no dialog open).
+  const [logFor, setLogFor] = useState<Member | null>(null)
+  const [scheduleFor, setScheduleFor] = useState<Member | null>(null)
 
   const selected = useMemo(
     () => cycles.find((c) => c.id === selectedCycleId) ?? null,
@@ -159,7 +210,8 @@ export default function ReviewsClient({
       <div className="mb-1">
         <h1 className="app-h1">Reviews &amp; 1:1 cadence</h1>
         <p className="mt-1.5 text-[13px] text-[color:var(--m-ink-3)]">
-          Open a review cycle, then track who has a review on file and whose 1:1 rhythm has slipped.
+          Track who has a review on file, log how each 1:1 went, and stay on a {cadenceDays}-day
+          rhythm — overdue people surface first.
         </p>
       </div>
 
@@ -173,9 +225,9 @@ export default function ReviewsClient({
           </div>
         </div>
         <div className="app-card app-card-tight h-full">
-          <div className="stat-num tabular-nums">{selected ? overdueCount : '—'}</div>
+          <div className="stat-num tabular-nums">{overdueCount}</div>
           <div className="stat-label">Overdue 1:1s</div>
-          <div className="stat-sub">No 1:1 in {cadenceFlagDays}+ days</div>
+          <div className="stat-sub">Past the {cadenceDays}-day cadence</div>
         </div>
         <div className="app-card app-card-tight h-full">
           <div className="stat-num tabular-nums">{total}</div>
@@ -308,50 +360,36 @@ export default function ReviewsClient({
         )}
       </section>
 
-      {/* In-scope member status for the focused cycle. */}
+      {/* 1:1 cadence + review status — always useful, cycle or not. */}
       <section className="app-card overflow-hidden !p-0">
         <div className="px-4 py-3 border-b border-[color:var(--m-border)] flex items-baseline justify-between gap-3 flex-wrap">
           <h2 className="text-[13px] font-semibold text-[color:var(--m-ink)]">
-            {selected ? (
-              <>
-                Review status · <span className="text-[color:var(--m-ink-2)]">{selected.name}</span>
-              </>
-            ) : (
-              'Review status'
-            )}
+            Your reports · 1:1 cadence
           </h2>
           {selected && (
             <span className="text-[11px] text-[color:var(--m-ink-4)]">
-              {fmtDate(selected.periodStart)} → {fmtDate(selected.periodEnd)}
+              Reviews vs {selected.name} ({fmtDate(selected.periodStart)} → {fmtDate(selected.periodEnd)})
             </span>
           )}
         </div>
 
-        {!selected ? (
-          <p className="px-4 py-10 text-center text-[13px] text-[color:var(--m-ink-3)]">
-            Select or open a cycle to see who has a review on file.
-          </p>
-        ) : members.length === 0 ? (
+        {members.length === 0 ? (
           <p className="px-4 py-10 text-center text-[13px] text-[color:var(--m-ink-3)]">
             No people in your scope.
           </p>
         ) : (
-          <>
-            {/* Header row — shares the grid template with each row below. */}
-            <div className="hidden md:grid grid-cols-[44px_minmax(0,1.6fr)_minmax(0,150px)_minmax(0,1fr)] gap-3 items-center px-4 py-2.5 border-b border-[color:var(--m-border)] text-[11px] uppercase tracking-wider text-[color:var(--m-ink-4)] font-medium">
-              <span aria-hidden></span>
-              <span>Member</span>
-              <span>Review on file</span>
-              <span>1:1 cadence</span>
-            </div>
-            <ul className="divide-y divide-[color:var(--m-border)]">
-              {members.map((m) => {
-                const roleClass = ROLE_PILL[m.role] ?? 'pill-slate'
-                return (
-                  <li
-                    key={m.membershipId}
-                    className="grid grid-cols-[44px_minmax(0,1fr)] md:grid-cols-[44px_minmax(0,1.6fr)_minmax(0,150px)_minmax(0,1fr)] gap-3 items-center px-4 py-3 hover:bg-[color:var(--m-bg-soft)] transition-colors"
-                  >
+          <ul className="divide-y divide-[color:var(--m-border)]">
+            {members.map((m) => {
+              const roleClass = ROLE_PILL[m.role] ?? 'pill-slate'
+              const debrief = m.loggedDebrief
+              const sent = debrief?.sentiment ? SENTIMENT_PILL[debrief.sentiment] : null
+              const reportName = m.name ?? `@${m.login}`
+              return (
+                <li
+                  key={m.membershipId}
+                  className="px-4 py-3.5 hover:bg-[color:var(--m-bg-soft)] transition-colors"
+                >
+                  <div className="flex items-start gap-3">
                     <CharacterAvatar
                       characterKey={m.characterKey}
                       name={m.name}
@@ -360,53 +398,137 @@ export default function ReviewsClient({
                       size={32}
                     />
 
-                    <a
-                      href={`/org/${orgId}/people/${m.membershipId}`}
-                      className="min-w-0 block hover:text-[color:var(--m-accent)] transition-colors"
-                    >
-                      <p className="text-[13px] font-medium text-[color:var(--m-ink)] truncate">
-                        {m.name ?? `@${m.login}`}
-                      </p>
-                      <p className="text-[11.5px] text-[color:var(--m-ink-4)] truncate">
-                        {m.jobTitle ?? `@${m.login}`}
-                      </p>
-                      {/* Mobile-only meta: role + the two status pills stacked. */}
-                      <div className="md:hidden mt-1.5 flex items-center gap-1.5 flex-wrap">
-                        <span className={`pill ${roleClass}`}>{m.role}</span>
-                        <span className={`pill ${m.reviewed ? 'pill-good' : 'pill-warn'}`}>
-                          {m.reviewed ? 'Review ✓' : 'No review ✗'}
-                        </span>
-                        <span className={`pill ${m.cadenceOverdue ? 'pill-warn' : 'pill-slate'}`}>
-                          {cadenceLabel(m)}
-                        </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <a
+                            href={`/org/${orgId}/people/${m.membershipId}`}
+                            className="block hover:text-[color:var(--m-accent)] transition-colors"
+                          >
+                            <p className="text-[13px] font-medium text-[color:var(--m-ink)] truncate">
+                              {reportName}
+                            </p>
+                            <p className="text-[11.5px] text-[color:var(--m-ink-4)] truncate">
+                              {m.jobTitle ?? `@${m.login}`}
+                            </p>
+                          </a>
+                        </div>
+
+                        {/* Status pills: review on file + cadence due. */}
+                        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                          <span className={`pill ${roleClass}`}>{m.role}</span>
+                          {selected && (
+                            <span className={`pill ${m.reviewed ? 'pill-good' : 'pill-warn'}`}>
+                              {m.reviewed ? '✓ Review on file' : '✗ No review'}
+                            </span>
+                          )}
+                          <span className={`pill ${m.cadenceOverdue ? 'pill-warn' : 'pill-slate'}`}>
+                            {dueLabel(m)}
+                          </span>
+                        </div>
                       </div>
-                    </a>
 
-                    {/* Review on file — desktop column. */}
-                    <div className="hidden md:block">
-                      <span className={`pill ${m.reviewed ? 'pill-good' : 'pill-warn'}`}>
-                        {m.reviewed ? '✓ On file' : '✗ Missing'}
-                      </span>
-                    </div>
-
-                    {/* 1:1 cadence — desktop column, amber when stale/never. */}
-                    <div className="hidden md:flex items-center gap-1.5 min-w-0">
-                      <span className={`text-[12.5px] truncate ${m.cadenceOverdue ? 'text-[color:var(--m-warn)] font-medium' : 'text-[color:var(--m-ink-2)]'}`}>
+                      {/* Last 1:1 line + most recent logged debrief inline. */}
+                      <div className="mt-2 text-[12px] text-[color:var(--m-ink-3)]">
                         {cadenceLabel(m)}
-                      </span>
-                      {m.cadenceOverdue && (
-                        <span className="pill pill-warn shrink-0" title={`No 1:1 in ${cadenceFlagDays}+ days`}>
-                          ⚑
-                        </span>
+                      </div>
+
+                      {debrief && (debrief.notes || sent || debrief.actionItems.length > 0) && (
+                        <div className="mt-2 rounded-lg border border-[color:var(--m-border-soft)] bg-[color:var(--m-bg-soft)] px-3 py-2.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] uppercase tracking-wider text-[color:var(--m-ink-4)] font-medium">
+                              Last debrief
+                            </span>
+                            {debrief.completedAt && (
+                              <span className="text-[11px] text-[color:var(--m-ink-4)]">
+                                {fmtDateTime(debrief.completedAt)}
+                              </span>
+                            )}
+                            {sent && <span className={`pill ${sent.cls}`}>{sent.label}</span>}
+                          </div>
+                          {debrief.notes && (
+                            <p className="mt-1.5 text-[12.5px] text-[color:var(--m-ink-2)] whitespace-pre-wrap break-words">
+                              {debrief.notes}
+                            </p>
+                          )}
+                          {debrief.actionItems.length > 0 && (
+                            <ul className="mt-1.5 space-y-0.5">
+                              {debrief.actionItems.map((it, i) => (
+                                <li
+                                  key={i}
+                                  className="text-[12px] text-[color:var(--m-ink-2)] flex gap-1.5"
+                                >
+                                  <span className="text-[color:var(--m-accent-2)]">▸</span>
+                                  <span className="break-words">{it}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       )}
+
+                      {/* Actions: log the most recent past 1:1, or schedule the next. */}
+                      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                        {m.lastMeeting ? (
+                          <button
+                            type="button"
+                            onClick={() => setLogFor(m)}
+                            className="btn-secondary !py-1 !px-2.5 !text-[12px]"
+                          >
+                            {m.lastMeeting.isLogged ? 'Edit last debrief' : 'Log how it went'}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setScheduleFor(m)}
+                          className={`!py-1 !px-2.5 !text-[12px] ${
+                            m.cadenceOverdue ? 'btn-primary' : 'btn-secondary'
+                          }`}
+                        >
+                          Schedule next 1:1
+                        </button>
+                      </div>
                     </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
+
+      {/* Log-a-1:1 dialog. Keyed on the member so re-opening resets state. */}
+      {logFor && logFor.lastMeeting && (
+        <OneOnOneLogDialog
+          key={`log-${logFor.lastMeeting.id}`}
+          open
+          onClose={() => setLogFor(null)}
+          orgId={orgId}
+          meetingId={logFor.lastMeeting.id}
+          reportName={logFor.name ?? `@${logFor.login}`}
+          meetingTitle={logFor.lastMeeting.title}
+          initial={
+            logFor.loggedDebrief && logFor.loggedDebrief.meetingId === logFor.lastMeeting.id
+              ? {
+                  notes: logFor.loggedDebrief.notes,
+                  sentiment: (logFor.loggedDebrief.sentiment as Sentiment | null) ?? null,
+                  actionItems: logFor.loggedDebrief.actionItems,
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {/* Schedule-the-next-1:1 dialog (reuses the shared scheduler). */}
+      {scheduleFor && (
+        <ScheduleMeetingDialog
+          open
+          onClose={() => setScheduleFor(null)}
+          orgId={orgId}
+          membershipId={scheduleFor.membershipId}
+          attendeeName={scheduleFor.name ?? `@${scheduleFor.login}`}
+        />
+      )}
     </div>
   )
 }
