@@ -23,7 +23,8 @@ export async function GET(req: Request) {
   if (!Number.isInteger(orgId)) {
     return NextResponse.redirect(new URL('/dashboard', url.origin))
   }
-  const back = new URL(`/org/${orgId}/settings/integrations`, url.origin)
+  // Connections live on the dashboard now (no standalone integrations page).
+  const back = new URL(`/org/${orgId}`, url.origin)
 
   try {
     // Only someone who can manage this workspace's integrations may bind it.

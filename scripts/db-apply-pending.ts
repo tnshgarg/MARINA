@@ -324,6 +324,21 @@ export async function applyPending(): Promise<void> {
   await db.execute(sql`ALTER TABLE "user_settings" ADD COLUMN IF NOT EXISTS "booking_timezone" text`)
   console.log('  · 0022 user_settings booking availability OK')
 
+  // 0023 — org-level "use the desktop agent?" toggle. When false the org skips
+  // the agent entirely and employees punch in/out from the web.
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "agent_enabled" boolean NOT NULL DEFAULT true`)
+  console.log('  · 0023 orgs.agent_enabled OK')
+
+  // 0024 — debounce stamp for the org-wide GitHub App sync. Lets read paths
+  // (team view, dashboards) kick a background refresh at most once per window.
+  await db.execute(sql`ALTER TABLE "orgs" ADD COLUMN IF NOT EXISTS "github_synced_at" timestamptz`)
+  console.log('  · 0024 orgs.github_synced_at OK')
+
+  // 0025 — desktop agent on hold → new orgs default to web punch (agent_enabled
+  // = false). Existing rows keep their value; only the column default changes.
+  await db.execute(sql`ALTER TABLE "orgs" ALTER COLUMN "agent_enabled" SET DEFAULT false`)
+  console.log('  · 0025 orgs.agent_enabled default→false OK')
+
   // Mark every migration in the journal as applied so the next normal
   // `pnpm db:migrate` knows everything is in sync.
   const journalPath = './drizzle/meta/_journal.json'

@@ -150,6 +150,15 @@ export const orgs = pgTable('orgs', {
   slackWebhookUrl: text('slack_webhook_url'),
   holidayRegion: text('holiday_region').default('IN'), // ISO + state code: IN, IN-KA, IN-MH, ...
   avatarMode: text('avatar_mode').$type<'hero' | 'photo'>().notNull().default('hero'),
+  /**
+   * Whether this org uses the Marina desktop agent. When true, employees punch
+   * in/out + activity-track via the agent. When false, no app-tracking — employees
+   * punch from the web (like solo employees). Lets privacy-conscious teams (or
+   * ones easing in) skip the desktop app entirely.
+   */
+  // Desktop agent is on hold → defaults to FALSE (web punch). Flag retained for
+  // when the agent ships.
+  agentEnabled: boolean('agent_enabled').notNull().default(false),
   workdayStartHour: integer('workday_start_hour').notNull().default(9),
   workdayEndHour: integer('workday_end_hour').notNull().default(18),
   /**
@@ -194,6 +203,12 @@ export const orgs = pgTable('orgs', {
    * commits + PRs. This is the RELIABLE path for private org repos.
    */
   githubInstallationId: integer('github_installation_id'),
+  /**
+   * Last time we ran the org-wide GitHub App sync. Used to debounce the
+   * sync-on-load (so a manager opening the team view triggers at most one
+   * background refresh per staleness window, not one per page view).
+   */
+  githubSyncedAt: timestamp('github_synced_at', { withTimezone: true }),
   /**
    * Slack workspace install state. We support TWO modes side by side:
    *   1. Legacy: `slackWebhookUrl` posts to one channel only (kept for orgs

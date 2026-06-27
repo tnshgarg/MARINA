@@ -25,6 +25,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ orgId: string
       trackedGithubOrgs?: string[]
       leavePolicy?: Record<string, number> | null
       costPerHourInr?: number | null
+      agentEnabled?: boolean
     }
     // Pick the right capability: integration-touching fields need
     // manage_integrations; everything else (name, region, hours, etc.)
@@ -60,6 +61,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ orgId: string
     }
     if (body.avatarMode === 'hero' || body.avatarMode === 'photo') {
       patch.avatarMode = body.avatarMode
+    }
+    if (typeof body.agentEnabled === 'boolean') {
+      patch.agentEnabled = body.agentEnabled
     }
     if (body.costPerHourInr !== undefined) {
       if (body.costPerHourInr === null) {

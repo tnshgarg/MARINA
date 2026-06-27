@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 export async function POST(req: Request) {
   try {
     const session = await requireSession()
-    const { name } = (await req.json()) as { name?: string }
+    const { name, agentEnabled } = (await req.json()) as { name?: string; agentEnabled?: boolean }
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'name required' }, { status: 400 })
     }
@@ -33,7 +33,13 @@ export async function POST(req: Request) {
 
     const [org] = await db
       .insert(schema.orgs)
-      .values({ name: name.trim().slice(0, 200), ownerId: session.appUserId })
+      .values({
+        name: name.trim().slice(0, 200),
+        ownerId: session.appUserId,
+        // Desktop agent is on hold, so new workspaces default to WEB PUNCH
+        // (agentEnabled = false). The flag stays for when the agent ships.
+        agentEnabled: typeof agentEnabled === 'boolean' ? agentEnabled : false,
+      })
       .returning()
 
     await db.insert(schema.memberships).values({

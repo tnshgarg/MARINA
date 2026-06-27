@@ -41,19 +41,54 @@ type NavGroup = {
 
 const dot = <NavDot />;
 
-// Grouped navigation, ordered most-important-first for a manager/HR's daily
-// flow: see the team → handle time off → check on work → performance, then
-// the occasional tools. Every label is written to be self-explanatory on its
-// own (no insider jargon), and the first child of each group is its "primary"
-// page — that's where the group icon links to when the sidebar is collapsed.
-const NAV: NavGroup[] = [
+// The five features that ARE the product, pinned to the very top of the sidebar
+// so a manager/HR never has to hunt for them: the daily standup, the team, live
+// work statuses, blockers, and reports. Each is a single, unmissable link.
+// "Work statuses" is the team home (/org/{id}) — the live board of who's
+// working / heads-down / blocked right now.
+const PRIORITY_NAV: NavGroup[] = [
   {
-    key: "dashboard",
-    label: "Dashboard",
+    key: "statuses",
+    label: "Work statuses",
     icon: <PulseIcon />,
     matches: /^\/org\/\d+$/,
     href: (o) => `/org/${o}`,
   },
+  {
+    key: "scrum",
+    label: "Daily standup",
+    icon: <ScrumIcon />,
+    matches: /^\/scrum\/\d+(\/|$)/,
+    href: (o) => `/scrum/${o}`,
+  },
+  {
+    key: "teams",
+    label: "Teams",
+    icon: <PeopleIcon />,
+    matches: /^\/org\/\d+\/teams(\/|$)/,
+    href: (o) => `/org/${o}/teams`,
+  },
+  {
+    key: "blockers",
+    label: "Blockers",
+    icon: <BlockerIcon />,
+    matches: /^\/org\/\d+\/blockers(\/|$)/,
+    href: (o) => `/org/${o}/blockers`,
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    icon: <ReportIcon />,
+    matches: /^\/org\/\d+\/reports(\/|$)/,
+    href: (o) => `/org/${o}/reports/weekly`,
+    // Org-wide reports — HR/owners only. Plain managers use Reviews below.
+    requiredCap: "view_all_data",
+  },
+];
+
+// Everything else — collapsed below a divider so the focus stays up top. The
+// user scrolls here when they need the occasional tool.
+const SECONDARY_NAV: NavGroup[] = [
   {
     key: "people",
     label: "People",
@@ -78,13 +113,6 @@ const NAV: NavGroup[] = [
         label: "Work shifts",
         matches: /^\/org\/\d+\/shifts(\/|$)/,
         href: (o) => `/org/${o}/shifts`,
-        icon: dot,
-      },
-      {
-        key: "teams",
-        label: "Teams & org chart",
-        matches: /^\/org\/\d+\/teams(\/|$)/,
-        href: (o) => `/org/${o}/teams`,
         icon: dot,
       },
     ],
@@ -177,17 +205,8 @@ const NAV: NavGroup[] = [
   {
     key: "performance",
     label: "Performance",
-    icon: <ReportIcon />,
+    icon: <StarIcon />,
     children: [
-      {
-        key: "reports",
-        label: "Weekly reports",
-        matches: /^\/org\/\d+\/reports(\/|$)/,
-        href: (o) => `/org/${o}/reports/weekly`,
-        icon: dot,
-        // Org-wide ranking — HR/owners only. Plain managers see Reviews.
-        requiredCap: "view_all_data",
-      },
       {
         key: "reviews",
         label: "Reviews & 1:1s",
@@ -196,21 +215,6 @@ const NAV: NavGroup[] = [
         icon: dot,
       },
     ],
-  },
-  {
-    key: "blockers",
-    label: "Blockers",
-    icon: <BlockerIcon />,
-    matches: /^\/org\/\d+\/blockers(\/|$)/,
-    href: (o) => `/org/${o}/blockers`,
-  },
-  {
-    key: "scrum",
-    label: "Daily standup",
-    icon: <ScrumIcon />,
-    matches: /^\/scrum\/\d+(\/|$)/,
-    href: (o) => `/scrum/${o}`,
-    openInNewTab: true,
   },
   {
     key: "help",
@@ -234,9 +238,8 @@ const NAV: NavGroup[] = [
   },
 ];
 
-// Sub-items revealed under Settings for workspace managers. Integrations lives
-// here (it has no standalone nav entry), so this is the only way to reach the
-// integrations page now that the old top tab strip is gone.
+// Sub-items revealed under Settings for workspace managers. Integrations is no
+// longer here — connections live inline on the dashboard now.
 const SETTINGS_CHILDREN: NavLeaf[] = [
   {
     key: "workspace",
@@ -245,14 +248,6 @@ const SETTINGS_CHILDREN: NavLeaf[] = [
     href: (o) => `/org/${o}/settings`,
     icon: dot,
     requiredCap: "manage_workspace",
-  },
-  {
-    key: "integrations",
-    label: "Integrations",
-    matches: /^\/org\/\d+\/settings\/integrations(\/|$)/,
-    href: (o) => `/org/${o}/settings/integrations`,
-    icon: dot,
-    requiredCap: "manage_integrations",
   },
   {
     // The viewer's PERSONAL settings — pair the MARINA desktop agent, profile,
@@ -453,92 +448,6 @@ function groupHasPendingBadge(g: NavGroup): boolean {
   return (g.children ?? []).some((c) => c.badge === "pendingLeaves");
 }
 
-/**
- * Pinned integrations strip — Arc-style. A compact row (or vertical stack when
- * the sidebar is railed) of icon buttons for the integrations that are actually
- * connected. Each links to that integration's detail hub.
- */
-function IntegrationPins({
-  orgId,
-  integrations,
-  rail,
-  pathname,
-}: {
-  orgId: number;
-  integrations: { github: boolean; calendar: boolean; slack: boolean };
-  rail: boolean;
-  pathname: string;
-}) {
-  const META: Record<string, { label: string; color: string; soft: string; icon: React.ReactNode }> = {
-    github: { label: "GitHub", color: "#1a1f2e", soft: "#ece9e1", icon: <GithubGlyph /> },
-    calendar: { label: "Calendar", color: "#3f6b54", soft: "#e8ede7", icon: <CalendarGlyph /> },
-    slack: { label: "Slack", color: "#a35e3d", soft: "#f4ebe3", icon: <SlackGlyph /> },
-  };
-  const keys = [
-    integrations.github && "github",
-    integrations.calendar && "calendar",
-    integrations.slack && "slack",
-  ].filter(Boolean) as string[];
-  if (keys.length === 0) return null;
-  return (
-    <div className={rail ? "px-2 pt-2.5 pb-1" : "px-5 pt-2.5 pb-1"}>
-      {!rail && (
-        <p className="text-[10px] uppercase tracking-wider text-[var(--m-ink-4)] font-semibold mb-1.5">
-          Connected
-        </p>
-      )}
-      <div className={rail ? "flex flex-col items-center gap-1.5" : "flex items-center gap-1.5"}>
-        {keys.map((key) => {
-          const m = META[key];
-          const href = `/org/${orgId}/integrations/${key}`;
-          const active = pathname.startsWith(href);
-          return (
-            <NavLink
-              key={key}
-              href={href}
-              prefetch
-              title={m.label}
-              aria-label={m.label}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all hover:-translate-y-px"
-              style={{
-                color: m.color,
-                background: active ? m.soft : "#ffffff",
-                borderColor: active ? m.color : "var(--m-border)",
-                boxShadow: active ? `0 0 0 1px ${m.color}22` : "0 1px 2px rgba(26,31,46,0.05)",
-              }}
-            >
-              {m.icon}
-            </NavLink>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function GithubGlyph() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.36-3.88-1.36-.52-1.31-1.28-1.66-1.28-1.66-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.07.78 2.15v3.19c0 .31.21.67.8.56C20.71 21.39 24 17.08 24 12 24 5.65 18.35.5 12 .5Z" />
-    </svg>
-  );
-}
-function CalendarGlyph() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-      <rect x="3" y="4.5" width="18" height="16" rx="2" />
-      <path d="M3 9h18M8 3v3M16 3v3" />
-    </svg>
-  );
-}
-function SlackGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M6 15a2 2 0 1 1-2-2h2v2Zm1 0a2 2 0 1 1 4 0v5a2 2 0 1 1-4 0v-5Zm2-9a2 2 0 1 1 2-2h-2V6Zm0 1a2 2 0 0 1 0 4H4a2 2 0 1 1 0-4h5Zm9 2a2 2 0 1 1 2 2h-2V9Zm-1 0a2 2 0 0 1-4 0V4a2 2 0 1 1 4 0v5Zm-2 9a2 2 0 1 1-2 2v-2h2Zm0-1a2 2 0 0 1 0-4h5a2 2 0 1 1 0 4h-5Z" />
-    </svg>
-  );
-}
-
 export function OrgSidebar({
   orgId,
   orgName,
@@ -550,7 +459,7 @@ export function OrgSidebar({
   role,
   caps = [],
   orgs = [],
-  integrations = { github: false, calendar: false, slack: false },
+  teams = [],
   pendingLeaveCount = 0,
   signOutAction,
 }: {
@@ -559,8 +468,8 @@ export function OrgSidebar({
   caps?: string[];
   /** Every workspace this user belongs to — powers the org switcher. */
   orgs?: SwitcherOrg[];
-  /** Active integrations → the pinned Arc-style strip under the workspace card. */
-  integrations?: { github: boolean; calendar: boolean; slack: boolean };
+  /** Every team in this workspace — listed under "Teams" for quick access. */
+  teams?: Array<{ id: number; name: string; color: string | null }>;
   orgName: string;
   orgLogoUrl?: string | null;
   userLogin: string;
@@ -579,9 +488,7 @@ export function OrgSidebar({
   // Show only what the viewer can actually use. Good UX (and less confusion):
   // never surface a nav item that would just bounce them off a permission gate.
   const can = useCallback((c?: string) => !c || caps.includes(c), [caps]);
-  const canManageWorkspace = caps.includes("manage_workspace");
-  const hasOrgSettings =
-    canManageWorkspace || caps.includes("manage_integrations");
+  const hasOrgSettings = caps.includes("manage_workspace");
 
   // Build the per-viewer nav:
   //  - Settings becomes an expandable group (Workspace? / Integrations? / My
@@ -590,19 +497,25 @@ export function OrgSidebar({
   //    link to their personal /settings.
   //  - Every other group's children are filtered by capability; a group left
   //    with no visible children (or a capped single link they lack) is dropped.
-  const nav = NAV.flatMap((g): NavGroup[] => {
-    if (g.key === "settings") {
-      if (!hasOrgSettings) return [g];
-      return [
-        { ...g, href: undefined, children: SETTINGS_CHILDREN.filter((c) => can(c.requiredCap)) },
-      ];
-    }
-    if (!g.children) {
-      return can(g.requiredCap) ? [g] : [];
-    }
-    const children = g.children.filter((c) => can(c.requiredCap));
-    return children.length > 0 ? [{ ...g, children }] : [];
-  });
+  const buildNav = useCallback(
+    (groups: NavGroup[]): NavGroup[] =>
+      groups.flatMap((g): NavGroup[] => {
+        if (g.key === "settings") {
+          if (!hasOrgSettings) return [g];
+          return [
+            { ...g, href: undefined, children: SETTINGS_CHILDREN.filter((c) => can(c.requiredCap)) },
+          ];
+        }
+        if (!g.children) {
+          return can(g.requiredCap) ? [g] : [];
+        }
+        const children = g.children.filter((c) => can(c.requiredCap));
+        return children.length > 0 ? [{ ...g, children }] : [];
+      }),
+    [can, hasOrgSettings],
+  );
+  const priorityNav = buildNav(PRIORITY_NAV);
+  const secondaryNav = buildNav(SECONDARY_NAV);
 
   // The user's pinned-open groups, persisted in localStorage. SSR-safe via a
   // stable empty server snapshot (no hydration mismatch).
@@ -658,6 +571,108 @@ export function OrgSidebar({
   const rail = railed && isDesktop;
   const toggleRail = useCallback(() => writeRail(!railed), [railed]);
 
+  // One renderer, reused for the priority and secondary nav sections.
+  const renderGroup = useCallback(
+    (g: NavGroup) => {
+      // Single-link group (no children): render a plain nav-item.
+      if (!g.children) {
+        const isActive = g.matches ? g.matches.test(pathname) : false;
+        const isExternal = g.openInNewTab === true;
+        const href = resolveHref(g);
+        return (
+          <NavLink
+            key={g.key}
+            href={href}
+            prefetch={!isExternal}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            title={rail ? g.label : undefined}
+            className={`nav-item ${isActive ? "nav-item-active" : ""}`}
+          >
+            <span className="nav-icon">{g.icon}</span>
+            <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
+            {isExternal && !rail && <ExternalLinkIcon />}
+          </NavLink>
+        );
+      }
+
+      // Collapsed rail: the whole group becomes a single link to its primary
+      // page (no room to expand sub-items). A dot flags pending leave requests.
+      if (rail) {
+        const isActive = groupActive(g, pathname);
+        const showDot = groupHasPendingBadge(g) && pendingLeaveCount > 0;
+        return (
+          <NavLink
+            key={g.key}
+            href={primaryHref(g, orgId)}
+            prefetch
+            title={g.label}
+            className={`nav-item ${isActive ? "nav-item-active" : ""}`}
+          >
+            <span className="nav-icon relative">
+              {g.icon}
+              {showDot && <span className="nav-rail-dot" aria-hidden />}
+            </span>
+            <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
+          </NavLink>
+        );
+      }
+
+      // Expandable group: clickable header + collapsible children.
+      const expanded = isExpanded(g);
+      const isActive = groupActive(g, pathname);
+      const childListId = `nav-group-${g.key}`;
+      return (
+        <div key={g.key}>
+          <button
+            type="button"
+            onClick={() => toggleGroup(g)}
+            aria-expanded={expanded}
+            aria-controls={childListId}
+            className={`nav-item text-left ${
+              isActive && !expanded ? "nav-item-active" : ""
+            }`}
+          >
+            <span className="nav-icon">{g.icon}</span>
+            <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
+            <Chevron expanded={expanded} />
+          </button>
+
+          {expanded && (
+            <div id={childListId} className="mb-1">
+              {g.children.map((c) => {
+                const childActive = leafActive(c, pathname);
+                const badge =
+                  c.badge === "pendingLeaves" && pendingLeaveCount > 0
+                    ? pendingLeaveCount
+                    : null;
+                return (
+                  <NavLink
+                    key={c.key}
+                    href={c.href(orgId)}
+                    prefetch
+                    className={`nav-item !pl-9 text-[13.5px] ${
+                      childActive ? "nav-item-active" : ""
+                    }`}
+                  >
+                    <span className="nav-icon !w-3.5 !h-3.5 opacity-50">{c.icon}</span>
+                    <span className="nav-label flex-1 min-w-0 truncate">{c.label}</span>
+                    {badge !== null && (
+                      <span className="shrink-0 text-[11px] font-medium px-1.5 rounded bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] tabular">
+                        {badge}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    },
+    [rail, pathname, isExpanded, toggleGroup, resolveHref, orgId, pendingLeaveCount],
+  );
+
   return (
     <aside className={`app-sidebar${rail ? " is-rail" : ""}`}>
       {/* Pinned header */}
@@ -699,114 +714,46 @@ export function OrgSidebar({
           orgs={orgs}
         />
 
-        {/* Arc-style pinned strip: small icons for the workspace's *active*
-            integrations, each opening its detail hub. Hidden entirely when
-            nothing is connected, so it never adds empty chrome. */}
-        <IntegrationPins orgId={orgId} integrations={integrations} rail={rail} pathname={pathname} />
       </div>
 
       {/* Scrollable nav */}
       <nav className="app-sidebar-scroll mt-1">
-        {nav.map((g) => {
-          // Single-link group (no children): render a plain nav-item.
-          if (!g.children) {
-            const isActive = g.matches ? g.matches.test(pathname) : false;
-            const isExternal = g.openInNewTab === true;
-            const href = resolveHref(g);
-            return (
-              <NavLink
-                key={g.key}
-                href={href}
-                prefetch={!isExternal}
-                target={isExternal ? "_blank" : undefined}
-                rel={isExternal ? "noopener noreferrer" : undefined}
-                title={rail ? g.label : undefined}
-                className={`nav-item ${isActive ? "nav-item-active" : ""}`}
-              >
-                <span className="nav-icon">{g.icon}</span>
-                <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
-                {isExternal && !rail && <ExternalLinkIcon />}
-              </NavLink>
-            );
-          }
+        {/* The five features that ARE the product — pinned at the top. */}
+        {priorityNav.map((g) => (
+          <div key={g.key}>
+            {renderGroup(g)}
+            {/* All teams, listed right under "Teams" for quick access. Hidden
+                in the rail (no room for a list). */}
+            {g.key === "teams" && !rail && teams.length > 0 && (
+              <div className="mb-1">
+                {teams.map((t) => {
+                  const href = `/org/${orgId}/teams#team-${t.id}`;
+                  return (
+                    <NavLink
+                      key={t.id}
+                      href={href}
+                      prefetch
+                      className="nav-item !pl-9 text-[13px]"
+                      title={t.name}
+                    >
+                      <span
+                        className="shrink-0 w-2 h-2 rounded-full"
+                        style={{ background: t.color || "var(--m-accent)" }}
+                        aria-hidden
+                      />
+                      <span className="nav-label flex-1 min-w-0 truncate">{t.name}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
 
-          // Collapsed rail: the whole group becomes a single link to its
-          // primary page (no room to expand sub-items). A dot flags pending
-          // leave requests since the numeric badge lives on a hidden sub-item.
-          if (rail) {
-            const isActive = groupActive(g, pathname);
-            const showDot = groupHasPendingBadge(g) && pendingLeaveCount > 0;
-            return (
-              <NavLink
-                key={g.key}
-                href={primaryHref(g, orgId)}
-                prefetch
-                title={g.label}
-                className={`nav-item ${isActive ? "nav-item-active" : ""}`}
-              >
-                <span className="nav-icon relative">
-                  {g.icon}
-                  {showDot && <span className="nav-rail-dot" aria-hidden />}
-                </span>
-                <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
-              </NavLink>
-            );
-          }
+        {/* Divider between the focus features and everything else. */}
+        <div className={rail ? "my-2 mx-3 border-t border-[var(--m-border-soft)]" : "my-2.5 mx-5 border-t border-[var(--m-border-soft)]"} aria-hidden />
 
-          // Expandable group: clickable header + collapsible children.
-          const expanded = isExpanded(g);
-          const isActive = groupActive(g, pathname);
-          const childListId = `nav-group-${g.key}`;
-          return (
-            <div key={g.key}>
-              <button
-                type="button"
-                onClick={() => toggleGroup(g)}
-                aria-expanded={expanded}
-                aria-controls={childListId}
-                className={`nav-item text-left ${
-                  isActive && !expanded ? "nav-item-active" : ""
-                }`}
-              >
-                <span className="nav-icon">{g.icon}</span>
-                <span className="nav-label flex-1 min-w-0 truncate">{g.label}</span>
-                <Chevron expanded={expanded} />
-              </button>
-
-              {expanded && (
-                <div id={childListId} className="mb-1">
-                  {g.children.map((c) => {
-                    const childActive = leafActive(c, pathname);
-                    const badge =
-                      c.badge === "pendingLeaves" && pendingLeaveCount > 0
-                        ? pendingLeaveCount
-                        : null;
-                    return (
-                      <NavLink
-                        key={c.key}
-                        href={c.href(orgId)}
-                        prefetch
-                        className={`nav-item !pl-9 text-[13.5px] ${
-                          childActive ? "nav-item-active" : ""
-                        }`}
-                      >
-                        <span className="nav-icon !w-3.5 !h-3.5 opacity-50">
-                          {c.icon}
-                        </span>
-                        <span className="nav-label flex-1 min-w-0 truncate">{c.label}</span>
-                        {badge !== null && (
-                          <span className="shrink-0 text-[11px] font-medium px-1.5 rounded bg-[var(--m-accent-soft)] text-[var(--m-accent-2)] tabular">
-                            {badge}
-                          </span>
-                        )}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {secondaryNav.map((g) => renderGroup(g))}
       </nav>
 
       {/* Pinned footer — always visible regardless of scroll. We constrain
@@ -1029,6 +976,16 @@ function HelpIcon() {
       <circle cx={12} cy={12} r={9} />
       <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7" strokeLinecap="round" />
       <circle cx={12} cy={16.5} r={0.6} fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function StarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path
+        d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.78L12 16.77l-5.2 2.73.99-5.78-4.21-4.1 5.82-.85L12 3.5Z"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

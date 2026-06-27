@@ -284,5 +284,8 @@ export async function syncOrgViaApp(orgId: number, daysBack = 30): Promise<AppSy
     updated = refreshable.length
   }
 
+  // Stamp the org so read-path debouncing (sync-on-load) knows it's fresh.
+  await db.update(schema.orgs).set({ githubSyncedAt: new Date() }).where(eq(schema.orgs.id, orgId))
+
   return { installationId, repos: repos.length, inserted, updated, byType, errors, unmatchedAuthors: Array.from(unmatched) }
 }

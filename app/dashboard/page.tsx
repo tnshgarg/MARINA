@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte, isNull } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, isNotNull } from 'drizzle-orm'
 import { hideSeedRows } from '@/lib/dev-state'
 import { auth, signIn, signOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { listMembershipsForCurrentUser, roleAtLeast } from '@/lib/auth/guards'
 import { getDailySummary } from '@/lib/activity/aggregate'
+import { afterResponse } from '@/lib/after'
+import { syncGithubForUser, ensureOrgGithubFresh } from '@/lib/github/auto-sync'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { getCharacter } from '@/lib/characters/data'
 import DashboardClient from './client'
@@ -18,7 +20,9 @@ import { GiveRecognition } from '@/components/give-recognition'
 import { AnnouncementsFeed } from '@/components/announcements-feed'
 import { EmployeeOnboarding, type OnboardingStep } from '@/components/employee-onboarding'
 import { ReviewPacket } from '@/components/review-packet'
-import { ConnectWork } from '@/components/connect-work'
+import { IntegrationsPanel } from '@/components/integrations-panel'
+import { PunchControl } from '@/components/punch-control'
+import { ComingSoonAgent } from '@/components/coming-soon-agent'
 import { SoloDashboard } from '@/components/solo-dashboard'
 
 export const dynamic = 'force-dynamic'
@@ -80,6 +84,23 @@ export default async function DashboardPage() {
   const primaryOrg = memberships[0] ?? null
   const primaryOrgId = primaryOrg?.orgId ?? null
   const canSeeTeam = primaryOrg ? roleAtLeast(primaryOrg.role, 'manager') : false
+
+  // Keep GitHub fresh on every dashboard visit (debounced, non-blocking) so the
+  // 7-day stats below reflect reality instead of the last manual sync. Two
+  // paths cover both how an employee connected: their own OAuth, and the org's
+  // App installation (covers teammates who only gave a username).
+  const meId = session.appUserId
+  const myLogin = session.login
+  if (myLogin) {
+    afterResponse(
+      () => syncGithubForUser(meId, myLogin, { daysBack: 7, maxAgeMins: 20 }),
+      'dashboard github self-sync',
+    )
+  }
+  if (primaryOrgId) {
+    const oid = primaryOrgId
+    afterResponse(() => ensureOrgGithubFresh(oid, { maxAgeMins: 20 }), 'dashboard org github sync')
+  }
 
   // Self-wellbeing snapshot (server-computed, rendered as a compact nudge above
   // the console). Leave balance is intentionally NOT shown here — see below.
@@ -153,27 +174,32 @@ export default async function DashboardPage() {
     .limit(1)
   const hasAnyShift = anyShift.length > 0
 
-  // Employee setup checklist (dashboard onboarding). Each step auto-completes
-  // from real state: a paired agent, a resolved Slack link, a GitHub username.
-  // Agent pairing is user-scoped (no org) — compute it for everyone so the
-  // standalone-employee dashboard can show its setup state too.
-  const pairedAgent = await db
-    .select({ id: schema.agentTokens.id })
-    .from(schema.agentTokens)
-    .where(and(eq(schema.agentTokens.userId, session.appUserId), isNull(schema.agentTokens.revokedAt)))
+  // Active shift (open = punched in) for the web punch control.
+  const activeShiftRows = await db
+    .select({ punchedInAt: schema.shifts.punchedInAt })
+    .from(schema.shifts)
+    .where(and(eq(schema.shifts.userId, session.appUserId), isNull(schema.shifts.punchedOutAt)))
+    .orderBy(desc(schema.shifts.punchedInAt))
     .limit(1)
-  const agentPaired = pairedAgent.length > 0
+  const activeSince = activeShiftRows[0]?.punchedInAt.toISOString() ?? null
   const githubLinked = me.githubId != null || !!me.githubLogin
+
+  // Connection state for the inline "Connections" card. GitHub + Calendar are
+  // the employee's own; Slack is org-level (read-only status for them).
+  const myGoogle = await db.query.accounts.findFirst({
+    where: and(
+      eq(schema.accounts.userId, session.appUserId),
+      eq(schema.accounts.provider, 'google'),
+      isNotNull(schema.accounts.access_token),
+    ),
+  })
+  const calendarConnected = !!myGoogle
+  const slackOrgConnected = !!primaryOrg?.org?.slackBotToken
+  const slackReachable = !!primaryOrg?.slackUserId
   const onboardingSteps: OnboardingStep[] = []
   if (primaryOrgId) {
-    onboardingSteps.push({
-      key: 'agent',
-      done: agentPaired,
-      title: 'Set up the Marina desktop agent',
-      body: 'Download and pair the agent so Marina tracks your focus time automatically — no manual logging.',
-      cta: 'Set up',
-      href: '/setup-guide',
-    })
+    // (The desktop-agent step is its own prominent download card below, so it's
+    // intentionally not duplicated in this compact checklist.)
     if (primaryOrg?.org?.slackBotToken) {
       onboardingSteps.push({
         key: 'slack',
@@ -204,7 +230,6 @@ export default async function DashboardPage() {
   // when the user hasn't got their activity in yet, so it doesn't nag people
   // who are already set up.
   const hasWorkEvents = events.length > 0
-  const needsWorkSetup = !githubLinked || !hasWorkEvents
 
   async function doSignOut() {
     'use server'
@@ -263,6 +288,9 @@ export default async function DashboardPage() {
             </div>
           </div>
           <nav className="flex items-center gap-2 sm:gap-4 text-[12px] sm:text-[13px] shrink-0">
+            {/* Punch in/out from the web. The desktop agent is on hold, so
+                everyone punches here for now (see the "coming soon" card). */}
+            <PunchControl activeSince={activeSince} />
             {/* A manager lands on their personal console too — this is the
                 prominent, unmistakable switch into the team/org dashboard.
                 Styled as a filled button (not a plain text link) so it reads as
@@ -332,11 +360,26 @@ export default async function DashboardPage() {
 
       <EmployeeOnboarding steps={onboardingSteps} />
 
-      {/* "Get credit for your work" — the employee features, available to every
-          signed-in user (solo or in an org). Connect/sync only shows until the
-          activity is in; the review packet is always available. */}
+      {/* Desktop agent is on hold — tease it with a dismissible "coming soon"
+          card. Everyone punches from the web for now (button up in the header). */}
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4">
+        <ComingSoonAgent variant="employee" />
+      </div>
+
+      {/* Connections + "get credit for your work". The inline Connections card
+          lets the employee enable GitHub / Calendar right here; the review packet
+          is always available. */}
       <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 grid gap-3">
-        {needsWorkSetup && <ConnectWork linked={githubLinked} hasEvents={hasWorkEvents} connectAction={githubConnectAction} />}
+        <IntegrationsPanel
+          variant="employee"
+          orgId={primaryOrgId}
+          github={{ connected: githubLinked }}
+          calendar={{ connected: calendarConnected }}
+          slack={{ connected: slackOrgConnected, detail: slackReachable ? "You're linked — use /marina in Slack." : undefined }}
+          githubConnectAction={githubConnectAction}
+          dismissible
+          settingsHref="/settings"
+        />
         <ReviewPacket hasGithub={githubLinked && hasWorkEvents} />
       </div>
 

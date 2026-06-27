@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { Modal } from '@/components/modal'
@@ -62,7 +62,28 @@ export default function TeamsClient({
   const [tab, setTab] = useState<Tab>('teams')
   const [teams, setTeams] = useState<Team[]>(initialTeams)
   const [editing, setEditing] = useState<Team | 'new' | null>(null)
+  const [highlightTeamId, setHighlightTeamId] = useState<number | null>(null)
   void viewerUserId
+
+  // Deep-link from the sidebar: /org/{id}/teams#team-{teamId} focuses that team —
+  // scroll it into view and flash a highlight ring. (The Teams tab is the
+  // default, so no tab switch is needed.) State is set inside a rAF, not
+  // synchronously in the effect, to avoid cascading renders + a hydration
+  // mismatch on first paint.
+  useEffect(() => {
+    const m = /^#team-(\d+)$/.exec(window.location.hash)
+    if (!m) return
+    const id = Number(m[1])
+    const raf = requestAnimationFrame(() => {
+      setHighlightTeamId(id)
+      document.getElementById(`team-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    const t = setTimeout(() => setHighlightTeamId(null), 2600)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(t)
+    }
+  }, [])
 
   const myTeams = useMemo(
     () => teams.filter((t) => t.memberMembershipIds.includes(viewerMembershipId)),
@@ -206,7 +227,12 @@ export default function TeamsClient({
                 return (
                   <li
                     key={t.id}
-                    className="rounded-xl border border-[var(--m-border)] bg-white p-4"
+                    id={`team-${t.id}`}
+                    className={`rounded-xl border bg-white p-4 scroll-mt-24 transition-shadow ${
+                      highlightTeamId === t.id
+                        ? 'border-[var(--m-accent)] shadow-[0_0_0_3px_var(--m-accent-soft)]'
+                        : 'border-[var(--m-border)]'
+                    }`}
                     style={t.color ? { borderLeftColor: t.color, borderLeftWidth: 4 } : undefined}
                   >
                     <div className="flex items-start justify-between gap-3 flex-wrap">

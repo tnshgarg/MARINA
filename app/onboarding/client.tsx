@@ -32,7 +32,7 @@ export default function OnboardingClient({
       const res = await fetch('/api/orgs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, agentEnabled: false }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || data?.error || 'failed')
@@ -93,22 +93,31 @@ export default function OnboardingClient({
       <section className="app-card app-card-lg">
         <h2 className="app-h2">Spin up an HQ</h2>
         <p className="app-sub mt-1">You&apos;ll be the founding member. Invite your team next.</p>
-        <form onSubmit={createOrg} className="mt-4 flex gap-2 flex-wrap">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Acme Engineering"
-            className="input flex-1 min-w-[200px]"
-            disabled={busy !== null}
-            maxLength={200}
-          />
-          <button
-            type="submit"
-            disabled={busy !== null || name.trim().length === 0}
-            className="btn-primary"
-          >
-            {busy === 'create' ? 'Creating…' : 'Create →'}
-          </button>
+        <form onSubmit={createOrg} className="mt-4">
+          <div className="flex gap-2 flex-wrap">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Acme Engineering"
+              className="input flex-1 min-w-[200px]"
+              disabled={busy !== null}
+              maxLength={200}
+            />
+            <button
+              type="submit"
+              disabled={busy !== null || name.trim().length === 0}
+              className="btn-primary"
+            >
+              {busy === 'create' ? 'Creating…' : 'Create →'}
+            </button>
+          </div>
+
+          {/* Time tracking: your team punches in/out from the web. The Marina
+              desktop agent (automatic activity tracking) is coming soon. */}
+          <p className="mt-4 text-[12px] text-[var(--m-ink-3)]">
+            Your team will punch in/out from the web. Automatic tracking via the Marina
+            desktop agent is <span className="font-medium text-[var(--m-ink-2)]">coming soon</span>.
+          </p>
         </form>
       </section>
 

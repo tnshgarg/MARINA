@@ -35,12 +35,19 @@ export type SyncResult = {
 }
 
 export async function getAccessToken(userId: number): Promise<string | null> {
-  const account = await db.query.accounts.findFirst({
-    where: and(
-      eq(schema.accounts.userId, userId),
-      eq(schema.accounts.provider, 'google'),
-    ),
+  // A user can have MORE THAN ONE google `account` row (the table is keyed on
+  // provider + providerAccountId, not user). Always pick the account they
+  // actually CONNECTED for Calendar — the one carrying calendar scope + a
+  // refresh_token — never a bare Google-SSO identity row. Otherwise events get
+  // created on the wrong Google account (the sign-in account, not the connected
+  // calendar account).
+  const rows = await db.query.accounts.findMany({
+    where: and(eq(schema.accounts.userId, userId), eq(schema.accounts.provider, 'google')),
   })
+  const account =
+    rows.find((a) => a.refresh_token && (a.scope ?? '').includes('calendar')) ??
+    rows.find((a) => a.refresh_token) ??
+    rows[0]
   if (!account) return null
 
   const nowSec = Math.floor(Date.now() / 1000)

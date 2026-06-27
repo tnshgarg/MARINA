@@ -12,9 +12,41 @@ import { registerPairingIpc } from './pairing'
 import { openOnboardingWindow, registerOnboardingIpc } from './onboarding'
 import { registerBreakIpc, openBreakWindow } from './break'
 import { registerLeaveIpc } from './leave'
-import { registerPunchIpc } from './punch'
+import { registerPunchIpc, performPunchIn, openPunchOutWindow } from './punch'
 import { registerDoneIpc, openDoneWindow } from './done'
 import { startNotifications, stopNotifications } from './notifications'
+
+/**
+ * Deep-link handler for the `marina://` protocol. The web app uses this to let
+ * an employee punch in/out from the browser while still going through the
+ * desktop agent (so activity tracking stays on). Shapes we accept:
+ *   marina://punch          → toggle (punch out if on shift, else punch in)
+ *   marina://punch/in       → punch in
+ *   marina://punch/out      → open the punch-out summary window
+ */
+function handleDeepLink(rawUrl: string | undefined): void {
+  if (!rawUrl) return
+  let action = ''
+  try {
+    const u = new URL(rawUrl)
+    if (u.protocol !== 'marina:') return
+    // marina://punch/in → host 'punch', path '/in'. Be lenient about both.
+    const seg = `${u.hostname}${u.pathname}`.replace(/\/+$/, '').toLowerCase()
+    if (seg === 'punch' || seg === 'punch/in') action = 'in'
+    else if (seg === 'punch/out') action = 'out'
+    else if (seg === 'punch') action = 'toggle'
+  } catch {
+    return
+  }
+  if (!action) return
+
+  const onShift = !!bus.get().activeShift
+  if (action === 'out' || (action === 'toggle' && onShift)) {
+    openPunchOutWindow()
+  } else {
+    void performPunchIn()
+  }
+}
 
 // Single-instance lock — second launch focuses any open pairing/consent window.
 const got = app.requestSingleInstanceLock()
@@ -22,9 +54,18 @@ if (!got) {
   app.quit()
 }
 
-app.on('second-instance', () => {
-  // Bring something interactive to the front if a window is open.
-  // No-op otherwise — the agent is a menubar app.
+app.on('second-instance', (_e, argv) => {
+  // Windows/Linux deliver `marina://…` deep links as an argv entry on the
+  // second launch (the first instance owns the lock). macOS uses 'open-url'.
+  const deepLink = argv.find((a) => a.startsWith('marina://'))
+  if (deepLink) handleDeepLink(deepLink)
+  // Otherwise no-op — the agent is a menubar app with nothing to refocus.
+})
+
+// macOS delivers deep links here (can fire before whenReady on a cold launch).
+app.on('open-url', (e, url) => {
+  e.preventDefault()
+  handleDeepLink(url)
 })
 
 // macOS: prevent the dock icon entirely. (Also handled via LSUIElement in plist.)
@@ -58,6 +99,20 @@ app.on('before-quit', async (e) => {
 
 app.whenReady().then(async () => {
   console.log('marina-agent', AGENT_VERSION, 'starting')
+
+  // Register as the handler for marina:// so the web app can launch a punch.
+  // In production electron-builder also writes the OS association; this call
+  // covers dev and re-asserts it on every boot.
+  try {
+    app.setAsDefaultProtocolClient('marina')
+  } catch (err) {
+    console.error('setAsDefaultProtocolClient failed', err)
+  }
+  // Windows cold-launch: the deep link is in our own argv.
+  if (process.platform !== 'darwin') {
+    const deepLink = process.argv.find((a) => a.startsWith('marina://'))
+    if (deepLink) setTimeout(() => handleDeepLink(deepLink), 1500)
+  }
 
   // Auto-launch at login (off in dev — only persist for packaged builds).
   if (app.isPackaged) {

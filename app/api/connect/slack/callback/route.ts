@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const orgId = Number(state?.split('.')[0] ?? '0')
   const failRedirect = (reason: string) =>
     NextResponse.redirect(
-      new URL(`/org/${orgId}/settings/integrations?slack_error=${encodeURIComponent(reason)}`, req.url),
+      new URL(`/org/${orgId}?slack_error=${encodeURIComponent(reason)}`, req.url),
     )
 
   if (error) return failRedirect(error)
@@ -93,6 +93,6 @@ export async function GET(req: Request) {
   })
 
   return NextResponse.redirect(
-    new URL(`/org/${orgId}/settings/integrations?slack=connected`, req.url),
+    new URL(`/org/${orgId}?slack=connected`, req.url),
   )
 }

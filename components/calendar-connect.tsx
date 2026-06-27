@@ -6,7 +6,7 @@ import { useState } from 'react'
  * Google Calendar connect/disconnect for the employee settings page.
  * Connect 302s through the OAuth start endpoint; sync + disconnect are POSTs.
  */
-export function CalendarConnect({ connected }: { connected: boolean }) {
+export function CalendarConnect({ connected, returnTo = '/settings' }: { connected: boolean; returnTo?: string }) {
   const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -31,7 +31,7 @@ export function CalendarConnect({ connected }: { connected: boolean }) {
 
   if (!connected) {
     return (
-      <a href="/api/connect/google/start?return_to=/settings" className="btn-sage text-[13px] inline-flex">
+      <a href={`/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}`} className="btn-sage text-[13px] inline-flex">
         Connect Google Calendar
       </a>
     )

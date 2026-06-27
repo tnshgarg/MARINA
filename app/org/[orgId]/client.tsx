@@ -13,6 +13,8 @@ import { BlockerResolver } from '@/components/blocker-resolver'
 import { ScheduleMeetingDialog } from '@/components/schedule-meeting-dialog'
 import { TeamChat } from '@/components/team-chat'
 import { MarinaBrief, marinaBriefLine } from '@/components/marina-brief'
+import { ComingSoonAgent } from '@/components/coming-soon-agent'
+import { IntegrationsPanel } from '@/components/integrations-panel'
 import { DashboardTour } from '@/components/dashboard-tour'
 
 type Signal = 'High' | 'Steady' | 'Low' | 'Blocked'
@@ -173,6 +175,7 @@ export default function TeamDashboardClient({
   slackAlerts,
   pendingLeaves,
   recentBreaks,
+  integrations,
 }: {
   orgId: number
   viewerUserId: number
@@ -185,6 +188,14 @@ export default function TeamDashboardClient({
   slackAlerts: SlackAlert[]
   pendingLeaves: PendingLeave[]
   recentBreaks: RecentBreak[]
+  /** Connection state for the inline "Connections" card. */
+  integrations: {
+    githubInstalled: boolean
+    githubAppInstallUrl: string
+    calendarConnected: boolean
+    slackConnected: boolean
+    slackTeamName: string | null
+  }
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -392,6 +403,33 @@ export default function TeamDashboardClient({
       <div data-tour="brief">
         <MarinaBrief greeting={greeting} line={marinaBriefLine(snapshot)} />
       </div>
+
+      {/* Desktop agent is on hold — a dismissible "coming soon" teaser. The team
+          punches in/out from the web for now. */}
+      <div className="mb-6">
+        <ComingSoonAgent variant="manager" />
+      </div>
+
+      {/* Connections — inline on the dashboard so there's no separate page to
+          hunt for. Drops away once GitHub, Slack and Calendar are all set up. */}
+      {!(integrations.githubInstalled && integrations.slackConnected && integrations.calendarConnected) && (
+        <div className="mb-6">
+          <IntegrationsPanel
+            variant="manager"
+            orgId={orgId}
+            github={{ connected: integrations.githubInstalled }}
+            calendar={{ connected: integrations.calendarConnected }}
+            slack={{
+              connected: integrations.slackConnected,
+              detail: integrations.slackTeamName ? `Connected to ${integrations.slackTeamName}.` : undefined,
+            }}
+            githubAppInstallUrl={integrations.githubAppInstallUrl}
+            calendarReturnTo={`/org/${orgId}`}
+            dismissible
+            settingsHref={`/org/${orgId}/settings`}
+          />
+        </div>
+      )}
 
       {/* Inline stats — typography-led, no boxes. Org productivity is the
           headline KPI: HR can glance and tell whether the org as a whole is

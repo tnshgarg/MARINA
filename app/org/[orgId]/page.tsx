@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, isNotNull, or } from 'drizzle-orm'
 // Shifts: ongoing (no punch-out) per user.
 import { auth } from '@/auth'
 import { db, schema } from '@/lib/db/client'
@@ -40,6 +40,13 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
 
   const org = await db.query.orgs.findFirst({ where: eq(schema.orgs.id, orgId) })
   if (!org) notFound()
+
+  // Keep the team's GitHub activity fresh whenever a manager opens the HQ
+  // (debounced + non-blocking). This is what carries each employee's commits,
+  // PRs and reviews to the manager without anyone hitting a sync button.
+  const { afterResponse } = await import('@/lib/after')
+  const { ensureOrgGithubFresh } = await import('@/lib/github/auto-sync')
+  afterResponse(() => ensureOrgGithubFresh(orgId, { maxAgeMins: 20 }), 'org HQ github sync')
 
   // Visibility scoping: admins see every active member; managers + leads see
   // only their reports-to chain + members of teams they manage. The helper
@@ -358,10 +365,29 @@ export default async function OrgPage({ params }: { params: Promise<{ orgId: str
     })
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
 
+  // Connection state for the inline "Connections" card on the manager
+  // dashboard: GitHub App (org), Slack (org), Calendar (the manager's own).
+  const { appInstallUrl } = await import('@/lib/github/app')
+  const myGoogle = await db.query.accounts.findFirst({
+    where: and(
+      eq(schema.accounts.userId, session.appUserId),
+      eq(schema.accounts.provider, 'google'),
+      isNotNull(schema.accounts.access_token),
+    ),
+  })
+  const integrations = {
+    githubInstalled: (org as { githubInstallationId?: number | null }).githubInstallationId != null,
+    githubAppInstallUrl: appInstallUrl(orgId),
+    calendarConnected: !!myGoogle,
+    slackConnected: !!org.slackBotToken,
+    slackTeamName: (org as { slackTeamName?: string | null }).slackTeamName ?? null,
+  }
+
   return (
     <TeamDashboardClient
       orgId={orgId}
       viewerUserId={session.appUserId}
+      integrations={integrations}
       isManager={isManager}
       isOwner={isOwner}
       greeting={greeting}

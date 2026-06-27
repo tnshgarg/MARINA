@@ -188,11 +188,11 @@ function BlockerRow({
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         <CharacterAvatar characterKey={blocker.blockedUser.characterKey} name={blocker.blockedUser.name} login={blocker.blockedUser.login} size={36} />
         <div className="min-w-0">
-          <p className="text-[13.5px] font-medium text-[var(--m-ink)] truncate">
+          <p className="text-[13.5px] font-semibold text-[var(--m-ink)] truncate">
             {blocker.blockedUser.name ?? `@${blocker.blockedUser.login}`}
           </p>
-          <p className="text-[12px] text-[var(--m-ink-3)] truncate font-display italic">
-            “{blocker.reason}”
+          <p className="text-[13px] text-[var(--m-ink-2)] leading-snug line-clamp-2">
+            {blocker.reason}
           </p>
         </div>
       </div>

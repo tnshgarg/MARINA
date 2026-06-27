@@ -15,6 +15,7 @@ import { afterResponse } from '@/lib/after'
 export async function punchIn(
   userId: number,
   orgId?: number | null,
+  via = 'slack',
 ): Promise<{ ok: true; shiftId: number; alreadyOpen: boolean } | { ok: false; error: string }> {
   let resolvedOrg = orgId ?? null
   if (resolvedOrg == null) {
@@ -32,7 +33,7 @@ export async function punchIn(
   try {
     const [row] = await db
       .insert(schema.shifts)
-      .values({ userId, orgId: resolvedOrg ?? undefined, punchedInVia: 'slack' })
+      .values({ userId, orgId: resolvedOrg ?? undefined, punchedInVia: via })
       .returning()
     return { ok: true, shiftId: row.id, alreadyOpen: false }
   } catch {
@@ -121,8 +122,9 @@ async function recordPunchOut(
 export async function punchOut(
   userId: number,
   summary: string,
+  via = 'slack',
 ): Promise<{ ok: true; status: string; score: number } | { ok: false; error: string }> {
-  const rec = await recordPunchOut(userId, summary, 'slack')
+  const rec = await recordPunchOut(userId, summary, via)
   if (!rec.ok) return rec
   afterResponse(() => buildStory(userId, new Date()), 'punchout story')
   const v = await finalizeShiftVerification(rec.shiftId)

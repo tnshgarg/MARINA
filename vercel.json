@@ -11,6 +11,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/api/cron/github",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/cron/states",
       "schedule": "30 18 * * *"
     },

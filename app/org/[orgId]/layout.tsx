@@ -1,11 +1,10 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, eq, inArray, isNull, isNotNull } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, listMembershipsForCurrentUser, requireMembership, roleAtLeast } from '@/lib/auth/guards'
 import { capabilitiesFor } from '@/lib/auth/capabilities'
 import { getVisibleScope } from '@/lib/auth/scope'
-import { isTestMode } from '@/lib/dev-state'
 import { OrgSidebar } from '@/components/org-sidebar'
 import { MobileNav } from '@/components/mobile-nav'
 import { AnnouncementBanner } from '@/components/announcement-banner'
@@ -80,20 +79,14 @@ export default async function OrgLayout({
     logoUrl: (m.org as { logoUrl?: string | null }).logoUrl ?? null,
   }))
 
-  // Active integrations → the Arc-style pinned strip in the sidebar. GitHub +
-  // Slack are org-level; Calendar is per-viewer (their own Google link).
-  const myCalendar = await db.query.accounts.findFirst({
-    where: and(
-      eq(schema.accounts.userId, session.appUserId),
-      eq(schema.accounts.provider, 'google'),
-      isNotNull(schema.accounts.access_token),
-    ),
-  })
-  const integrations = {
-    github: isTestMode() || (org as { githubInstallationId?: number | null }).githubInstallationId != null,
-    calendar: isTestMode() || !!myCalendar,
-    slack: isTestMode() || !!org.slackBotToken,
-  }
+  // All teams in this workspace — shown in the sidebar for quick access. Managers
+  // only ever reach /org/* so showing team names here is safe; the teams page
+  // itself scopes any sensitive detail.
+  const orgTeams = await db
+    .select({ id: schema.teams.id, name: schema.teams.name, color: schema.teams.color })
+    .from(schema.teams)
+    .where(eq(schema.teams.orgId, orgId))
+    .orderBy(schema.teams.name)
 
   return (
     <div className="app-shell">
@@ -113,7 +106,7 @@ export default async function OrgLayout({
           ),
         ]}
         orgs={orgs}
-        integrations={integrations}
+        teams={orgTeams}
         pendingLeaveCount={pendingLeaveCount}
         signOutAction={signOutAction}
       />

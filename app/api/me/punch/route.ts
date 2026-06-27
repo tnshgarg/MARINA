@@ -25,11 +25,11 @@ export async function POST(req: Request) {
   }
 
   if (action === 'in') {
-    const r = await punchIn(session.appUserId)
+    const r = await punchIn(session.appUserId, null, 'web')
     return NextResponse.json({ ...r })
   }
   if (action === 'out') {
-    const r = await punchOut(session.appUserId, summary || 'Wrapped up for the day.')
+    const r = await punchOut(session.appUserId, summary || 'Wrapped up for the day.', 'web')
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 })
     return NextResponse.json({ ok: true })
   }

@@ -29,6 +29,14 @@
     "productName": "Marina",
     "asar": true,
     "npmRebuild": false,
+    "protocols": [
+      {
+        "name": "Marina",
+        "schemes": [
+          "marina"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build",
       "output": "release"

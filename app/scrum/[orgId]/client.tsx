@@ -77,6 +77,8 @@ type Brief = {
   standupToday: { yesterday: string; today: string; blockers: string } | null
   resolvedBlockers: Array<{ reason: string; waitingOn: string; resolution: string; endedAt: string }>
   deliverables: Array<{ id: number; title: string; url: string | null; completedAt: string }>
+  /** Self-logged work from the last 24h — shown in the standup "yesterday" view. */
+  yesterdayDeliverables: Array<{ id: number; title: string; url: string | null; completedAt: string }>
   weekMeetings: Array<{ id: number; title: string; startAt: string; endAt: string }>
   pendingLeaves: Array<{ id: number; leaveType: string; startDate: string; endDate: string; reason: string | null }>
   upcomingLeaves: Array<{ id: number; leaveType: string; startDate: string; endDate: string }>
@@ -618,6 +620,23 @@ function BriefPane({
                     ))}
                   </ul>
                 )}
+                {brief.yesterdayDeliverables.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--m-border-soft)]">
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--m-accent)] font-semibold mb-1.5">Also logged yesterday</p>
+                    <ul className="space-y-1">
+                      {brief.yesterdayDeliverables.map((d) => (
+                        <li key={d.id} className="flex items-baseline gap-2 text-[13.5px] leading-snug">
+                          <span className="shrink-0 inline-block w-1.5 h-1.5 rounded-full mt-1.5 bg-[var(--m-accent)]" />
+                          {d.url ? (
+                            <a href={d.url} target="_blank" rel="noreferrer" className="text-[var(--m-ink)] hover:text-[var(--m-accent)] flex-1">{d.title}</a>
+                          ) : (
+                            <span className="text-[var(--m-ink)] flex-1">{d.title}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </section>
             ) : (
               <section className="lg:col-span-2 rounded-xl border border-[var(--m-border)] bg-white p-5">
@@ -634,6 +653,23 @@ function BriefPane({
                   <p className="mt-2 text-[13px] text-[var(--m-ink-3)]">
                     No story captured yet. The agent generates one once they punch out.
                   </p>
+                )}
+                {brief.yesterdayDeliverables.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--m-border-soft)]">
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--m-accent)] font-semibold mb-1.5">Logged yesterday</p>
+                    <ul className="space-y-1">
+                      {brief.yesterdayDeliverables.map((d) => (
+                        <li key={d.id} className="flex items-baseline gap-2 text-[13.5px] leading-snug">
+                          <span className="shrink-0 inline-block w-1.5 h-1.5 rounded-full mt-1.5 bg-[var(--m-accent)]" />
+                          {d.url ? (
+                            <a href={d.url} target="_blank" rel="noreferrer" className="text-[var(--m-ink)] hover:text-[var(--m-accent)] flex-1">{d.title}</a>
+                          ) : (
+                            <span className="text-[var(--m-ink)] flex-1">{d.title}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </section>
             )}
@@ -1128,6 +1164,11 @@ function deriveBrief(detail: {
       endedAt: b.endedAt as string,
     }))
   const deliverables = (detail.recentDeliverables ?? []).slice(0, 6)
+  // Self-logged work from the last 24h — the "what did you do yesterday" answer
+  // standup needs (essential for HR; non-engineering folks rarely have GitHub).
+  const yesterdayDeliverables = (detail.recentDeliverables ?? []).filter(
+    (d) => new Date(d.completedAt).getTime() >= last24h,
+  )
   const weekMeetings = detail.weekMeetings ?? []
   const pendingLeaves = (detail.recentLeaves ?? [])
     .filter((l) => l.status === 'pending')
@@ -1145,7 +1186,8 @@ function deriveBrief(detail: {
     yesterdayReviews,
     yesterdayIssuesClosed,
     yesterdayDeliverableTotal:
-      yesterdayCommits + yesterdayPrsOpened + yesterdayReviews + yesterdayIssuesClosed,
+      yesterdayCommits + yesterdayPrsOpened + yesterdayReviews + yesterdayIssuesClosed + yesterdayDeliverables.length,
+    yesterdayDeliverables,
     events: recent.slice(0, 20),
     activeBlocker,
     shiftSummary: detail.latestShift?.workSummary ?? null,

@@ -14,6 +14,7 @@ type Initial = {
   trialEndsAt: string | null
   logoUrl: string | null
   leavePolicy: Record<string, number> | null
+  agentEnabled: boolean
 }
 
 export default function OrgSettingsClient({
@@ -286,6 +287,24 @@ export default function OrgSettingsClient({
               ))}
             </select>
           </div>
+        </div>
+      </section>
+
+      {/* Time tracking — the desktop agent is on hold, so the team punches in/out
+          from the web for now. No toggle while the agent is paused. */}
+      <section className="rounded-xl border border-[var(--m-border)] bg-white p-5">
+        <h2 className="text-[13.5px] font-semibold text-[var(--m-ink)]">Time tracking</h2>
+        <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
+          Your team punches in and out from the web. Automatic activity tracking via the
+          Marina desktop agent is coming soon.
+        </p>
+        <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--m-border)] bg-[var(--m-bg-soft)] px-3 py-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--m-good)]" aria-hidden />
+          <span className="text-[12.5px] font-medium text-[var(--m-ink)]">Web punch</span>
+          <span className="text-[11px] text-[var(--m-ink-4)]">· active</span>
+          <span className="ml-2 text-[10.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-[var(--m-accent-soft)] text-[var(--m-accent-2)]">
+            Agent coming soon
+          </span>
         </div>
       </section>
 
