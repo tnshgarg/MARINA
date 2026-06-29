@@ -209,10 +209,13 @@ export default async function DashboardPage() {
         <ComingSoonAgent variant="employee" />
       </div>
 
-      {/* Day controls — break, blocker, leave + the active break/blocked banner. */}
-      <div className="mb-4">
-        <EmployeeActions orgId={primaryOrgId} activeBreak={activeBreakDto} />
-      </div>
+      {/* Active break/blocked banner only — the action buttons now live in the
+          sidebar footer (reachable from any page). */}
+      {activeBreakDto && (
+        <div className="mb-4">
+          <EmployeeActions orgId={primaryOrgId} activeBreak={activeBreakDto} variant="banner" />
+        </div>
+      )}
 
       {/* Live "Your day" read — productivity, shipped, meetings remaining. */}
       <div className="mb-5">

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { CharacterAvatar } from '@/components/character-avatar'
 import { MarinaMark } from '@/components/marina-mark'
 import { NotificationBell } from '@/components/notification-bell'
-import { PunchControl } from '@/components/punch-control'
+import { EmployeeActions } from '@/components/employee-actions'
 
 /**
  * Employee dashboard sidebar — turns the personal console into a real,
@@ -24,6 +24,7 @@ export function EmployeeSidebar({
   userAvatarUrl,
   characterKey,
   activeSince,
+  activeBreak = null,
   signOutAction,
 }: {
   orgId: number | null
@@ -34,6 +35,7 @@ export function EmployeeSidebar({
   userAvatarUrl: string | null
   characterKey: string | null
   activeSince: string | null
+  activeBreak?: { id: number; startedAt: string; reason: string; category: string } | null
   signOutAction: () => Promise<void> | void
 }) {
   const pathname = usePathname() ?? ''
@@ -102,7 +104,7 @@ export function EmployeeSidebar({
 
       <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-[var(--m-border-soft)] bg-white">
         <div className="mb-2.5">
-          <PunchControl activeSince={activeSince} />
+          <EmployeeActions variant="sidebar" orgId={orgId} activeSince={activeSince} activeBreak={activeBreak} />
         </div>
         <div className="flex items-center gap-2 flex-nowrap min-h-[44px]">
           <div className="flex items-center gap-2 min-w-0 flex-1">

@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { auth, signOut as serverSignOut } from '@/auth'
 import { db, schema } from '@/lib/db/client'
 import { HttpError, listMembershipsForCurrentUser, requireMembership, roleAtLeast } from '@/lib/auth/guards'
@@ -88,6 +88,22 @@ export default async function OrgLayout({
     .where(eq(schema.teams.orgId, orgId))
     .orderBy(schema.teams.name)
 
+  // The manager's OWN open shift + break — powers the sidebar day-controls
+  // (punch / break / blocked / leave) so they can act from any org page.
+  const managerShiftRows = await db
+    .select({ punchedInAt: schema.shifts.punchedInAt })
+    .from(schema.shifts)
+    .where(and(eq(schema.shifts.userId, session.appUserId), isNull(schema.shifts.punchedOutAt)))
+    .orderBy(desc(schema.shifts.punchedInAt))
+    .limit(1)
+  const managerActiveSince = managerShiftRows[0]?.punchedInAt.toISOString() ?? null
+  const managerBreakRow = await db.query.breaks.findFirst({
+    where: and(eq(schema.breaks.userId, session.appUserId), isNull(schema.breaks.endedAt)),
+  })
+  const managerActiveBreak = managerBreakRow
+    ? { id: managerBreakRow.id, startedAt: managerBreakRow.startedAt.toISOString(), reason: managerBreakRow.reason, category: managerBreakRow.category }
+    : null
+
   return (
     <div className="app-shell">
       <OrgSidebar
@@ -108,6 +124,8 @@ export default async function OrgLayout({
         orgs={orgs}
         teams={orgTeams}
         pendingLeaveCount={pendingLeaveCount}
+        activeSince={managerActiveSince}
+        activeBreak={managerActiveBreak}
         signOutAction={signOutAction}
       />
       <main className="bg-[var(--m-bg)] min-w-0">

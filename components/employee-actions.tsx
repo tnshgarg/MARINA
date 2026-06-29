@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { PunchControl } from '@/components/punch-control'
 
 /**
  * Compact employee day-controls: Take break, Mark blocked, Request leave —
@@ -21,12 +23,17 @@ type ActiveBreak = { id: number; startedAt: string; reason: string; category: st
 export function EmployeeActions({
   orgId,
   activeBreak,
+  activeSince = null,
   variant = 'inline',
 }: {
   orgId: number | null
   activeBreak: ActiveBreak
-  /** 'inline' = full button row + banner (Overview). 'banner' = banner only. */
-  variant?: 'inline' | 'banner'
+  /** ISO of the open shift's punch-in, or null when off-clock. Drives the
+   *  sidebar punch control + gates break/blocked to on-shift only. */
+  activeSince?: string | null
+  /** 'inline' = full button row + banner (Overview). 'banner' = banner only.
+   *  'sidebar' = compact punch + day-actions for the sidebar footer. */
+  variant?: 'inline' | 'banner' | 'sidebar'
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
@@ -147,8 +154,51 @@ export function EmployeeActions({
 
   return (
     <div>
-      {/* Active break / blocked banner */}
-      {activeBreak && (
+      {/* Compact sidebar footer controls: punch + day actions, always reachable. */}
+      {variant === 'sidebar' && (
+        <div className="space-y-2">
+          <PunchControl activeSince={activeSince} />
+          {activeBreak ? (
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11.5px] ${
+                isBlocked
+                  ? 'border-[var(--m-bad)]/30 bg-[var(--m-bad)]/[0.06] text-[var(--m-bad)]'
+                  : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
+            >
+              <span className="font-medium truncate">
+                {isBlocked ? 'Blocked' : 'On break'} · <span className="tabular-nums">{formatElapsed(breakElapsed)}</span>
+              </span>
+              <button
+                onClick={endBreak}
+                disabled={busy === 'break-end'}
+                className="ml-auto shrink-0 font-semibold hover:underline underline-offset-2 disabled:opacity-50"
+              >
+                {busy === 'break-end' ? '…' : isBlocked ? 'Unblock' : 'End'}
+              </button>
+            </div>
+          ) : activeSince ? (
+            <div className="grid grid-cols-3 gap-1">
+              <SideActionBtn icon={<CoffeeIcon />} label="Break" onClick={() => { setBreakReason(''); setBreakOpen('break') }} disabled={busy !== null} />
+              <SideActionBtn icon={<BlockIcon />} label="Blocked" onClick={() => { setBreakReason(''); setBreakOpen('blocked') }} disabled={busy !== null} title="Stuck waiting on someone or something" />
+              <SideActionBtn icon={<LeafIcon />} label="Leave" onClick={() => setLeaveOpen(true)} disabled={busy !== null || !orgId} title={!orgId ? 'Join a team first' : undefined} />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLeaveOpen(true)}
+              disabled={!orgId}
+              className="w-full inline-flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-[var(--m-ink-2)] border border-[var(--m-border)] rounded-lg py-1.5 hover:border-[var(--m-accent)] hover:text-[var(--m-accent-2)] transition-colors disabled:opacity-50"
+              title={!orgId ? 'Join a team first' : undefined}
+            >
+              <LeafIcon /> Request leave
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Active break / blocked banner (Overview only) */}
+      {variant !== 'sidebar' && activeBreak && (
         <div
           className="app-card app-card-lg mb-3"
           style={
@@ -330,8 +380,11 @@ export function EmployeeActions({
 }
 
 function Modal({ children, title, onClose }: { children: React.ReactNode; title: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-[var(--m-ink)]/40" onClick={onClose}>
+  // Portal to <body> so the dialog escapes the sidebar's stacking context —
+  // otherwise the main content (a later grid sibling) paints over it.
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-[var(--m-ink)]/40" onClick={onClose}>
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="app-h2">{title}</h2>
@@ -341,7 +394,61 @@ function Modal({ children, title, onClose }: { children: React.ReactNode; title:
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** Compact stacked icon+label button for the sidebar action row. */
+function SideActionBtn({
+  icon,
+  label,
+  onClick,
+  disabled,
+  title,
+}: {
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-[var(--m-border)] bg-white py-1.5 text-[var(--m-ink-2)] hover:border-[var(--m-accent)] hover:text-[var(--m-accent-2)] transition-colors disabled:opacity-40 disabled:hover:border-[var(--m-border)] disabled:hover:text-[var(--m-ink-2)]"
+    >
+      <span className="w-4 h-4 inline-flex">{icon}</span>
+      <span className="text-[10px] font-medium leading-none">{label}</span>
+    </button>
+  )
+}
+
+function CoffeeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 8h13v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z" />
+      <path d="M17 9h2a2 2 0 0 1 0 4h-2M7 3v2M11 3v2" />
+    </svg>
+  )
+}
+function BlockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <circle cx={12} cy={12} r={9} />
+      <path d="M5.6 5.6l12.8 12.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+function LeafIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
+      <path d="M5 19c10 0 14-7 14-14-7 0-14 4-14 14Z" />
+      <path d="M5 19l7-7" strokeLinecap="round" />
+    </svg>
   )
 }
 

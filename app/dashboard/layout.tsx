@@ -34,6 +34,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .limit(1)
   const activeSince = activeShiftRows[0]?.punchedInAt.toISOString() ?? null
 
+  // Open break / blocker (if any) for the sidebar day-controls.
+  const breakRow = await db.query.breaks.findFirst({
+    where: and(eq(schema.breaks.userId, session.appUserId), isNull(schema.breaks.endedAt)),
+  })
+  const activeBreak = breakRow
+    ? { id: breakRow.id, startedAt: breakRow.startedAt.toISOString(), reason: breakRow.reason, category: breakRow.category }
+    : null
+
   async function doSignOut() {
     'use server'
     await signOut({ redirectTo: '/' })
@@ -50,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         userAvatarUrl={me.image ?? me.avatarUrl ?? null}
         characterKey={me.characterKey}
         activeSince={activeSince}
+        activeBreak={activeBreak}
         signOutAction={doSignOut}
       />
       <main className="bg-[var(--m-bg)] min-w-0">

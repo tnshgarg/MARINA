@@ -537,7 +537,7 @@ export function MemberDetailModal({
               (The old always-on "QuickRead" banner was removed — the Today tab's
               TodaySnapshot already surfaces blocked/at-risk state, so a second
               copy up here just duplicated it.) */}
-          <div className="sticky top-0 z-20 -mx-6 px-6 pb-2 bg-white border-b border-[var(--m-border)] flex items-center mb-5">
+          <div className="sticky top-0 z-20 -mx-6 -mt-5 px-6 pt-5 pb-2 bg-white border-b border-[var(--m-border)] flex items-center mb-5">
             <TabBtn
               label="Today"
               active={tab === "today"}

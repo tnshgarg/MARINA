@@ -7,6 +7,7 @@ import { MarinaMark } from "@/components/marina-mark";
 import { NavLink } from "@/components/nav-link";
 import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher, type SwitcherOrg } from "@/components/org-switcher";
+import { EmployeeActions } from "@/components/employee-actions";
 
 // A leaf is a single navigable destination. It can live at the top level
 // (a "single link" group) or nested inside an expandable group.
@@ -461,6 +462,8 @@ export function OrgSidebar({
   orgs = [],
   teams = [],
   pendingLeaveCount = 0,
+  activeSince = null,
+  activeBreak = null,
   signOutAction,
 }: {
   orgId: number;
@@ -480,6 +483,9 @@ export function OrgSidebar({
   userAvatarUrl?: string | null;
   role: string;
   pendingLeaveCount?: number;
+  /** The manager's own open shift + break — for the footer day-controls. */
+  activeSince?: string | null;
+  activeBreak?: { id: number; startedAt: string; reason: string; category: string } | null;
   signOutAction: () => Promise<void> | void;
 }) {
   void characterKey; // intentionally unused — character roster retired
@@ -762,6 +768,14 @@ export function OrgSidebar({
           dot. `flex-nowrap` keeps it on one line; `shrink-0` on the buttons
           guarantees they don't get cropped when the name is very long. */}
       <div className="nav-footer shrink-0 px-4 pb-4 pt-3 border-t border-[var(--m-border-soft)] bg-white">
+        {/* Day controls — punch in/out, take a break, mark blocked, request
+            leave — for the manager themselves, reachable from any org page.
+            Hidden in the slim rail (expand the sidebar to use them). */}
+        {!rail && (
+          <div className="mb-2.5">
+            <EmployeeActions variant="sidebar" orgId={orgId} activeSince={activeSince} activeBreak={activeBreak} />
+          </div>
+        )}
         {/* Prominent context switch back to the viewer's OWN dashboard. A
             manager/HR is an employee too: the org "Dashboard" up top is the
             TEAM view, this is their PERSONAL one (punch in/out, breaks, leave,
